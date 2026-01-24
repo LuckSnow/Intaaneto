@@ -1,0 +1,38 @@
+# Django Core
+Django==5.0.1
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+
+# Database
+psycopg2-binary==2.9.9
+
+# Authentication
+djangorestframework-simplejwt==5.3.1
+
+# Environment Variables
+python-decouple==3.8
+
+# File Upload
+Pillow==10.2.0
+
+# AI Integration
+openai==1.10.0
+
+# API Documentation
+drf-yasg==1.21.7
+
+# Testing
+pytest==7.4.4
+pytest-django==4.7.0
+
+# Code Quality
+black==24.1.1
+flake8==7.0.0
+
+# Utilities
+python-slugify==8.0.1
+django-filter==23.5
+
+# Production Server (optional)
+gunicorn==21.2.0
+whitenoise==6.6.0
