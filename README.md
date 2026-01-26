@@ -5,12 +5,15 @@
 Intaaneto là nền tảng học lập trình web được thiết kế dành riêng cho học sinh cấp 2, với giao diện thân thiện và trợ lý AI hỗ trợ 24/7.
 
 ### 🎯 Tính năng chính
+- Trang web __tập trung__ vào phát triển module kiểm tra kiến thức bài tập, cho 1 mốc điểm để kiểm tra bài tập của học sinh.__Nếu không vượt qua mốc điểm này, học sinh sẽ không hoàn thành module__ bài học đó. Cho nên sẽ cần AI hỗ trợ để củng cố lại kiến thức/Hoặc đọc lại phần bài giảng.
+- Phần bài giảng sinh động, dễ hiểu với ví dụ minh họa cụ thể về HTML, CSS, JavaScript cơ bản.
+- Nếu có thể thì phần bài giảng sẽ có 1 mô hình AI tạo avt tự động, video âm thanh để học sinh dễ hiểu, có 1 ô chức năng hỏi đáp với trợ lý AI nhưng mà không khô khan như việc chỉ có nhắn tin văn bản. 
 
-- 🤖 **Trợ lý AI**: Giải đáp thắc mắc, hướng dẫn làm bài tập
-- 📚 **Bài giảng sinh động**: HTML, CSS, JavaScript cơ bản
-- 💬 **Forum trao đổi**: Cộng đồng học sinh, phụ huynh, giáo viên
+- 🤖 **Trợ lý AI**: Giải đáp thắc mắc, hướng dẫn làm bài tập, 
+- 📚 **Bài giảng sinh động**: HTML, CSS, JavaScript cơ bản, các kiến thức liên quan đến lập trình web, khả thi thì thêm các kiến thức hiện đại hơn.
+- 💬 **Forum trao đổi**: Cộng đồng học sinh, phụ huynh, giáo viên, giáo viên xem xét để sau do phải phân quyền
 - 📊 **Theo dõi tiến độ**: Analytics và achievements
-- 👨‍🏫 **Hệ thống giáo viên**: Tạo và quản lý bài giảng
+- 👨‍🏫 **Hệ thống giáo viên**: Tạo và quản lý bài giảng (ĐỂ SAU)
 
 ## 🛠️ Tech Stack
 
@@ -19,7 +22,8 @@ Intaaneto là nền tảng học lập trình web được thiết kế dành ri
 - **Database**: PostgreSQL 15
 - **Authentication**: JWT (Simple JWT)
 - **AI**: OpenAI GPT-3.5
-
+- **các option AI**: Kiểu AI mà có video khuôn mặt, có âm thanh video, tạo avt tự động (dùng DALL·E 2 hoặc Stable Diffusion)
+- 
 ### Frontend
 - **Framework**: React 18
 - **Styling**: Tailwind CSS
