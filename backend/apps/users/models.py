@@ -38,7 +38,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     ROLE_CHOICES = [
         ('student', 'Học sinh'),
-        ('parent', 'Phụ huynh'),
         ('teacher', 'Giáo viên'),
         ('admin', 'Quản trị viên'),
     ]
@@ -99,16 +98,6 @@ class Profile(models.Model):
     grade_level = models.CharField(_('grade level'), max_length=50, blank=True)
     school_name = models.CharField(_('school name'), max_length=255, blank=True)
     learning_style = models.CharField(_('learning style'), max_length=50, blank=True)
-    
-    # For parents - link to student
-    student = models.ForeignKey(
-        User, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        related_name='parent_profiles',
-        limit_choices_to={'role': 'student'}
-    )
     
     # For teachers
     specialization = models.CharField(_('specialization'), max_length=255, blank=True)

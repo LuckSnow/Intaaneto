@@ -37,4 +37,4 @@ class ProfileAdmin(admin.ModelAdmin):
     list_display = ['user', 'grade_level', 'school_name', 'specialization']
     list_filter = ['grade_level', 'notification_enabled']
     search_fields = ['user__email', 'user__full_name', 'school_name']
-    raw_id_fields = ['user', 'student']
+    raw_id_fields = ['user']

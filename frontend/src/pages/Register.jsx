@@ -85,7 +85,6 @@ export default function Register() {
                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               >
                 <option value={ROLES.STUDENT}>Học sinh</option>
-                <option value={ROLES.PARENT}>Phụ huynh</option>
                 <option value={ROLES.TEACHER}>Giáo viên</option>
               </select>
             </div>
