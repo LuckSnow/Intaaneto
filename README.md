@@ -2,7 +2,7 @@
 
 ## 📖 Giới thiệu
 
-Intaaneto là nền tảng học lập trình web được thiết kế dành riêng cho học sinh cấp 2, với giao diện thân thiện và trợ lý AI hỗ trợ 24/7.
+Intaaneto là nền tảng học lập trình web được thiết kế dành cho người mới bắt đầu, với giao diện thân thiện và trợ lý AI hỗ trợ 24/7.
 
 ### 🎯 Tính năng chính
 - Trang web __tập trung__ vào phát triển module kiểm tra kiến thức bài tập, cho 1 mốc điểm để kiểm tra bài tập của học sinh.__Nếu không vượt qua mốc điểm này, học sinh sẽ không hoàn thành module__ bài học đó. Cho nên sẽ cần AI hỗ trợ để củng cố lại kiến thức/Hoặc đọc lại phần bài giảng.
