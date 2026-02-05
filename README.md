@@ -260,7 +260,7 @@ Xem chi tiết trong [docs/database-schema.md](docs/database-schema.md)
 ## 👥 Team
 
 - **Nguyễn Thái Tuấn** - N23DCPT054
-- **Phạng Anh Lộc** - N23DCPT033
+- **Phùng Anh Lực** - N23DCPT033
 
 ## 📄 License
 
