@@ -9,6 +9,7 @@ import DashboardLayout from './components/layouts/DashboardLayout'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import VerifyEmail from './pages/VerifyEmail'
 import Dashboard from './pages/Dashboard'
 import Courses from './pages/Courses'
 import CourseDetail from './pages/CourseDetail'
@@ -32,6 +33,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/courses/:id" element={<CourseDetail />} />
         <Route path="/forum" element={<Forum />} />

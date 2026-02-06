@@ -2,7 +2,6 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/ap
 
 export const ROLES = {
   STUDENT: 'student',
-  PARENT: 'parent',
   TEACHER: 'teacher',
   ADMIN: 'admin',
 }

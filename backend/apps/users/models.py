@@ -38,7 +38,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     ROLE_CHOICES = [
         ('student', 'Học sinh'),
-        ('parent', 'Phụ huynh'),
         ('teacher', 'Giáo viên'),
         ('admin', 'Quản trị viên'),
     ]
@@ -61,6 +60,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(_('staff status'), default=False)
     is_active = models.BooleanField(_('active'), default=True)
     is_verified = models.BooleanField(_('verified'), default=False)
+    verification_token = models.CharField(_('verification token'), max_length=100, blank=True, null=True)
     
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
@@ -99,16 +99,6 @@ class Profile(models.Model):
     grade_level = models.CharField(_('grade level'), max_length=50, blank=True)
     school_name = models.CharField(_('school name'), max_length=255, blank=True)
     learning_style = models.CharField(_('learning style'), max_length=50, blank=True)
-    
-    # For parents - link to student
-    student = models.ForeignKey(
-        User, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        related_name='parent_profiles',
-        limit_choices_to={'role': 'student'}
-    )
     
     # For teachers
     specialization = models.CharField(_('specialization'), max_length=255, blank=True)

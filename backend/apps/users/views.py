@@ -4,6 +4,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from django.core.mail import send_mail
+from django.conf import settings
+from django.utils.crypto import get_random_string
 from .models import User, Profile
 from .serializers import (
     UserSerializer, ProfileSerializer,
@@ -19,8 +22,11 @@ class AuthViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['post'])
     def register(self, request):
         """Register new user"""
+        print(f"Register request data: {request.data}")  # Debug
         serializer = RegisterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            print(f"Validation errors: {serializer.errors}")  # Debug
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         user = serializer.save()
         
         # Generate tokens
