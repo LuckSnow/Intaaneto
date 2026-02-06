@@ -60,6 +60,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(_('staff status'), default=False)
     is_active = models.BooleanField(_('active'), default=True)
     is_verified = models.BooleanField(_('verified'), default=False)
+    verification_token = models.CharField(_('verification token'), max_length=100, blank=True, null=True)
     
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
