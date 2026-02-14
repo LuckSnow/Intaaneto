@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login, isLoading } = useAuthStore()
+  const { login, googleLogin, isLoading } = useAuthStore()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -107,8 +107,20 @@ export default function Login() {
           {/* Google Login */}
           <Button
             type="button"
+            disabled={isLoading}
             className="w-full py-3 rounded-full bg-white hover:bg-gray-100 text-gray-900 font-bold shadow-lg border-0 transition-all duration-300 flex items-center justify-center space-x-2"
-            onClick={() => window.location.href = 'http://localhost:8000/api/auth/google/login/'}
+            onClick={async () => {
+              try {
+                await googleLogin()
+                toast.success('Đăng nhập Google thành công!')
+                navigate('/dashboard')
+              } catch (error) {
+                if (error.code === 'auth/popup-closed-by-user') {
+                  return // user đóng popup, không cần báo lỗi
+                }
+                toast.error(error.response?.data?.error || 'Đăng nhập Google thất bại')
+              }
+            }}
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

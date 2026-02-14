@@ -7,6 +7,25 @@ export const useAuthStore = create((set) => ({
   isLoading: false,
   error: null,
 
+  googleLogin: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const data = await authService.googleLogin()
+      set({
+        user: data.user,
+        isAuthenticated: true,
+        isLoading: false,
+      })
+      return data
+    } catch (error) {
+      set({
+        error: error.response?.data?.error || 'Google login failed',
+        isLoading: false,
+      })
+      throw error
+    }
+  },
+
   login: async (credentials) => {
     set({ isLoading: true, error: null })
     try {

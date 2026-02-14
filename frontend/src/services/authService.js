@@ -1,4 +1,6 @@
 import api from './api'
+import { signInWithPopup } from 'firebase/auth'
+import { auth, googleProvider } from '../config/firebase'
 
 export const authService = {
   // Register new user
@@ -17,6 +19,24 @@ export const authService = {
     localStorage.setItem('refresh_token', tokens.refresh)
     localStorage.setItem('user', JSON.stringify(user))
     
+    return response.data
+  },
+
+  // Google Sign-In via Firebase
+  googleLogin: async () => {
+    // 1. Firebase popup → get Google ID token
+    const result = await signInWithPopup(auth, googleProvider)
+    const idToken = await result.user.getIdToken()
+
+    // 2. Send ID token to Django backend for verification
+    const response = await api.post('/auth/google/', { id_token: idToken })
+    const { user, tokens } = response.data
+
+    // 3. Store tokens locally
+    localStorage.setItem('access_token', tokens.access)
+    localStorage.setItem('refresh_token', tokens.refresh)
+    localStorage.setItem('user', JSON.stringify(user))
+
     return response.data
   },
 

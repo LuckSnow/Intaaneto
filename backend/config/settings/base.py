@@ -169,6 +169,9 @@ CORS_ALLOWED_ORIGINS = config(
 # OpenAI API Key
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 
+# Firebase
+FIREBASE_PROJECT_ID = config('FIREBASE_PROJECT_ID', default='')
+
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'

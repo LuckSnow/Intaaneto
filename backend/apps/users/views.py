@@ -7,6 +7,8 @@ from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.crypto import get_random_string
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from .models import User, Profile
 from .serializers import (
     UserSerializer, ProfileSerializer,
@@ -87,6 +89,67 @@ class AuthViewSet(viewsets.GenericViewSet):
                 {'error': 'Invalid token'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+    @action(detail=False, methods=['post'])
+    def google(self, request):
+        """Authenticate with Firebase Google ID token"""
+        token = request.data.get('id_token')
+        if not token:
+            return Response(
+                {'error': 'id_token is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Verify the Firebase ID token
+            decoded_token = id_token.verify_firebase_token(
+                token,
+                google_requests.Request(),
+                audience=settings.FIREBASE_PROJECT_ID,
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Invalid token: {str(e)}'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        email = decoded_token.get('email')
+        name = decoded_token.get('name', '')
+        picture = decoded_token.get('picture', '')
+
+        if not email:
+            return Response(
+                {'error': 'Email not provided by Google'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get or create user
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                'username': email.split('@')[0],
+                'full_name': name or email.split('@')[0],
+                'is_verified': True,
+                'role': 'student',
+            }
+        )
+
+        if created:
+            # Set unusable password for social-auth users
+            user.set_unusable_password()
+            user.save()
+
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            'user': UserSerializer(user).data,
+            'tokens': {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            },
+            'created': created,
+        })
 
 
 class UserViewSet(viewsets.ModelViewSet):
