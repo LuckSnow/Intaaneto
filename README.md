@@ -276,4 +276,4 @@ Xem file [LICENSE](LICENSE)
 
 ## 📞 Support
 
-Email: n23dcpt054@student.ptithcm.edu.vn
+Email: n23dcpt054@student.ptithcm.edu.vn.
