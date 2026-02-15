@@ -13,6 +13,7 @@ class LessonSerializer(serializers.ModelSerializer):
 class CourseSerializer(serializers.ModelSerializer):
     teacher_name = serializers.CharField(source='teacher.full_name', read_only=True)
     lessons_count = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
     
     class Meta:
         model = Course
@@ -21,6 +22,19 @@ class CourseSerializer(serializers.ModelSerializer):
     
     def get_lessons_count(self, obj):
         return obj.lessons.count()
+    
+    def get_thumbnail(self, obj):
+        if not obj.thumbnail:
+            return None
+        url = str(obj.thumbnail)
+        # External URL (Unsplash, etc.) → return as-is
+        if url.startswith('http'):
+            return url
+        # Local file → build full URL
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.thumbnail.url)
+        return obj.thumbnail.url
 
 
 class CourseDetailSerializer(CourseSerializer):

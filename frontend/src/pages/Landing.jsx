@@ -84,9 +84,9 @@ export default function Landing() {
                     className="group relative block"
                   >
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-600 to-red-600 rounded-2xl blur opacity-30 group-hover:opacity-60 transition"></div>
-                    <div className="relative bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl overflow-hidden hover:bg-white/20 transition-all">
+                    <div className="relative bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl overflow-hidden hover:bg-white/20 transition-all h-[420px] flex flex-col">
                       {/* Course Image */}
-                      <div className="aspect-video bg-gradient-to-br from-orange-500/30 to-red-500/30 flex items-center justify-center">
+                      <div className="h-48 flex-shrink-0 bg-gradient-to-br from-orange-500/30 to-red-500/30 flex items-center justify-center">
                         {course.thumbnail ? (
                           <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
                         ) : (
@@ -95,7 +95,7 @@ export default function Landing() {
                       </div>
                       
                       {/* Course Info */}
-                      <div className="p-6">
+                      <div className="p-6 flex flex-col flex-1">
                         <div className="flex items-center gap-2 mb-3">
                           <span className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-full text-xs text-orange-300 font-semibold">
                             {course.difficulty === 'beginner' ? 'Cơ bản' : course.difficulty === 'intermediate' ? 'Trung bình' : 'Nâng cao'}
@@ -107,11 +107,11 @@ export default function Landing() {
                           {course.title}
                         </h3>
                         
-                        <p className="text-white/70 text-sm mb-4 line-clamp-3">
+                        <p className="text-white/70 text-sm mb-4 line-clamp-2 flex-1">
                           {course.description || 'Khóa học chất lượng cao với lộ trình học rõ ràng'}
                         </p>
                         
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mt-auto">
                           <div className="flex items-center gap-4 text-sm text-white/60">
                             <span>👥 {course.total_students || 0}</span>
                             <span>⭐ {course.average_rating || '5.0'}</span>
