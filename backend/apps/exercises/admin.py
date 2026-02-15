@@ -4,10 +4,9 @@ from .models import Exercise, Submission
 
 @admin.register(Exercise)
 class ExerciseAdmin(admin.ModelAdmin):
-    list_display = ['title', 'lesson', 'difficulty', 'max_points', 'is_published']
+    list_display = ['title', 'difficulty', 'max_points', 'is_published']
     list_filter = ['difficulty', 'is_published', 'created_at']
-    search_fields = ['title', 'description', 'lesson__title']
-    raw_id_fields = ['lesson']
+    search_fields = ['title', 'description']
 
 
 @admin.register(Submission)

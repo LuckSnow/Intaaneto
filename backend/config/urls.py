@@ -31,7 +31,6 @@ urlpatterns = [
     # API endpoints
     path('api/auth/', include('apps.users.urls')),
     path('api/auth/', include('allauth.urls')),  # Google OAuth
-    path('api/courses/', include('apps.courses.urls')),
     path('api/exercises/', include('apps.exercises.urls')),
     path('api/ai/', include('apps.ai_assistant.urls')),
     path('api/forum/', include('apps.forum.urls')),

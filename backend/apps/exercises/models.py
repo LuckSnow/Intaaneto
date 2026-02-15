@@ -1,7 +1,6 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from apps.courses.models import Lesson
 
 User = get_user_model()
 
@@ -14,8 +13,6 @@ class Exercise(models.Model):
         ('medium', 'Trung bình'),
         ('hard', 'Khó'),
     ]
-    
-    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='exercises')
     
     title = models.CharField(_('title'), max_length=255)
     description = models.TextField(_('description'))
@@ -46,7 +43,7 @@ class Exercise(models.Model):
         ordering = ['order', 'created_at']
     
     def __str__(self):
-        return f"{self.lesson.title} - {self.title}"
+        return self.title
 
 
 class Submission(models.Model):

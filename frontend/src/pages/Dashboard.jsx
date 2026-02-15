@@ -32,13 +32,13 @@ export default function Dashboard() {
       <div className="card">
         <h2 className="text-xl font-bold mb-4">Bắt đầu học</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <a href="/courses" className="p-4 border-2 border-primary-200 rounded-lg hover:border-primary-400 transition">
-            <h3 className="font-semibold text-primary-700">Xem khóa học</h3>
-            <p className="text-sm text-gray-600 mt-1">Khám phá các khóa học lập trình web</p>
-          </a>
           <a href="/forum" className="p-4 border-2 border-primary-200 rounded-lg hover:border-primary-400 transition">
             <h3 className="font-semibold text-primary-700">Diễn đàn</h3>
             <p className="text-sm text-gray-600 mt-1">Thảo luận và hỏi đáp với cộng đồng</p>
+          </a>
+          <a href="/exercises" className="p-4 border-2 border-primary-200 rounded-lg hover:border-primary-400 transition">
+            <h3 className="font-semibold text-primary-700">Bài tập</h3>
+            <p className="text-sm text-gray-600 mt-1">Luyện tập kỹ năng lập trình</p>
           </a>
         </div>
       </div>

@@ -3,7 +3,6 @@ from .models import Exercise, Submission
 
 
 class ExerciseSerializer(serializers.ModelSerializer):
-    lesson_title = serializers.CharField(source='lesson.title', read_only=True)
     
     class Meta:
         model = Exercise

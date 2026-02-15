@@ -32,9 +32,6 @@ export default function DashboardLayout() {
                 <a href="/dashboard">Dashboard</a>
               </Button>
               <Button variant="ghost" asChild className="text-white hover:text-white hover:bg-white/10 transition-all duration-300 hover:shadow-[0_0_15px_rgba(249,115,22,0.6)]">
-                <a href="/courses">Khóa học</a>
-              </Button>
-              <Button variant="ghost" asChild className="text-white hover:text-white hover:bg-white/10 transition-all duration-300 hover:shadow-[0_0_15px_rgba(249,115,22,0.6)]">
                 <a href="/forum">Diễn đàn</a>
               </Button>
               <div className="flex items-center space-x-4 border-l border-white/20 pl-6">

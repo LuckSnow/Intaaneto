@@ -11,9 +11,6 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import VerifyEmail from './pages/VerifyEmail'
 import Dashboard from './pages/Dashboard'
-import Courses from './pages/Courses'
-import CourseDetail from './pages/CourseDetail'
-import LessonPage from './pages/LessonPage'
 import ExercisePage from './pages/ExercisePage'
 import Forum from './pages/Forum'
 import ForumPost from './pages/ForumPost'
@@ -34,8 +31,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
-        <Route path="/courses" element={<Courses />} />
-        <Route path="/courses/:id" element={<CourseDetail />} />
+
         <Route path="/forum" element={<Forum />} />
         <Route path="/forum/:id" element={<ForumPost />} />
       </Route>
@@ -49,7 +45,7 @@ function App() {
         }
       >
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/lessons/:id" element={<LessonPage />} />
+
         <Route path="/exercises/:id" element={<ExercisePage />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
