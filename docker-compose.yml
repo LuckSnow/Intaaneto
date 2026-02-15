@@ -36,6 +36,7 @@ services:
       - DB_PASSWORD=postgres
       - DB_HOST=db
       - DB_PORT=5432
+      - FIREBASE_PROJECT_ID=intaaneto-e2f0f
     depends_on:
       - db
     networks:
