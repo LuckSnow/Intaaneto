@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'apps.users',
+    'apps.courses',
     'apps.exercises',
     'apps.ai_assistant',
     'apps.forum',
