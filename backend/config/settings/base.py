@@ -33,6 +33,9 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     
+    # Email
+    'anymail',
+    
     # Local apps
     'apps.users',
     'apps.courses',
@@ -181,14 +184,14 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 
-# Email Configuration
-EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
-EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+# Email Configuration - Mailjet via Anymail
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='anymail.backends.mailjet.EmailBackend')
+ANYMAIL = {
+    'MAILJET_API_KEY': config('MAILJET_API_KEY', default=''),
+    'MAILJET_SECRET_KEY': config('MAILJET_SECRET_KEY', default=''),
+}
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@intaaneto.com')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 # Frontend URL for email links
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')

@@ -37,6 +37,11 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - FIREBASE_PROJECT_ID=intaaneto-e2f0f
+      - EMAIL_BACKEND=anymail.backends.mailjet.EmailBackend
+      - MAILJET_API_KEY=${MAILJET_API_KEY:-}
+      - MAILJET_SECRET_KEY=${MAILJET_SECRET_KEY:-}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@intaaneto.com}
+      - FRONTEND_URL=http://localhost:5173
     depends_on:
       - db
     networks:
@@ -59,6 +64,17 @@ services:
       - WATCHPACK_POLLING=true
     depends_on:
       - backend
+    networks:
+      - intaaneto_network
+
+  # Database UI
+  adminer:
+    image: adminer
+    container_name: intaaneto_adminer
+    ports:
+      - "8888:8080"
+    depends_on:
+      - db
     networks:
       - intaaneto_network
 

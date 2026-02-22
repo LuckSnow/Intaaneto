@@ -1,13 +1,25 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import api from '../services/api'
 import toast from 'react-hot-toast'
 import { ROLES } from '../utils/constants'
 import { Button } from '@/components/ui/button'
 
+const PASSWORD_RULES = [
+  { key: 'length', label: 'Ít nhất 8 ký tự', test: (p) => p.length >= 8 },
+  { key: 'upper', label: '1 chữ cái viết hoa', test: (p) => /[A-Z]/.test(p) },
+  { key: 'lower', label: '1 chữ cái viết thường', test: (p) => /[a-z]/.test(p) },
+  { key: 'digit', label: '1 chữ số', test: (p) => /\d/.test(p) },
+  { key: 'special', label: '1 ký tự đặc biệt (!@#$%...)', test: (p) => /[!@#$%^&*(),.?":{}|<>]/.test(p) },
+]
+
 export default function Register() {
   const navigate = useNavigate()
   const { register: registerUser, googleLogin, isLoading } = useAuthStore()
+  const [registered, setRegistered] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     username: '',
@@ -17,27 +29,36 @@ export default function Register() {
     role: ROLES.STUDENT,
   })
 
+  const passwordStrength = useMemo(() => {
+    const passed = PASSWORD_RULES.filter(r => r.test(formData.password)).length
+    return { passed, total: PASSWORD_RULES.length, percent: Math.round((passed / PASSWORD_RULES.length) * 100) }
+  }, [formData.password])
+
+  const strengthColor = passwordStrength.percent <= 40 ? 'bg-red-500' : passwordStrength.percent <= 80 ? 'bg-yellow-500' : 'bg-green-500'
+  const strengthLabel = passwordStrength.percent <= 40 ? 'Yếu' : passwordStrength.percent <= 80 ? 'Trung bình' : 'Mạnh'
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (formData.password !== formData.password_confirm) {
       toast.error('Mật khẩu không khớp')
       return
     }
+    if (passwordStrength.passed < PASSWORD_RULES.length) {
+      toast.error('Mật khẩu chưa đủ yêu cầu')
+      return
+    }
     try {
       await registerUser(formData)
-      toast.success('Đăng ký thành công!')
-      navigate('/dashboard')
+      setRegistered(true)
     } catch (error) {
-      // Handle validation errors from backend
       const errorData = error.response?.data
       if (errorData) {
-        // Check for field-specific errors
         if (errorData.email) {
           toast.error(`Email: ${errorData.email[0]}`)
         } else if (errorData.username) {
           toast.error(`Username: ${errorData.username[0]}`)
         } else if (errorData.password) {
-          toast.error(`Password: ${errorData.password[0]}`)
+          toast.error(`Mật khẩu: ${errorData.password[0]}`)
         } else if (errorData.error) {
           toast.error(errorData.error)
         } else {
@@ -49,13 +70,56 @@ export default function Register() {
     }
   }
 
+  // After successful registration — show verification message
+  if (registered) {
+    return (
+      <div className="min-h-screen flex items-center justify-center py-12 px-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-2xl p-8 text-center">
+            <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-heading font-bold text-white mb-2">Kiểm tra email của bạn!</h2>
+            <p className="text-white/80 mb-2">
+              Chúng tôi đã gửi một email xác thực đến <strong className="text-orange-400">{formData.email}</strong>
+            </p>
+            <p className="text-white/60 text-sm mb-6">Vui lòng nhấn vào link trong email để kích hoạt tài khoản.</p>
+            <div className="space-y-3">
+              <Button
+                onClick={() => navigate('/login')}
+                className="w-full rounded-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white font-bold border-0 shadow-md"
+              >
+                Đi đến trang Đăng nhập
+              </Button>
+              <button
+                onClick={async () => {
+                  try {
+                    await api.post('/auth/resend_verification/', { email: formData.email })
+                    toast.success('Email xác thực đã được gửi lại!')
+                  } catch {
+                    toast.error('Gửi lại thất bại')
+                  }
+                }}
+                className="text-sm text-orange-400 hover:text-orange-300 underline"
+              >
+                Gửi lại email xác thực
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         {/* Glass Card */}
         <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-2xl p-8">
           <div className="mb-8">
-            <h2 className="text-center text-4xl font-bold text-white" style={{ textShadow: '0 0 20px rgba(249,115,22,0.6)' }}>
+            <h2 className="text-center text-4xl font-heading font-bold text-white" style={{ textShadow: '0 0 20px rgba(249,115,22,0.6)' }}>
               Đăng ký tài khoản
             </h2>
             <p className="mt-3 text-center text-sm text-white/80">
@@ -112,33 +176,99 @@ export default function Register() {
             </div>
             <div>
               <label className="block text-sm font-medium text-white/90 mb-2">Mật khẩu</label>
-              <input
-                type="password"
-                required
-                minLength={8}
-                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent backdrop-blur-sm transition-all"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  className="w-full px-4 py-3 pr-12 bg-white/10 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent backdrop-blur-sm transition-all"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                >
+                  {showPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {/* Password Strength */}
+              {formData.password && (
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
+                      <div className={`h-full ${strengthColor} rounded-full transition-all duration-300`} style={{ width: `${passwordStrength.percent}%` }} />
+                    </div>
+                    <span className={`text-xs font-semibold ${strengthColor === 'bg-red-500' ? 'text-red-400' : strengthColor === 'bg-yellow-500' ? 'text-yellow-400' : 'text-green-400'}`}>
+                      {strengthLabel}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {PASSWORD_RULES.map(rule => (
+                      <div key={rule.key} className="flex items-center gap-1.5">
+                        {rule.test(formData.password) ? (
+                          <svg className="w-3.5 h-3.5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                          </svg>
+                        )}
+                        <span className={`text-xs ${rule.test(formData.password) ? 'text-green-400' : 'text-white/50'}`}>{rule.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-white/90 mb-2">Xác nhận mật khẩu</label>
-              <input
-                type="password"
-                required
-                minLength={8}
-                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent backdrop-blur-sm transition-all"
-                placeholder="••••••••"
-                value={formData.password_confirm}
-                onChange={(e) => setFormData({ ...formData, password_confirm: e.target.value })}
-              />
+              <div className="relative">
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  required
+                  className="w-full px-4 py-3 pr-12 bg-white/10 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent backdrop-blur-sm transition-all"
+                  placeholder="••••••••"
+                  value={formData.password_confirm}
+                  onChange={(e) => setFormData({ ...formData, password_confirm: e.target.value })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                >
+                  {showConfirm ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {formData.password_confirm && formData.password !== formData.password_confirm && (
+                <p className="text-red-400 text-xs mt-1">Mật khẩu xác nhận không khớp</p>
+              )}
             </div>
 
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold shadow-lg border-0 transition-all duration-300 hover:shadow-[0_0_20px_rgba(239,68,68,0.8)] mt-6"
+              className="w-full py-3 rounded-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white font-bold shadow-lg border-0 transition-all duration-300 hover:shadow-[0_0_20px_rgba(251,191,36,0.6)] mt-6"
             >
               {isLoading ? 'Đang xử lý...' : 'Đăng ký'}
             </Button>
