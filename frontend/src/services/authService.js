@@ -3,7 +3,7 @@ import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '../config/firebase'
 
 export const authService = {
-  // Register new user
+  // Register new user (no auto-login, requires email verification)
   register: async (userData) => {
     const response = await api.post('/auth/register/', userData)
     return response.data
@@ -55,6 +55,12 @@ export const authService = {
   // Get current user
   getCurrentUser: async () => {
     const response = await api.get('/auth/users/me/')
+    return response.data
+  },
+
+  // Resend verification email
+  resendVerification: async (email) => {
+    const response = await api.post('/auth/resend_verification/', { email })
     return response.data
   },
 

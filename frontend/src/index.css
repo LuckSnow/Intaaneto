@@ -50,7 +50,7 @@
 
   body {
     @apply text-foreground;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+    font-family: 'Inter', 'Nunito', system-ui, -apple-system, sans-serif;
   }
 
   /* Wave Animations */

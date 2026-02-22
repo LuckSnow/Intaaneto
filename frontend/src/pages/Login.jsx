@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import api from '../services/api'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 
 export default function Login() {
   const navigate = useNavigate()
   const { login, googleLogin, isLoading } = useAuthStore()
+  const [needVerification, setNeedVerification] = useState(false)
+  const [verifyEmail, setVerifyEmail] = useState('')
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -14,15 +17,19 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setNeedVerification(false)
     try {
       await login(formData)
       toast.success('Đăng nhập thành công!')
       navigate('/dashboard')
     } catch (error) {
-      // Handle validation errors from backend
       const errorData = error.response?.data
       if (errorData) {
-        if (errorData.email) {
+        if (errorData.need_verification) {
+          setNeedVerification(true)
+          setVerifyEmail(errorData.email || formData.email)
+          toast.error(errorData.error)
+        } else if (errorData.email) {
           toast.error(`Email: ${errorData.email[0]}`)
         } else if (errorData.password) {
           toast.error(`Password: ${errorData.password[0]}`)
@@ -34,6 +41,15 @@ export default function Login() {
       } else {
         toast.error('Đăng nhập thất bại')
       }
+    }
+  }
+
+  const handleResendVerification = async () => {
+    try {
+      await api.post('/auth/resend_verification/', { email: verifyEmail })
+      toast.success('Email xác thực đã được gửi lại!')
+    } catch {
+      toast.error('Gửi lại thất bại')
     }
   }
 
@@ -54,6 +70,19 @@ export default function Login() {
             </p>
           </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* Verification warning */}
+            {needVerification && (
+              <div className="bg-orange-500/20 border border-orange-400/50 rounded-lg p-4">
+                <p className="text-white/90 text-sm mb-2">Email chưa được xác thực. Kiểm tra hộp thư của bạn.</p>
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  className="text-sm text-orange-400 hover:text-orange-300 underline font-semibold"
+                >
+                  Gửi lại email xác thực
+                </button>
+              </div>
+            )}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2">
                 Email
@@ -88,7 +117,7 @@ export default function Login() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold shadow-lg border-0 transition-all duration-300 hover:shadow-[0_0_20px_rgba(239,68,68,0.8)]"
+              className="w-full py-3 rounded-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white font-bold shadow-lg border-0 transition-all duration-300 hover:shadow-[0_0_20px_rgba(251,191,36,0.6)]"
             >
               {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
             </Button>
