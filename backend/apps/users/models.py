@@ -55,6 +55,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     date_of_birth = models.DateField(_('date of birth'), null=True, blank=True)
     avatar = models.ImageField(_('avatar'), upload_to='avatars/', null=True, blank=True)
+    google_avatar = models.URLField(_('google avatar'), max_length=500, blank=True, default='')
     bio = models.TextField(_('bio'), blank=True)
     
     is_staff = models.BooleanField(_('staff status'), default=False)

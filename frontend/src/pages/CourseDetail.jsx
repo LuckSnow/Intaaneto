@@ -98,46 +98,52 @@ export default function CourseDetail() {
     <div className="min-h-screen py-12 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Course Header */}
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8 mb-8">
+        <div className="bg-orange-50 rounded-2xl shadow-lg p-8 mb-8">
           <div className="grid md:grid-cols-2 gap-8">
             {/* Course Image */}
-            <div className="aspect-video bg-gradient-to-br from-orange-500/30 to-red-500/30 rounded-xl flex items-center justify-center overflow-hidden">
+            <div className="aspect-video bg-gray-100 rounded-xl overflow-hidden">
               {course.thumbnail ? (
                 <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-8xl">📚</span>
+                <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
+                  <span className="text-8xl">📚</span>
+                </div>
               )}
             </div>
 
             {/* Course Info */}
             <div className="flex flex-col">
               <div className="flex items-center gap-2 mb-4">
-                <span className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-full text-sm text-orange-300 font-semibold">
+                <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                  course.difficulty === 'beginner' ? 'bg-green-100 text-green-700' :
+                  course.difficulty === 'intermediate' ? 'bg-orange-100 text-orange-700' :
+                  'bg-red-100 text-red-700'
+                }`}>
                   {course.difficulty === 'beginner' ? 'Cơ bản' : course.difficulty === 'intermediate' ? 'Trung bình' : 'Nâng cao'}
                 </span>
-                <span className="text-white/60">⏱️ {course.duration_hours || 40} giờ</span>
+                <span className="text-gray-400">⏱️ {course.duration_hours || 40} giờ</span>
               </div>
 
-              <h1 className="text-4xl font-bold text-white mb-4" style={{ textShadow: '0 0 20px rgba(249,115,22,0.6)' }}>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4 font-heading">
                 {course.title}
               </h1>
 
-              <p className="text-white/80 text-lg mb-6">
+              <p className="text-gray-600 text-base mb-6 leading-relaxed">
                 {course.description}
               </p>
 
-              <div className="flex items-center gap-6 mb-8 text-white/70">
+              <div className="flex items-center gap-6 mb-8 text-gray-500">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">👥</span>
-                  <span>{course.total_students || 0} học viên</span>
+                  <span className="text-xl">👥</span>
+                  <span className="text-sm">{course.total_students || 0} học viên</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">⭐</span>
-                  <span>{course.average_rating || '5.0'} / 5.0</span>
+                  <span className="text-xl">⭐</span>
+                  <span className="text-sm">{course.average_rating || '5.0'} / 5.0</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">📝</span>
-                  <span>{course.lessons?.length || 0} bài học</span>
+                  <span className="text-xl">📝</span>
+                  <span className="text-sm">{course.lessons?.length || 0} bài học</span>
                 </div>
               </div>
 
@@ -160,7 +166,7 @@ export default function CourseDetail() {
                   </Button>
                 )}
                 {!isAuthenticated && (
-                  <p className="text-center text-white/60 text-sm mt-3">
+                  <p className="text-center text-gray-400 text-sm mt-3">
                     Cần đăng nhập để bắt đầu học
                   </p>
                 )}
@@ -170,36 +176,35 @@ export default function CourseDetail() {
         </div>
 
         {/* Course Content */}
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8">
-          <h2 className="text-2xl font-bold text-white mb-6">Nội dung khóa học</h2>
+        <div className="bg-orange-50 rounded-2xl shadow-lg p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 font-heading">Nội dung khóa học</h2>
           
           {course.lessons && course.lessons.length > 0 ? (
             <div className="space-y-3">
               {course.lessons.map((lesson, index) => (
                 <div
                   key={lesson.id}
-                  className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
+                  className="bg-gray-50 border border-gray-100 rounded-xl p-4 hover:bg-orange-50 hover:border-orange-200 transition-all"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-300 font-bold">
+                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm">
                       {index + 1}
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-white font-semibold">{lesson.title}</h3>
-                      <p className="text-white/60 text-sm">{lesson.duration_minutes || 30} phút</p>
+                      <h3 className="text-gray-800 font-semibold">{lesson.title}</h3>
+                      <p className="text-gray-400 text-sm">{lesson.duration_minutes || 30} phút</p>
                     </div>
-                    {isEnrolled && (
-                      <span className="text-white/40 text-sm">🔓</span>
-                    )}
-                    {!isEnrolled && (
-                      <span className="text-white/40 text-sm">🔒</span>
+                    {isEnrolled ? (
+                      <span className="text-green-500 text-sm">🔓</span>
+                    ) : (
+                      <span className="text-gray-300 text-sm">🔒</span>
                     )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-white/60 text-center py-8">Nội dung khóa học đang được cập nhật...</p>
+            <p className="text-gray-400 text-center py-8">Nội dung khóa học đang được cập nhật...</p>
           )}
         </div>
       </div>

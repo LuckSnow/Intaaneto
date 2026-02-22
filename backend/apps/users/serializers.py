@@ -30,7 +30,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'username', 'full_name', 'role',
-            'phone_number', 'date_of_birth', 'avatar', 'bio',
+            'phone_number', 'date_of_birth', 'avatar', 'google_avatar', 'bio',
             'is_active', 'is_verified', 'profile',
             'created_at', 'updated_at', 'password'
         ]

@@ -131,6 +131,7 @@ class AuthViewSet(viewsets.GenericViewSet):
                 'full_name': name or email.split('@')[0],
                 'is_verified': True,
                 'role': 'student',
+                'google_avatar': picture,
             }
         )
 
@@ -138,6 +139,11 @@ class AuthViewSet(viewsets.GenericViewSet):
             # Set unusable password for social-auth users
             user.set_unusable_password()
             user.save()
+        else:
+            # Update Google avatar on every login
+            if picture and user.google_avatar != picture:
+                user.google_avatar = picture
+                user.save(update_fields=['google_avatar'])
 
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
