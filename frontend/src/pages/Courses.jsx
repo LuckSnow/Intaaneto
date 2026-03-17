@@ -119,43 +119,45 @@ export default function Courses() {
               <Link
                 key={course.id}
                 to={`/courses/${course.id}`}
-                className="group relative block"
+                className="group block"
               >
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-600 to-red-600 rounded-2xl blur opacity-30 group-hover:opacity-60 transition"></div>
-                <div className="relative bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl overflow-hidden hover:bg-white/20 transition-all h-[420px] flex flex-col">
+                <div className="bg-orange-50 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 h-[420px] flex flex-col transform hover:-translate-y-1">
                   {/* Course Image */}
-                  <div className="h-48 flex-shrink-0 bg-gradient-to-br from-orange-500/30 to-red-500/30 flex items-center justify-center">
+                  <div className="h-48 flex-shrink-0 bg-gray-100 relative overflow-hidden">
                     {course.thumbnail ? (
-                      <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
+                      <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
-                      <span className="text-6xl">📚</span>
+                      <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
+                        <span className="text-6xl">📚</span>
+                      </div>
                     )}
+                    {/* Difficulty Badge */}
+                    <span className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold shadow-sm ${
+                      course.difficulty === 'beginner' ? 'bg-green-500 text-white' :
+                      course.difficulty === 'intermediate' ? 'bg-orange-500 text-white' :
+                      'bg-red-500 text-white'
+                    }`}>
+                      {DIFFICULTY_MAP[course.difficulty] || 'Cơ bản'}
+                    </span>
                   </div>
 
                   {/* Course Info */}
-                  <div className="p-6 flex flex-col flex-1">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className={`px-3 py-1 border rounded-full text-xs font-semibold ${DIFFICULTY_COLOR[course.difficulty] || DIFFICULTY_COLOR.beginner}`}>
-                        {DIFFICULTY_MAP[course.difficulty] || 'Cơ bản'}
-                      </span>
-                      <span className="text-white/60 text-sm">⏱️ {course.duration_hours || 40} giờ</span>
-                    </div>
-
-                    <h3 className="text-xl font-bold text-white mb-2 line-clamp-2 group-hover:text-orange-300 transition">
+                  <div className="p-5 flex flex-col flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-orange-600 transition font-heading">
                       {course.title}
                     </h3>
 
-                    <p className="text-white/70 text-sm mb-4 line-clamp-2 flex-1">
+                    <p className="text-gray-500 text-sm mb-4 line-clamp-2 flex-1 leading-relaxed">
                       {course.description || 'Khóa học chất lượng cao với lộ trình học rõ ràng'}
                     </p>
 
-                    <div className="flex items-center justify-between mt-auto">
-                      <div className="flex items-center gap-4 text-sm text-white/60">
-                        <span>👥 {course.total_students || 0}</span>
-                        <span>⭐ {course.average_rating || '5.0'}</span>
-                        <span>📄 {course.lessons_count || 0} bài</span>
+                    <div className="border-t border-gray-100 pt-3 flex items-center justify-between mt-auto">
+                      <div className="flex items-center gap-3 text-sm text-gray-400">
+                        <span className="flex items-center gap-1">👥 {course.total_students || 0}</span>
+                        <span className="flex items-center gap-1">⭐ {course.average_rating || '5.0'}</span>
+                        <span className="flex items-center gap-1">📄 {course.lessons_count || 0} bài</span>
                       </div>
-                      <span className="text-orange-400 font-bold group-hover:text-orange-300 transition">
+                      <span className="text-orange-500 font-semibold text-sm group-hover:text-orange-600 transition">
                         Xem →
                       </span>
                     </div>

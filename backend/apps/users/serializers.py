@@ -30,7 +30,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'username', 'full_name', 'role',
-            'phone_number', 'date_of_birth', 'avatar', 'bio',
+            'phone_number', 'date_of_birth', 'avatar', 'google_avatar', 'bio',
             'is_active', 'is_verified', 'profile',
             'created_at', 'updated_at', 'password'
         ]
@@ -63,6 +63,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, min_length=8)
+    role = serializers.ChoiceField(choices=[('student', 'Học sinh'), ('teacher', 'Giáo viên')], default='student')
     
     class Meta:
         model = User

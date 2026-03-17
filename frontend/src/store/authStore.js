@@ -49,11 +49,8 @@ export const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null })
     try {
       const data = await authService.register(userData)
-      set({
-        user: data.user,
-        isAuthenticated: true,
-        isLoading: false,
-      })
+      // Don't auto-login — user needs to verify email first
+      set({ isLoading: false })
       return data
     } catch (error) {
       set({
