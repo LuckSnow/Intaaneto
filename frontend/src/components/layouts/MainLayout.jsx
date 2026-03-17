@@ -42,6 +42,11 @@ export default function MainLayout() {
               
               {isAuthenticated ? (
                 <>
+                  {(user?.role === 'teacher' || user?.role === 'admin') && (
+                    <Button variant="ghost" asChild className="text-white hover:text-white hover:bg-white/10 transition-all duration-300 hover:shadow-[0_0_15px_rgba(249,115,22,0.6)]">
+                      <a href="/teacher/upload">📤 Tải bài giảng</a>
+                    </Button>
+                  )}
                   <Button variant="ghost" asChild className="text-white hover:text-white hover:bg-white/10 transition-all duration-300 hover:shadow-[0_0_15px_rgba(249,115,22,0.6)]">
                     <a href="/dashboard">Dashboard</a>
                   </Button>

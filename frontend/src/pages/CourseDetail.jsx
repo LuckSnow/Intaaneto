@@ -178,7 +178,10 @@ export default function CourseDetail() {
               {course.lessons.map((lesson, index) => (
                 <div
                   key={lesson.id}
-                  className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
+                  onClick={() => isEnrolled && navigate(`/lessons/${lesson.id}`)}
+                  className={`bg-white/5 border border-white/10 rounded-lg p-4 transition-all ${
+                    isEnrolled ? 'hover:bg-white/10 cursor-pointer' : ''
+                  }`}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-300 font-bold">
