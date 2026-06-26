@@ -172,6 +172,12 @@ CORS_ALLOWED_ORIGINS = config(
 # OpenAI API Key
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 
+# Groq API Key (Llama)
+GROQ_API_KEY = config('GROQ_API_KEY', default='')
+
+# D-ID API Key (base64 encoded email:key)
+DID_API_KEY = config('DID_API_KEY', default='')
+
 # Firebase
 FIREBASE_PROJECT_ID = config('FIREBASE_PROJECT_ID', default='')
 
@@ -181,8 +187,8 @@ X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # File Upload Settings
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
 
 # Email Configuration - Mailjet via Anymail
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='anymail.backends.mailjet.EmailBackend')

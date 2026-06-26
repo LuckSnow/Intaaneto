@@ -77,6 +77,15 @@ class Lesson(models.Model):
         ('quiz', 'Bài kiểm tra'),
     ]
     
+    PROCESSING_STATUS_CHOICES = [
+        ('pending', 'Chờ xử lý'),
+        ('extracting', 'Đang trích xuất nội dung'),
+        ('summarizing', 'Đang tóm tắt'),
+        ('generating_video', 'Đang tạo video AI'),
+        ('completed', 'Hoàn thành'),
+        ('failed', 'Thất bại'),
+    ]
+    
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lessons')
     
     title = models.CharField(_('title'), max_length=255)
@@ -87,8 +96,19 @@ class Lesson(models.Model):
     
     # Content
     content = models.TextField(_('content'), blank=True)
-    video_url = models.URLField(_('video URL'), blank=True)
+    video_url = models.URLField(_('video URL'), blank=True, max_length=500)
     video_file = models.FileField(_('video file'), upload_to='courses/videos/', null=True, blank=True)
+    
+    # Teacher uploaded document (PDF/PPT)
+    uploaded_file = models.FileField(_('uploaded file'), upload_to='courses/uploads/', null=True, blank=True)
+    
+    # AI Processing
+    extracted_text = models.TextField(_('extracted text'), blank=True, help_text='Raw text extracted from uploaded PDF/PPT')
+    ai_summary = models.TextField(_('AI summary'), blank=True, help_text='AI-generated lecture summary script')
+    ai_video_url = models.URLField(_('AI video URL'), blank=True, max_length=500, help_text='D-ID generated video URL')
+    ai_video_id = models.CharField(_('D-ID talk ID'), max_length=100, blank=True, help_text='D-ID talk ID for polling')
+    processing_status = models.CharField(_('processing status'), max_length=20, choices=PROCESSING_STATUS_CHOICES, default='pending')
+    processing_error = models.TextField(_('processing error'), blank=True)
     
     # Resources
     attachments = models.FileField(_('attachments'), upload_to='courses/attachments/', null=True, blank=True)
@@ -196,3 +216,24 @@ class Review(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.course.title} ({self.rating}⭐)"
+
+
+class LessonComment(models.Model):
+    """Comments on a lesson (interaction during learning)"""
+    
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lesson_comments')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
+    
+    content = models.TextField(_('content'))
+    
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('lesson comment')
+        verbose_name_plural = _('lesson comments')
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.username}: {self.content[:50]}"

@@ -78,6 +78,15 @@ export default function MainLayout() {
               
               {isAuthenticated ? (
                 <>
+                  {(user?.role === 'teacher' || user?.role === 'admin') && (
+                    <Button variant="ghost" asChild className={`transition-all duration-300 ${
+                      scrolled
+                        ? 'text-black hover:text-black hover:bg-black/10 font-semibold'
+                        : 'text-white hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(249,115,22,0.6)]'
+                    }`}>
+                      <a href="/teacher/upload">📤 Tải bài giảng</a>
+                    </Button>
+                  )}
                   <Button variant="ghost" asChild className={`transition-all duration-300 ${
                     scrolled
                       ? 'text-black hover:text-black hover:bg-black/10 font-semibold'

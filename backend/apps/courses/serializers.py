@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, Lesson, Enrollment, LessonProgress, Review
+from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
 from apps.users.serializers import UserSerializer
 
 
@@ -7,7 +7,65 @@ class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'extracted_text', 'ai_summary',
+                            'ai_video_url', 'ai_video_id', 'processing_status', 'processing_error']
+
+
+class LessonUploadSerializer(serializers.ModelSerializer):
+    """Serializer for teacher uploading a lesson with PDF/PPT."""
+    class Meta:
+        model = Lesson
+        fields = ['id', 'course', 'title', 'description', 'uploaded_file', 'order', 'is_preview']
+    
+    def validate_uploaded_file(self, value):
+        if value:
+            ext = value.name.lower().rsplit('.', 1)[-1] if '.' in value.name else ''
+            if ext not in ('pdf', 'pptx', 'ppt'):
+                raise serializers.ValidationError("Chỉ hỗ trợ file PDF hoặc PPT/PPTX")
+            if value.size > 50 * 1024 * 1024:
+                raise serializers.ValidationError("File không được lớn hơn 50MB")
+        return value
+
+
+class LessonDetailSerializer(serializers.ModelSerializer):
+    """Full lesson detail including AI content for student view."""
+    comments_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Lesson
+        fields = ['id', 'course', 'title', 'slug', 'description', 'lesson_type', 'content',
+                  'video_url', 'ai_video_url', 'ai_summary', 'processing_status',
+                  'duration_minutes', 'order', 'is_preview', 'is_published',
+                  'uploaded_file', 'comments_count', 'created_at']
+        read_only_fields = ['slug', 'created_at']
+    
+    def get_comments_count(self, obj):
+        return obj.comments.count()
+
+
+class LessonCommentSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.full_name', read_only=True)
+    user_avatar = serializers.SerializerMethodField()
+    replies = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = LessonComment
+        fields = ['id', 'lesson', 'user', 'user_name', 'user_avatar', 'parent',
+                  'content', 'replies', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'created_at', 'updated_at']
+    
+    def get_user_avatar(self, obj):
+        if obj.user.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.user.avatar.url)
+        return None
+    
+    def get_replies(self, obj):
+        if obj.parent is None:
+            replies = obj.replies.all()[:10]
+            return LessonCommentSerializer(replies, many=True, context=self.context).data
+        return []
 
 
 class CourseSerializer(serializers.ModelSerializer):
