@@ -24,7 +24,8 @@ relying on it and update it after material implementation changes.
   `answer`, `citations`, and `grounded` contract. It still uses lesson summary or
   content as temporary context; retrieval and citations are not implemented.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. Sixteen backend tests passed on 2026-07-13.
+  regression coverage. Seventeen backend tests passed on 2026-07-13, including
+  a clean run inside the rebuilt Docker backend container.
 
 ## Not implemented as of the inspection
 

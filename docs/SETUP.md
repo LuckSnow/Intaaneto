@@ -1,273 +1,90 @@
-# 🚀 HƯỚNG DẪN SETUP DỰ ÁN - INTAANETO
+# Thiết lập Intaaneto
 
-## ✅ Checklist Setup
+Docker Compose là cách khởi động được khuyến nghị vì backend cần PostgreSQL.
+Các lệnh trong tài liệu này phải chạy từ thư mục gốc của repository.
 
-### Bước 1: Setup Backend Django
+## Cách 1: Docker Desktop (khuyến nghị)
 
-```bash
-# Di chuyển vào thư mục backend
-cd d:\Intaaneto\backend
-
-# Tạo virtual environment
-python -m venv venv
-
-# Kích hoạt virtual environment
-venv\Scripts\activate
-
-# Cài đặt dependencies
-pip install -r requirements.txt
-
-# Copy file .env.example thành .env
-copy .env.example .env
-```
-
-**📝 Chỉnh sửa file backend/.env:**
-```env
-SECRET_KEY=django-insecure-change-this-in-production
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-
-# PostgreSQL Database
-DB_NAME=intaaneto_db
-DB_USER=postgres
-DB_PASSWORD=123456  # Đổi password của bạn
-DB_HOST=localhost
-DB_PORT=5432
-
-# CORS
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-
-# OpenAI API Key (lấy tại https://platform.openai.com/api-keys)
-OPENAI_API_KEY=sk-your-api-key-here
-```
-
-### Bước 2: Setup PostgreSQL Database
-
-**Cách 1: Cài đặt PostgreSQL local**
-1. Download PostgreSQL 15: https://www.postgresql.org/download/
-2. Cài đặt và nhớ password
-3. Mở pgAdmin hoặc psql
-4. Tạo database:
-```sql
-CREATE DATABASE intaaneto_db;
-```
-
-**Cách 2: Dùng Docker**
-```bash
-docker run --name intaaneto_postgres -e POSTGRES_DB=intaaneto_db -e POSTGRES_PASSWORD=123456 -p 5432:5432 -d postgres:15
-```
-
-### Bước 3: Chạy Migrations
+Yêu cầu: Docker Desktop đang chạy và đã bật WSL integration nếu dùng Windows/WSL.
 
 ```bash
-# Vẫn trong thư mục backend với venv đã activate
-python manage.py makemigrations
-python manage.py migrate
+cp backend/.env.example backend/.env
+docker compose up -d --build --force-recreate
+docker compose ps
 ```
 
-### Bước 4: Tạo Superuser (Admin)
+Trên Windows Command Prompt, dùng `copy backend\.env.example backend\.env` thay
+cho `cp`. Có thể để trống `OPENAI_API_KEY` khi chỉ kiểm tra web; endpoint AI sẽ
+không hoạt động cho tới khi có khóa hợp lệ. Không đặt khóa bí mật vào biến
+`VITE_*` vì các biến đó được đóng gói vào trình duyệt.
+
+Compose khởi động theo thứ tự `db -> backend khỏe mạnh -> frontend`. Backend tự
+chạy các migration đã commit khi container khởi động. Tạo tài khoản quản trị bằng:
 
 ```bash
-python manage.py createsuperuser
+docker compose exec backend python manage.py createsuperuser
 ```
 
-Nhập thông tin:
-- Email: admin@example.com
-- Username: admin
-- Full name: Admin User
-- Password: (tối thiểu 8 ký tự)
+Các địa chỉ:
 
-### Bước 5: Chạy Backend Server
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000/api/
+- Django admin: http://localhost:8000/admin/
+- Swagger: http://localhost:8000/api/docs/
+- Adminer: http://localhost:8888
+
+## Khi bấm Start trong Docker Desktop nhưng frontend/backend tắt ngay
+
+Không chỉ start riêng hai container cũ. Chúng phụ thuộc vào database, healthcheck
+và bind mount của repository. Sau khi Docker Desktop hoặc WSL được khởi động lại,
+container cũ đôi khi còn giữ mount không hợp lệ và báo thiếu `/app/manage.py` hoặc
+`/app/package.json` dù file vẫn tồn tại trên máy.
+
+Recreate từ đúng thư mục repository; lệnh này không xóa volume database:
 
 ```bash
-python manage.py runserver
+docker compose up -d --build --force-recreate db backend frontend
+docker compose ps
+docker compose logs --tail 100 backend frontend
 ```
 
-✅ Backend đang chạy tại: http://localhost:8000
-✅ Admin panel: http://localhost:8000/admin
-✅ API Docs: http://localhost:8000/api/docs/
+Chỉ dùng `docker compose down -v` khi chủ động muốn xóa toàn bộ database.
 
----
+## Cách 2: Chạy trực tiếp trên máy
 
-### Bước 6: Setup Frontend React
+Yêu cầu: Python 3.11+, Node.js 20+, npm và PostgreSQL đang chạy. Copy rồi chỉnh
+`backend/.env`; với cách này `DB_HOST=localhost`.
 
-**Mở terminal mới**, giữ backend chạy:
+Linux/macOS/WSL:
 
 ```bash
-# Di chuyển vào thư mục frontend
-cd d:\Intaaneto\frontend
-
-# Cài đặt dependencies
-npm install
-
-# Copy file .env.example thành .env
-copy .env.example .env
+./setup.sh
+./start.sh
 ```
 
-**📝 File frontend/.env đã OK, không cần sửa:**
-```env
-VITE_API_URL=http://localhost:8000/api
+Windows Command Prompt:
+
+```bat
+setup.bat
+start.bat
 ```
 
-### Bước 7: Chạy Frontend Server
+Các script tạo virtual environment, cài dependency theo lockfile và chạy
+`migrate`. Không chạy `makemigrations` trong bước setup; chỉ tạo migration khi
+chủ động thay đổi model.
+
+## Kiểm tra sau setup
 
 ```bash
-npm run dev
+docker compose ps
+docker compose exec backend python manage.py check
+docker compose exec backend python manage.py showmigrations
 ```
 
-✅ Frontend đang chạy tại: http://localhost:5173
-
----
-
-## 🎉 HOÀN TẤT SETUP!
-
-Bây giờ bạn có:
-- ✅ Backend API: http://localhost:8000
-- ✅ Frontend: http://localhost:5173
-- ✅ Admin panel: http://localhost:8000/admin
-- ✅ API Documentation: http://localhost:8000/api/docs/
-
----
-
-## 📚 Bước Tiếp Theo
-
-### 1. Tạo dữ liệu mẫu trong Admin
-
-1. Truy cập http://localhost:8000/admin
-2. Đăng nhập bằng superuser vừa tạo
-3. Tạo:
-   - **Users**: Tạo thêm học sinh, giáo viên test
-   - **Courses**: Tạo khóa học HTML/CSS/JS
-   - **Lessons**: Tạo bài giảng trong khóa học
-   - **Exercises**: Tạo bài tập
-
-### 2. Test Frontend
-
-1. Truy cập http://localhost:5173
-2. Click "Đăng ký" để tạo tài khoản học sinh
-3. Đăng nhập
-4. Test các chức năng
-
-### 3. Test AI Assistant
-
-**⚠️ Quan trọng**: Cần có OpenAI API key hợp lệ trong backend/.env
+Nếu một service lỗi, xem log của chính service đó:
 
 ```bash
-# Test trong Python shell
-cd backend
-python manage.py shell
+docker compose logs --tail 100 db
+docker compose logs --tail 100 backend
+docker compose logs --tail 100 frontend
 ```
-
-```python
-from apps.ai_assistant.services import AIService
-
-# Test chat
-response = AIService.chat([
-    {"role": "user", "content": "Giải thích HTML là gì?"}
-])
-print(response)
-```
-
----
-
-## 🐛 Troubleshooting
-
-### Lỗi: "No module named 'xxx'"
-```bash
-cd backend
-venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### Lỗi: Database connection failed
-- Kiểm tra PostgreSQL đang chạy
-- Kiểm tra thông tin DB trong .env
-- Test connection:
-```bash
-python manage.py dbshell
-```
-
-### Lỗi: CORS error ở frontend
-- Kiểm tra CORS_ALLOWED_ORIGINS trong backend/.env
-- Restart backend server
-
-### Lỗi: npm install failed
-```bash
-# Xóa node_modules và thử lại
-cd frontend
-rmdir /s node_modules
-npm install
-```
-
-### OpenAI API không hoạt động
-- Kiểm tra API key hợp lệ
-- Kiểm tra credit còn trong tài khoản OpenAI
-- Test với curl:
-```bash
-curl https://api.openai.com/v1/chat/completions \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-3.5-turbo",
-    "messages": [{"role": "user", "content": "Hello"}]
-  }'
-```
-
----
-
-## 📱 Chạy với Docker (Alternative)
-
-Nếu muốn dùng Docker thay vì setup thủ công:
-
-```bash
-# Build và start tất cả services
-docker-compose up -d
-
-# Xem logs
-docker-compose logs -f
-
-# Chạy migrations
-docker-compose exec backend python manage.py migrate
-
-# Tạo superuser
-docker-compose exec backend python manage.py createsuperuser
-
-# Stop services
-docker-compose down
-```
-
----
-
-## 🔥 Tips Development
-
-1. **Hot Reload**: Cả backend và frontend đều có hot reload, chỉnh code sẽ tự động refresh
-
-2. **Debug Backend**:
-```python
-# Thêm vào code để debug
-import pdb; pdb.set_trace()
-```
-
-3. **Debug Frontend**:
-- Dùng React DevTools extension
-- Console.log() trong code
-- Xem Network tab để check API calls
-
-4. **Database GUI**:
-- pgAdmin: https://www.pgadmin.org/
-- DBeaver: https://dbeaver.io/
-
-5. **API Testing**:
-- Swagger UI: http://localhost:8000/api/docs/
-- Postman: Import API endpoints
-- Thunder Client (VS Code extension)
-
----
-
-## 📞 Hỗ Trợ
-
-Nếu gặp vấn đề:
-1. Đọc error message kỹ
-2. Google error message
-3. Check docs trong thư mục `/docs`
-4. Contact: n23dcpt054@student.ptithcm.edu.vn

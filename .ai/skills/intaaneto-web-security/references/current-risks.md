@@ -17,8 +17,6 @@ exploitation. Re-check code and tests before changing status.
   users may be able to update/delete content owned by others.
 - Logout attempts token blacklisting, but the Simple JWT blacklist app is not
   installed, so logout behavior requires verification.
-- Registration prints request data and validation errors, risking sensitive data
-  in application logs.
 - Upload processing runs in daemon threads, is not durable, and performs long
   external calls without a persistent job boundary.
 
@@ -28,10 +26,10 @@ exploitation. Re-check code and tests before changing status.
 - No security regression tests cover roles, ownership, enrollment, hidden
   answers, uploads, chat scope, or cross-course retrieval.
 - Docker Compose uses development mode and hard-coded database credentials.
-- Fresh Compose startup does not run migrations because its command overrides
-  the Dockerfile command.
-- Dependency installation currently needs an undeclared compatible setuptools
-  version for `drf-yasg`; frontend install reports known vulnerabilities.
+- Compose is a development configuration with bind mounts and Django/Vite
+  development servers; it is not a production deployment definition.
+- Frontend dependency installation has reported known vulnerabilities and needs
+  a reviewed dependency audit before production exposure.
 - RAG, pgvector, R2, Celery, and Redis are planned but not implemented.
 
 ## Resolved with regression tests on 2026-07-13
@@ -45,6 +43,9 @@ exploitation. Re-check code and tests before changing status.
 - Lesson chat uses a backend-authorized lesson scope, bounded history, a stable
   response contract, and explicit provider failure responses. Unauthorized
   lesson scope is rejected before the provider is called.
+- Registration no longer logs the submitted payload or validation errors.
+- Fresh Compose startup applies committed migrations, waits for database health,
+  and gates frontend startup on backend health.
 
 ## Status discipline
 
