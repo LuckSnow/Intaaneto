@@ -17,6 +17,9 @@ Exit: authenticated lesson chat works predictably and failures are explicit.
 
 ## Slice 1 — Index one lesson
 
+Status: Implemented and covered by idempotency, rollback, and ownership tests on
+2026-07-13. Retrieval remains Slice 2.
+
 - Add source/chunk persistence and vector capability.
 - Normalize `Lesson.content` or `Lesson.extracted_text`.
 - Implement deterministic chunking, embedding, and idempotent re-indexing.

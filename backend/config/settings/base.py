@@ -175,6 +175,20 @@ AI_GENERATION_MODEL = config('AI_GENERATION_MODEL', default='gpt-4o-mini')
 AI_REQUEST_TIMEOUT_SECONDS = config('AI_REQUEST_TIMEOUT_SECONDS', default=30, cast=int)
 AI_MAX_HISTORY_MESSAGES = config('AI_MAX_HISTORY_MESSAGES', default=12, cast=int)
 
+# RAG lesson indexing
+RAG_EMBEDDING_MODEL = config(
+    'RAG_EMBEDDING_MODEL',
+    default='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',
+)
+RAG_EMBEDDING_REVISION = config(
+    'RAG_EMBEDDING_REVISION',
+    default='fastembed-0.8.0-mean-pooling',
+)
+RAG_EMBEDDING_DIMENSION = config('RAG_EMBEDDING_DIMENSION', default=384, cast=int)
+RAG_CHUNK_SIZE = config('RAG_CHUNK_SIZE', default=1000, cast=int)
+RAG_CHUNK_OVERLAP = config('RAG_CHUNK_OVERLAP', default=150, cast=int)
+RAG_MAX_CHUNKS_PER_SOURCE = config('RAG_MAX_CHUNKS_PER_SOURCE', default=500, cast=int)
+
 # Groq API Key (Llama)
 GROQ_API_KEY = config('GROQ_API_KEY', default='')
 

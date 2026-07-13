@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import ChatSession, ChatMessage
+
+from .models import ChatMessage, ChatSession, KnowledgeSource
 
 
 class ChatMessageInline(admin.TabularInline):
@@ -29,3 +30,11 @@ class ChatMessageAdmin(admin.ModelAdmin):
     def content_preview(self, obj):
         return obj.content[:100] + '...' if len(obj.content) > 100 else obj.content
     content_preview.short_description = 'Content'
+
+
+@admin.register(KnowledgeSource)
+class KnowledgeSourceAdmin(admin.ModelAdmin):
+    list_display = ['id', 'lesson', 'version', 'source_type', 'status', 'is_active']
+    list_filter = ['source_type', 'status', 'is_active']
+    raw_id_fields = ['lesson']
+    readonly_fields = ['content_checksum', 'normalized_text', 'activated_at', 'created_at']

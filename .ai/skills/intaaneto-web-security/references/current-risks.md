@@ -23,14 +23,16 @@ exploitation. Re-check code and tests before changing status.
 ## Operational gaps
 
 - No rate limiting or request throttling is configured.
-- No security regression tests cover roles, ownership, enrollment, hidden
-  answers, uploads, chat scope, or cross-course retrieval.
+- Security regression coverage now includes initial role, lesson ownership,
+  enrollment, hidden-answer, chat-scope, and indexing-owner boundaries. Upload
+  abuse and cross-course vector retrieval still lack coverage.
 - Docker Compose uses development mode and hard-coded database credentials.
 - Compose is a development configuration with bind mounts and Django/Vite
   development servers; it is not a production deployment definition.
 - Frontend dependency installation has reported known vulnerabilities and needs
   a reviewed dependency audit before production exposure.
-- RAG, pgvector, R2, Celery, and Redis are planned but not implemented.
+- Lesson indexing and pgvector persistence are implemented. Retrieval, grounded
+  answers, R2, Celery, and Redis are not implemented.
 
 ## Resolved with regression tests on 2026-07-13
 

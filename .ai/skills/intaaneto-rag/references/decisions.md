@@ -14,7 +14,10 @@ affected files or migration.
 
 ## RAG-002 — PostgreSQL vector storage for MVP
 
-- Status: Proposed
+- Status: Implemented
+- Date: 2026-07-13
+- Affected: `docker-compose.yml`, `backend/requirements.txt`, and
+  `ai_assistant.0003`
 - Decision: Add pgvector to the existing PostgreSQL deployment instead of a
   separate vector database.
 - Reason: Minimize infrastructure and keep authorization metadata with Django
@@ -24,7 +27,9 @@ affected files or migration.
 
 ## RAG-003 — Explicit pipeline over orchestration framework
 
-- Status: Proposed
+- Status: Implemented for lesson indexing
+- Date: 2026-07-13
+- Affected: `backend/apps/ai_assistant/rag_services.py`
 - Decision: Implement narrow Python/Django service interfaces before adopting
   LangChain, LlamaIndex, or an agent framework.
 - Reason: The MVP pipeline is small and needs transparent authorization,
@@ -40,7 +45,10 @@ affected files or migration.
 
 ## RAG-005 — Hybrid local embedding and online generation
 
-- Status: Proposed
+- Status: Implemented for the current provider seams
+- Date: 2026-07-13
+- Affected: `backend/apps/ai_assistant/rag_services.py` and
+  `backend/config/settings/base.py`
 - Decision: Run embeddings locally and access the response/generation model
   through a configurable online API for the first prototype.
 - Reason: Local embedding controls indexing cost and document handling, while an
@@ -57,3 +65,15 @@ affected files or migration.
   an optional early research-data source, not the runtime vector store.
 - Reason: Retrieval needs vector similarity, metadata filtering, versioning,
   transactional updates, and authorization relationships.
+
+## RAG-007 — Defer a fixed vector dimension and ANN index
+
+- Status: Accepted and implemented for Slice 1
+- Date: 2026-07-13
+- Decision: Store pgvector values without a schema-fixed dimension while
+  persisting and validating provider, model, revision, and dimension on every
+  source version. Add an ANN index only after the embedding baseline is
+  evaluated; retrieval must filter to a compatible active source first.
+- Reason: The initial 384-dimensional multilingual model is provisional. This
+  avoids a schema migration merely to compare another local model while keeping
+  each active lesson index internally dimension-consistent.
