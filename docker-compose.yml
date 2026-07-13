@@ -13,6 +13,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d intaaneto_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
       - intaaneto_network
 
@@ -22,7 +27,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: intaaneto_backend
-    command: python manage.py runserver 0.0.0.0:8000
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
       - media_files:/app/media
@@ -37,13 +42,20 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - FIREBASE_PROJECT_ID=intaaneto-e2f0f
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - AI_GENERATION_MODEL=${AI_GENERATION_MODEL:-gpt-4o-mini}
+      - AI_REQUEST_TIMEOUT_SECONDS=${AI_REQUEST_TIMEOUT_SECONDS:-30}
+      - AI_MAX_HISTORY_MESSAGES=${AI_MAX_HISTORY_MESSAGES:-12}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - DID_API_KEY=${DID_API_KEY:-}
       - EMAIL_BACKEND=anymail.backends.mailjet.EmailBackend
       - MAILJET_API_KEY=${MAILJET_API_KEY:-}
       - MAILJET_SECRET_KEY=${MAILJET_SECRET_KEY:-}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@intaaneto.com}
       - FRONTEND_URL=http://localhost:5173
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - intaaneto_network
 

@@ -5,7 +5,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
 from .serializers import (
     CourseSerializer, CourseDetailSerializer, LessonSerializer,
@@ -23,14 +25,41 @@ class IsTeacher(BasePermission):
         return request.user.is_authenticated and request.user.role in ('teacher', 'admin')
 
 
+class IsCourseOwnerOrAdmin(BasePermission):
+    """Restrict course mutations to its teacher or an administrator."""
+
+    def has_object_permission(self, request, view, obj):
+        return request.user.role == 'admin' or obj.teacher_id == request.user.id
+
+
 class CourseViewSet(viewsets.ModelViewSet):
-    queryset = Course.objects.filter(is_published=True)
-    permission_classes = [AllowAny]
+    queryset = Course.objects.all()
+
+    def get_queryset(self):
+        if self.action in ('list', 'retrieve', 'enroll', 'progress'):
+            return Course.objects.filter(is_published=True)
+        if self.request.user.is_authenticated and self.request.user.role == 'admin':
+            return Course.objects.all()
+        if self.request.user.is_authenticated:
+            return Course.objects.filter(teacher=self.request.user)
+        return Course.objects.none()
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            permission_classes = [AllowAny]
+        elif self.action in ('enroll', 'progress'):
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsTeacher, IsCourseOwnerOrAdmin]
+        return [permission() for permission in permission_classes]
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return CourseDetailSerializer
         return CourseSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(teacher=self.request.user)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def enroll(self, request, pk=None):
@@ -66,9 +95,30 @@ class CourseViewSet(viewsets.ModelViewSet):
 
 
 class LessonViewSet(viewsets.ModelViewSet):
-    queryset = Lesson.objects.filter(is_published=True)
-    permission_classes = [IsAuthenticated]
+    queryset = Lesson.objects.all()
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_permissions(self):
+        if self.action in ('upload', 'create', 'update', 'partial_update', 'destroy', 'reprocess'):
+            permission_classes = [IsTeacher]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return Lesson.objects.none()
+        if user.role == 'admin':
+            return Lesson.objects.all()
+        if user.role == 'teacher':
+            return Lesson.objects.filter(
+                Q(course__teacher=user) | Q(course__enrollments__user=user)
+            ).distinct()
+        return Lesson.objects.filter(
+            Q(course__enrollments__user=user)
+            | Q(is_preview=True, is_published=True, course__is_published=True)
+        ).distinct()
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -76,6 +126,15 @@ class LessonViewSet(viewsets.ModelViewSet):
         if self.action in ('upload', 'create'):
             return LessonUploadSerializer
         return LessonSerializer
+
+    def _validate_course_owner(self, course):
+        user = self.request.user
+        if user.role != 'admin' and course.teacher_id != user.id:
+            raise PermissionDenied('Bạn không có quyền quản lý khóa học này.')
+
+    def perform_create(self, serializer):
+        self._validate_course_owner(serializer.validated_data['course'])
+        serializer.save()
     
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
@@ -99,6 +158,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         """
         serializer = LessonUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        self._validate_course_owner(serializer.validated_data['course'])
         lesson = serializer.save(
             lesson_type='text',
             processing_status='pending',

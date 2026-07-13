@@ -19,7 +19,8 @@ def student_user(db):
         username='student',
         full_name='Test Student',
         password='testpass123',
-        role='student'
+        role='student',
+        is_verified=True,
     )
 
 
@@ -31,7 +32,8 @@ def teacher_user(db):
         username='teacher',
         full_name='Test Teacher',
         password='testpass123',
-        role='teacher'
+        role='teacher',
+        is_verified=True,
     )
 
 

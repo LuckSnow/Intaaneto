@@ -125,16 +125,13 @@ export default function LessonPage() {
     setChatMessages((prev) => [...prev, { role: 'user', content: question }])
     setChatLoading(true)
     try {
-      const context = lesson?.ai_summary
-        ? `Đây là nội dung bài giảng "${lesson.title}":\n${lesson.ai_summary}\n\nCâu hỏi của sinh viên:`
-        : ''
       const data = await aiService.sendMessage({
-        message: context ? `${context}\n${question}` : question,
-        context: 'lesson_support',
+        message: question,
+        lesson_id: Number(id),
       })
       setChatMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: data.response || data.message || 'Không có phản hồi' },
+        { role: 'assistant', content: data.answer || data.message?.content || 'Không có phản hồi' },
       ])
     } catch {
       setChatMessages((prev) => [

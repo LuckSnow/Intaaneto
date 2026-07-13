@@ -6,8 +6,12 @@ class ExerciseSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Exercise
-        fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        fields = [
+            'id', 'title', 'description', 'instructions', 'difficulty',
+            'starter_code', 'max_points', 'hints', 'order', 'is_published',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = fields
 
 
 class SubmissionSerializer(serializers.ModelSerializer):

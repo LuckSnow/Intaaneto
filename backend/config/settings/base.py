@@ -171,6 +171,9 @@ CORS_ALLOWED_ORIGINS = config(
 
 # OpenAI API Key
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+AI_GENERATION_MODEL = config('AI_GENERATION_MODEL', default='gpt-4o-mini')
+AI_REQUEST_TIMEOUT_SECONDS = config('AI_REQUEST_TIMEOUT_SECONDS', default=30, cast=int)
+AI_MAX_HISTORY_MESSAGES = config('AI_MAX_HISTORY_MESSAGES', default=12, cast=int)
 
 # Groq API Key (Llama)
 GROQ_API_KEY = config('GROQ_API_KEY', default='')

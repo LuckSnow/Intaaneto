@@ -1,0 +1,4 @@
+interface:
+  display_name: "Intaaneto Web Security"
+  short_description: "Secure Django, React, RAG, uploads, and learner data"
+  default_prompt: "Use $intaaneto-web-security to review and secure this Intaaneto change before implementation."

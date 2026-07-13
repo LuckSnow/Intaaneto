@@ -1,14 +1,15 @@
 from rest_framework import serializers
 from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
-from apps.users.serializers import UserSerializer
 
 
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
-        fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at', 'extracted_text', 'ai_summary',
-                            'ai_video_url', 'ai_video_id', 'processing_status', 'processing_error']
+        fields = [
+            'id', 'course', 'title', 'slug', 'description', 'lesson_type',
+            'duration_minutes', 'order', 'is_preview', 'is_published',
+        ]
+        read_only_fields = fields
 
 
 class LessonUploadSerializer(serializers.ModelSerializer):
@@ -20,8 +21,8 @@ class LessonUploadSerializer(serializers.ModelSerializer):
     def validate_uploaded_file(self, value):
         if value:
             ext = value.name.lower().rsplit('.', 1)[-1] if '.' in value.name else ''
-            if ext not in ('pdf', 'pptx', 'ppt'):
-                raise serializers.ValidationError("Chỉ hỗ trợ file PDF hoặc PPT/PPTX")
+            if ext not in ('pdf', 'pptx'):
+                raise serializers.ValidationError("Chỉ hỗ trợ file PDF hoặc PPTX")
             if value.size > 50 * 1024 * 1024:
                 raise serializers.ValidationError("File không được lớn hơn 50MB")
         return value
@@ -75,8 +76,17 @@ class CourseSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Course
-        fields = '__all__'
-        read_only_fields = ['slug', 'total_students', 'average_rating', 'created_at', 'updated_at']
+        fields = [
+            'id', 'title', 'slug', 'description', 'thumbnail', 'difficulty',
+            'duration_hours', 'objectives', 'prerequisites', 'teacher',
+            'teacher_name', 'is_published', 'is_featured', 'order',
+            'total_students', 'average_rating', 'lessons_count', 'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'slug', 'teacher', 'total_students', 'average_rating', 'created_at',
+            'updated_at',
+        ]
     
     def get_lessons_count(self, obj):
         return obj.lessons.count()
@@ -96,8 +106,14 @@ class CourseSerializer(serializers.ModelSerializer):
 
 
 class CourseDetailSerializer(CourseSerializer):
-    lessons = LessonSerializer(many=True, read_only=True)
-    teacher = UserSerializer(read_only=True)
+    lessons = serializers.SerializerMethodField()
+
+    class Meta(CourseSerializer.Meta):
+        fields = [*CourseSerializer.Meta.fields, 'lessons']
+
+    def get_lessons(self, obj):
+        lessons = obj.lessons.filter(is_published=True)
+        return LessonSerializer(lessons, many=True, context=self.context).data
 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
