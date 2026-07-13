@@ -147,6 +147,10 @@ export default function Login() {
                 if (error.code === 'auth/popup-closed-by-user') {
                   return // user đóng popup, không cần báo lỗi
                 }
+                if (error.code === 'firebase/not-configured') {
+                  toast.error(error.message)
+                  return
+                }
                 toast.error(error.response?.data?.error || 'Đăng nhập Google thất bại')
               }
             }}

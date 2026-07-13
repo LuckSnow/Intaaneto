@@ -12,15 +12,26 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 }
 
-const app = initializeApp(firebaseConfig)
-const auth = getAuth(app)
-const db = getFirestore(app)
-const googleProvider = new GoogleAuthProvider()
+const firebaseConfigured = [
+  firebaseConfig.apiKey,
+  firebaseConfig.authDomain,
+  firebaseConfig.projectId,
+  firebaseConfig.appId,
+].every(Boolean)
+
+// Firebase is optional in local development. Initializing Auth with blank
+// values throws during module import and prevents the whole React app rendering.
+const app = firebaseConfigured ? initializeApp(firebaseConfig) : null
+const auth = app ? getAuth(app) : null
+const db = app ? getFirestore(app) : null
+const googleProvider = app ? new GoogleAuthProvider() : null
 
 // Luôn hiện popup chọn tài khoản Google
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-})
+if (googleProvider) {
+  googleProvider.setCustomParameters({
+    prompt: 'select_account'
+  })
+}
 
-export { auth, db, googleProvider }
+export { auth, db, firebaseConfigured, googleProvider }
 export default app

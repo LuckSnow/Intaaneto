@@ -71,6 +71,8 @@ export const forumService = {
  * Firestore collection: forum_posts/{postId}/reactions
  */
 export function subscribeToPostReactions(postId, callback) {
+  if (!db) return () => {}
+
   const ref = collection(db, 'forum_posts', String(postId), 'reactions')
   const q = query(ref, orderBy('createdAt', 'desc'))
   return onSnapshot(q, (snapshot) => {
@@ -80,6 +82,8 @@ export function subscribeToPostReactions(postId, callback) {
 }
 
 export function subscribeToComments(postId, callback) {
+  if (!db) return () => {}
+
   const ref = collection(db, 'forum_posts', String(postId), 'comments')
   const q = query(ref, orderBy('createdAt', 'asc'))
   return onSnapshot(q, (snapshot) => {
@@ -93,6 +97,8 @@ export function subscribeToComments(postId, callback) {
  * The real reaction is also persisted via REST API (Django).
  */
 export async function writeRealtimeReaction(postId, userId, userName, reactionType) {
+  if (!db) return
+
   const docRef = doc(db, 'forum_posts', String(postId), 'reactions', String(userId))
   if (!reactionType) {
     await deleteDoc(docRef)
@@ -107,6 +113,8 @@ export async function writeRealtimeReaction(postId, userId, userName, reactionTy
 }
 
 export async function writeRealtimeComment(postId, commentData) {
+  if (!db) return
+
   const docRef = doc(
     db, 'forum_posts', String(postId), 'comments', String(commentData.id)
   )
@@ -117,6 +125,8 @@ export async function writeRealtimeComment(postId, commentData) {
 }
 
 export async function deleteRealtimeComment(postId, commentId) {
+  if (!db) return
+
   const docRef = doc(db, 'forum_posts', String(postId), 'comments', String(commentId))
   await deleteDoc(docRef)
 }
