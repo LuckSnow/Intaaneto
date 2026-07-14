@@ -1,17 +1,18 @@
 import logging
 
 from django.conf import settings
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.courses.models import Lesson
 from apps.exercises.models import Exercise
 
+from .access import accessible_lesson_queryset
 from .models import ChatMessage, ChatSession
+from .rag_answering import answer_lesson_question
+from .rag_services import LessonRetrievalError
 from .serializers import (
     ChatMessageSerializer,
     ChatRequestSerializer,
@@ -22,20 +23,6 @@ from .serializers import (
 from .services import AIProviderError, AIService
 
 logger = logging.getLogger(__name__)
-
-
-def accessible_lessons(user):
-    """Return lessons the actor may use as an AI/RAG scope."""
-    if user.role == 'admin':
-        return Lesson.objects.all()
-    if user.role == 'teacher':
-        return Lesson.objects.filter(
-            Q(course__teacher=user) | Q(course__enrollments__user=user)
-        ).distinct()
-    return Lesson.objects.filter(
-        Q(course__enrollments__user=user)
-        | Q(is_preview=True, is_published=True, course__is_published=True)
-    ).distinct()
 
 
 class ChatViewSet(viewsets.ModelViewSet):
@@ -69,7 +56,10 @@ class ChatViewSet(viewsets.ModelViewSet):
             lesson_id = requested_lesson_id
             session = None
 
-        lesson = get_object_or_404(accessible_lessons(request.user), pk=lesson_id)
+        lesson = get_object_or_404(
+            accessible_lesson_queryset(request.user),
+            pk=lesson_id,
+        )
         if session is None:
             session = ChatSession.objects.create(
                 user=request.user,
@@ -91,15 +81,20 @@ class ChatViewSet(viewsets.ModelViewSet):
             for message in reversed(history)
             if message.role in ('user', 'assistant')
         ]
-        context = {
-            'lesson_title': lesson.title,
-            'lesson_summary': (lesson.ai_summary or lesson.content)[:12000],
-        }
-
         try:
-            ai_response = AIService.chat(messages, context=context)
+            answer = answer_lesson_question(
+                actor=request.user,
+                lesson=lesson,
+                messages=messages,
+            )
+        except LessonRetrievalError:
+            logger.warning('RAG retrieval failed for chat session %s', session.id)
+            return Response(
+                {'error': 'Kho kiến thức tạm thời không khả dụng. Vui lòng thử lại sau.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         except AIProviderError:
-            logger.exception('AI provider failed for chat session %s', session.id)
+            logger.warning('AI provider failed for chat session %s', session.id)
             return Response(
                 {'error': 'Trợ lý AI tạm thời không khả dụng. Vui lòng thử lại sau.'},
                 status=status.HTTP_502_BAD_GATEWAY,
@@ -108,15 +103,17 @@ class ChatViewSet(viewsets.ModelViewSet):
         ai_message = ChatMessage.objects.create(
             session=session,
             role='assistant',
-            content=ai_response['content'],
-            tokens_used=ai_response.get('tokens_used'),
-            response_time_ms=ai_response.get('response_time_ms'),
+            content=answer.answer,
+            tokens_used=answer.tokens_used,
+            response_time_ms=answer.response_time_ms,
+            retrieval_metadata=answer.retrieval_metadata,
         )
         return Response({
             'session_id': session.id,
             'answer': ai_message.content,
-            'citations': [],
-            'grounded': False,
+            'citations': answer.citations,
+            'grounded': answer.grounded,
+            'retrieval': answer.retrieval,
             'message': ChatMessageSerializer(ai_message).data,
         })
 

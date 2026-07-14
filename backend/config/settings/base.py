@@ -169,9 +169,19 @@ CORS_ALLOWED_ORIGINS = config(
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
-# OpenAI API Key
+# AI Tutor generation provider
+AI_GENERATION_PROVIDER = config('AI_GENERATION_PROVIDER', default='openai').lower()
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
+GEMINI_BASE_URL = config(
+    'GEMINI_BASE_URL',
+    default='https://generativelanguage.googleapis.com/v1beta/openai/',
+)
 AI_GENERATION_MODEL = config('AI_GENERATION_MODEL', default='gpt-4o-mini')
+GEMINI_GENERATION_MODEL = config(
+    'GEMINI_GENERATION_MODEL',
+    default='gemini-3.1-flash-lite',
+)
 AI_REQUEST_TIMEOUT_SECONDS = config('AI_REQUEST_TIMEOUT_SECONDS', default=30, cast=int)
 AI_MAX_HISTORY_MESSAGES = config('AI_MAX_HISTORY_MESSAGES', default=12, cast=int)
 
@@ -188,6 +198,25 @@ RAG_EMBEDDING_DIMENSION = config('RAG_EMBEDDING_DIMENSION', default=384, cast=in
 RAG_CHUNK_SIZE = config('RAG_CHUNK_SIZE', default=1000, cast=int)
 RAG_CHUNK_OVERLAP = config('RAG_CHUNK_OVERLAP', default=150, cast=int)
 RAG_MAX_CHUNKS_PER_SOURCE = config('RAG_MAX_CHUNKS_PER_SOURCE', default=500, cast=int)
+RAG_RETRIEVAL_TOP_K = config('RAG_RETRIEVAL_TOP_K', default=5, cast=int)
+RAG_RETRIEVAL_MAX_TOP_K = config('RAG_RETRIEVAL_MAX_TOP_K', default=10, cast=int)
+RAG_RETRIEVAL_MIN_SCORE = config('RAG_RETRIEVAL_MIN_SCORE', default=0.45, cast=float)
+RAG_MAX_QUESTION_CHARS = config('RAG_MAX_QUESTION_CHARS', default=1000, cast=int)
+RAG_GENERATION_MAX_EVIDENCE_CHUNKS = config(
+    'RAG_GENERATION_MAX_EVIDENCE_CHUNKS',
+    default=3,
+    cast=int,
+)
+RAG_GENERATION_MAX_CONTEXT_CHARS = config(
+    'RAG_GENERATION_MAX_CONTEXT_CHARS',
+    default=6000,
+    cast=int,
+)
+RAG_CITATION_EXCERPT_CHARS = config(
+    'RAG_CITATION_EXCERPT_CHARS',
+    default=320,
+    cast=int,
+)
 
 # Groq API Key (Llama)
 GROQ_API_KEY = config('GROQ_API_KEY', default='')

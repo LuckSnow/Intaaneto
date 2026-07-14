@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore'
 import { courseService } from '../services/courseService'
 import { aiService } from '../services/aiService'
 import toast from 'react-hot-toast'
+import { AlertCircle, BookOpen, Bot, CheckCircle2, Send } from 'lucide-react'
 
 const STATUS_MAP = {
   pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: '⏳' },
@@ -34,6 +35,7 @@ export default function LessonPage() {
   const [chatMessages, setChatMessages] = useState([])
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
+  const [chatSessionId, setChatSessionId] = useState(null)
   const chatEndRef = useRef(null)
 
   // Polling for processing
@@ -41,6 +43,12 @@ export default function LessonPage() {
 
   useEffect(() => {
     fetchLesson()
+  }, [id])
+
+  useEffect(() => {
+    setChatMessages([])
+    setChatInput('')
+    setChatSessionId(null)
   }, [id])
 
   useEffect(() => {
@@ -119,24 +127,37 @@ export default function LessonPage() {
 
   // AI Chat
   const handleSendChat = async () => {
-    if (!chatInput.trim()) return
+    if (!chatInput.trim() || chatLoading) return
     const question = chatInput.trim()
     setChatInput('')
     setChatMessages((prev) => [...prev, { role: 'user', content: question }])
     setChatLoading(true)
     try {
-      const data = await aiService.sendMessage({
+      const payload = {
         message: question,
         lesson_id: Number(id),
-      })
+      }
+      if (chatSessionId) payload.session_id = chatSessionId
+      const data = await aiService.sendMessage(payload)
+      setChatSessionId(data.session_id)
       setChatMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: data.answer || data.message?.content || 'Không có phản hồi' },
+        {
+          role: 'assistant',
+          content: data.answer || data.message?.content || 'Không có phản hồi',
+          citations: data.citations || [],
+          grounded: data.grounded,
+          retrievalStatus: data.retrieval?.status,
+        },
       ])
     } catch {
       setChatMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: '⚠️ Có lỗi xảy ra. Vui lòng thử lại.' },
+        {
+          role: 'assistant',
+          content: 'AI Tutor tạm thời không khả dụng. Vui lòng thử lại.',
+          error: true,
+        },
       ])
     } finally {
       setChatLoading(false)
@@ -341,14 +362,17 @@ export default function LessonPage() {
 
               {activeTab === 'chat' && (
                 <div>
-                  <h2 className="text-xl font-bold text-white mb-4">🧠 Hỏi AI về bài giảng</h2>
+                  <div className="mb-4 flex items-center gap-2 text-white">
+                    <Bot className="h-5 w-5 text-orange-300" aria-hidden="true" />
+                    <h2 className="text-xl font-bold">AI Tutor theo tài liệu</h2>
+                  </div>
 
                   {/* Chat messages */}
                   <div className="h-80 overflow-y-auto mb-4 space-y-3 pr-2 custom-scrollbar">
                     {chatMessages.length === 0 && (
                       <div className="text-center py-10 text-white/40">
-                        <span className="text-4xl block mb-2">🤖</span>
-                        <p>Hãy đặt câu hỏi về bài giảng, AI sẽ hỗ trợ giải đáp!</p>
+                        <BookOpen className="mx-auto mb-3 h-8 w-8" aria-hidden="true" />
+                        <p>Đặt câu hỏi về nội dung đã được index của bài học.</p>
                       </div>
                     )}
                     {chatMessages.map((msg, i) => (
@@ -357,13 +381,64 @@ export default function LessonPage() {
                         className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap ${
+                          className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm ${
                             msg.role === 'user'
                               ? 'bg-orange-500/30 border border-orange-500/40 text-white'
                               : 'bg-white/10 border border-white/20 text-white/90'
                           }`}
                         >
-                          {msg.content}
+                          <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+
+                          {msg.role === 'assistant' && msg.grounded === true && (
+                            <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-300">
+                              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                              <span>Dựa trên tài liệu bài học</span>
+                            </div>
+                          )}
+
+                          {msg.role === 'assistant' && msg.grounded === false && (
+                            <div className="mt-3 flex items-center gap-1.5 text-xs text-amber-300">
+                              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                              <span>
+                                {msg.retrievalStatus === 'not_indexed'
+                                  ? 'Bài học chưa được index'
+                                  : 'Chưa đủ bằng chứng trong tài liệu'}
+                              </span>
+                            </div>
+                          )}
+
+                          {msg.error && (
+                            <div className="mt-3 flex items-center gap-1.5 text-xs text-red-300">
+                              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                              <span>Không thể hoàn thành yêu cầu</span>
+                            </div>
+                          )}
+
+                          {msg.citations?.length > 0 && (
+                            <details className="mt-3 border-t border-white/10 pt-3">
+                              <summary className="cursor-pointer text-xs font-medium text-orange-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
+                                {msg.citations.length} nguồn tham khảo
+                              </summary>
+                              <ol className="mt-2 space-y-2">
+                                {msg.citations.map((citation) => (
+                                  <li
+                                    key={citation.id}
+                                    className="rounded-lg border border-white/10 bg-black/10 p-2.5"
+                                  >
+                                    <div className="flex items-center gap-1.5 text-xs font-medium text-white/80">
+                                      <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                                      <span>
+                                        {citation.lesson_title} · Đoạn {citation.ordinal + 1}
+                                      </span>
+                                    </div>
+                                    <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-white/60">
+                                      {citation.excerpt}
+                                    </p>
+                                  </li>
+                                ))}
+                              </ol>
+                            </details>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -393,9 +468,10 @@ export default function LessonPage() {
                     <Button
                       onClick={handleSendChat}
                       disabled={chatLoading || !chatInput.trim()}
-                      className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl px-6 border-0"
+                      className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl px-5 border-0"
+                      aria-label="Gửi câu hỏi"
                     >
-                      {chatLoading ? '...' : '🚀'}
+                      {chatLoading ? '...' : <Send className="h-4 w-4" aria-hidden="true" />}
                     </Button>
                   </div>
                 </div>

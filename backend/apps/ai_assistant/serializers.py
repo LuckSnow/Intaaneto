@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import serializers
 from .models import ChatSession, ChatMessage
 
@@ -23,7 +24,7 @@ class ChatSessionSerializer(serializers.ModelSerializer):
 
 
 class ChatRequestSerializer(serializers.Serializer):
-    message = serializers.CharField(max_length=4000)
+    message = serializers.CharField(max_length=settings.RAG_MAX_QUESTION_CHARS)
     session_id = serializers.IntegerField(required=False)
     lesson_id = serializers.IntegerField(required=False)
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Intaaneto Minimal Frontend"
+  short_description: "Build calm, focused learning interfaces"
+  default_prompt: "Use $intaaneto-minimal-frontend to simplify this Intaaneto frontend flow into a calm, accessible learning interface."

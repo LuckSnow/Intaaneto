@@ -24,6 +24,10 @@ chạy các migration đã commit khi container khởi động. Tạo tài kho�
 ```bash
 docker compose exec backend python manage.py createsuperuser
 ```
+=> superadmin@intaaneto.com
+Tên đăng nhập: SuAdmin
+Mật khẩu: 12345678
+Full name: Supreme Admin
 
 Các địa chỉ:
 

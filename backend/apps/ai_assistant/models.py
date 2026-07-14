@@ -44,6 +44,7 @@ class ChatMessage(models.Model):
     # Metadata
     tokens_used = models.PositiveIntegerField(_('tokens used'), null=True, blank=True)
     response_time_ms = models.PositiveIntegerField(_('response time (ms)'), null=True, blank=True)
+    retrieval_metadata = models.JSONField(default=dict, blank=True)
     
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     

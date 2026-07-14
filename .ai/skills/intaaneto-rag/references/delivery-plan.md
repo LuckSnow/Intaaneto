@@ -18,7 +18,7 @@ Exit: authenticated lesson chat works predictably and failures are explicit.
 ## Slice 1 — Index one lesson
 
 Status: Implemented and covered by idempotency, rollback, and ownership tests on
-2026-07-13. Retrieval remains Slice 2.
+2026-07-13. Retrieval was delivered separately in Slice 2.
 
 - Add source/chunk persistence and vector capability.
 - Normalize `Lesson.content` or `Lesson.extracted_text`.
@@ -30,6 +30,11 @@ atomically replaces active chunks.
 
 ## Slice 2 — Retrieve evidence
 
+Status: Implemented and covered by authorization, source-version, relevance,
+weak-evidence, and PostgreSQL exact-cosine checks on 2026-07-14. The retrieval
+service intentionally has no public HTTP surface; Slice 3 consumes it from the
+authorized lesson-chat boundary.
+
 - Add lesson-scoped retrieval with authorization enforced before search.
 - Return ranked chunks and stable metadata without invoking an LLM.
 - Create a small Vietnamese question/relevance fixture set.
@@ -38,6 +43,13 @@ Exit: relevant lesson chunks beat irrelevant chunks on the fixture set, empty
 or weak evidence is distinguishable, and cross-course leakage tests pass.
 
 ## Slice 3 — Grounded answers and citations
+
+Status: Implemented on 2026-07-14. Lesson chat retrieves within its authorized
+scope, avoids generation for weak/missing evidence, supplies bounded untrusted
+evidence to the provider, constructs citations in application code, persists
+safe retrieval metadata, and displays grounded/fallback evidence state. OpenAI
+and Gemini generation adapters are selectable; a successful live-provider smoke
+remains an environment/quota-dependent check.
 
 - Generate from retrieved chunks only under a strict tutoring prompt.
 - Return structured citations and a grounded/fallback indicator.

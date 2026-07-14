@@ -25,7 +25,7 @@ class ChatMessageAdmin(admin.ModelAdmin):
     list_filter = ['role', 'created_at']
     search_fields = ['content', 'session__user__full_name']
     raw_id_fields = ['session']
-    readonly_fields = ['created_at']
+    readonly_fields = ['retrieval_metadata', 'created_at']
     
     def content_preview(self, obj):
         return obj.content[:100] + '...' if len(obj.content) > 100 else obj.content

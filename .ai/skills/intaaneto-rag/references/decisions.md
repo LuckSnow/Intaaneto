@@ -38,7 +38,10 @@ affected files or migration.
 
 ## RAG-004 — Lesson scope before course scope
 
-- Status: Proposed
+- Status: Implemented for retrieval
+- Date: 2026-07-14
+- Affected: `backend/apps/ai_assistant/access.py`,
+  `backend/apps/ai_assistant/rag_services.py`, and retrieval tests
 - Decision: Ship retrieval scoped to one authorized lesson, then expand to an
   enrolled course.
 - Reason: It gives a small vertical slice and clearer evaluation ground truth.
@@ -77,3 +80,49 @@ affected files or migration.
 - Reason: The initial 384-dimensional multilingual model is provisional. This
   avoids a schema migration merely to compare another local model while keeping
   each active lesson index internally dimension-consistent.
+
+## RAG-008 — Exact filtered cosine retrieval baseline
+
+- Status: Implemented
+- Date: 2026-07-14
+- Affected: `backend/apps/ai_assistant/rag_services.py`, retrieval settings, and
+  `backend/apps/ai_assistant/test_rag_retrieval.py`
+- Decision: Resolve one authorized lesson and compatible active source before
+  exact pgvector cosine ranking. Use a configurable top-k and a provisional
+  minimum similarity threshold of `0.45`; do not invoke an LLM in this service.
+- Reason: Exact search is transparent and sufficient for the current small
+  corpus, provides a measurable retrieval baseline, and prevents global search
+  results from crossing the access boundary.
+- Revisit when: the Vietnamese evaluation set justifies threshold/model tuning,
+  reranking, hybrid retrieval, or an ANN index.
+
+## RAG-009 — Application-owned grounded citations and fallback
+
+- Status: Implemented
+- Date: 2026-07-14
+- Affected: `backend/apps/ai_assistant/rag_answering.py`, `services.py`,
+  `views.py`, migration `0004`, and `frontend/src/pages/LessonPage.jsx`
+- Decision: Skip generation unless lesson-scoped evidence clears the configured
+  threshold. Supply bounded evidence as untrusted data, generate a plain answer,
+  and construct citation objects only from the selected authorized chunks in
+  application code.
+- Reason: The generation model must not control access scope or fabricate source
+  identifiers. Deterministic fallback also avoids cost and hallucination when the
+  lesson cannot support an answer.
+- Constraint: Persist only bounded retrieval identifiers/scores/latency with the
+  message; do not persist embeddings, provider diagnostics, or full prompts.
+
+## RAG-010 — Explicit online generation provider selection
+
+- Status: Implemented
+- Date: 2026-07-15
+- Affected: `backend/apps/ai_assistant/services.py`, generation settings,
+  environment example, and provider tests
+- Decision: Select direct OpenAI or Gemini generation explicitly through a
+  server-side setting. Keep separate credentials and use Gemini's
+  OpenAI-compatible endpoint through the existing SDK and provider protocol.
+- Reason: Provider choice must be replaceable without coupling lesson indexing,
+  authorized retrieval, prompts, or application-owned citations to one vendor.
+- Constraint: Fail closed for a missing key or unknown provider. Free-tier
+  providers are for non-sensitive prototype material only unless their data
+  handling terms meet the deployment's privacy requirements.
