@@ -1,7 +1,9 @@
 import { useAuthStore } from '../store/authStore'
+import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
   const { user } = useAuthStore()
+  const isTeacher = user?.role === 'teacher' || user?.role === 'admin'
 
   return (
     <div className="space-y-8">
@@ -9,7 +11,9 @@ export default function Dashboard() {
         <h1 className="text-3xl font-heading font-bold text-white drop-shadow-lg">
           Chào mừng, {user?.full_name}! 👋
         </h1>
-        <p className="text-white/70 mt-2">Sẵn sàng học lập trình chưa?</p>
+        <p className="text-white/70 mt-2">
+          {isTeacher ? 'Quản lý học liệu và chuẩn bị bài học cho AI Tutor.' : 'Sẵn sàng học lập trình chưa?'}
+        </p>
       </div>
 
       {/* Stats */}
@@ -30,16 +34,26 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div className="bg-orange-50 rounded-2xl p-6 shadow-md">
-        <h2 className="text-xl font-heading font-bold text-gray-800 mb-4">Bắt đầu học</h2>
+        <h2 className="text-xl font-heading font-bold text-gray-800 mb-4">
+          {isTeacher ? 'Thao tác giảng viên' : 'Bắt đầu học'}
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <a href="/forum" className="p-4 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:bg-orange-100/50 transition">
+          {isTeacher && (
+            <Link to="/teacher/upload" className="p-4 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:bg-orange-100/50 transition">
+              <h3 className="font-heading font-semibold text-orange-600">Tải bài giảng PDF</h3>
+              <p className="text-sm text-gray-600 mt-1">Trích xuất và lập chỉ mục tài liệu cho AI Tutor</p>
+            </Link>
+          )}
+          <Link to="/forum" className="p-4 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:bg-orange-100/50 transition">
             <h3 className="font-heading font-semibold text-orange-600">Diễn đàn</h3>
             <p className="text-sm text-gray-600 mt-1">Thảo luận và hỏi đáp với cộng đồng</p>
-          </a>
-          <a href="/exercises" className="p-4 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:bg-orange-100/50 transition">
-            <h3 className="font-heading font-semibold text-orange-600">Bài tập</h3>
-            <p className="text-sm text-gray-600 mt-1">Luyện tập kỹ năng lập trình</p>
-          </a>
+          </Link>
+          {!isTeacher && (
+            <Link to="/courses" className="p-4 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:bg-orange-100/50 transition">
+              <h3 className="font-heading font-semibold text-orange-600">Khóa học</h3>
+              <p className="text-sm text-gray-600 mt-1">Tiếp tục nội dung đang học</p>
+            </Link>
+          )}
         </div>
       </div>
     </div>

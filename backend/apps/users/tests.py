@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 
 User = get_user_model()
 
@@ -108,6 +109,51 @@ class TestUserAPI:
         assert 'tokens' in response.data
         assert 'access' in response.data['tokens']
         assert 'refresh' in response.data['tokens']
+
+    def test_teacher_login_returns_server_owned_role(self, api_client, teacher_user):
+        response = api_client.post('/api/auth/login/', {
+            'email': teacher_user.email,
+            'password': 'testpass123',
+        })
+
+        assert response.status_code == 200
+        assert response.data['user']['role'] == 'teacher'
+
+    def test_logout_blacklists_refresh_token(self, api_client, student_user):
+        login_response = api_client.post('/api/auth/login/', {
+            'email': student_user.email,
+            'password': 'testpass123',
+        })
+        api_client.force_authenticate(student_user)
+
+        response = api_client.post('/api/auth/logout/', {
+            'refresh_token': login_response.data['tokens']['refresh'],
+        })
+
+        assert response.status_code == 200
+        assert BlacklistedToken.objects.count() == 1
+
+    def test_refresh_rotates_token_and_blacklists_previous_one(self, api_client, student_user):
+        login_response = api_client.post('/api/auth/login/', {
+            'email': student_user.email,
+            'password': 'testpass123',
+        })
+        original_refresh = login_response.data['tokens']['refresh']
+
+        response = api_client.post('/api/auth/token/refresh/', {
+            'refresh': original_refresh,
+        })
+
+        assert response.status_code == 200
+        assert response.data['access']
+        assert response.data['refresh']
+        assert response.data['refresh'] != original_refresh
+        assert BlacklistedToken.objects.count() == 1
+
+    def test_logout_requires_refresh_token(self, authenticated_client):
+        response = authenticated_client.post('/api/auth/logout/', {})
+
+        assert response.status_code == 400
     
     def test_get_current_user(self, authenticated_client, student_user):
         """Test getting current user info"""

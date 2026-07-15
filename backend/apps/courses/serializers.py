@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.conf import settings
+
 from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
 
 
@@ -13,7 +15,7 @@ class LessonSerializer(serializers.ModelSerializer):
 
 
 class LessonUploadSerializer(serializers.ModelSerializer):
-    """Serializer for teacher uploading a lesson with PDF/PPT."""
+    """Validate the public contract for a teacher-uploaded PDF lesson."""
     class Meta:
         model = Lesson
         fields = ['id', 'course', 'title', 'description', 'uploaded_file', 'order', 'is_preview']
@@ -21,10 +23,21 @@ class LessonUploadSerializer(serializers.ModelSerializer):
     def validate_uploaded_file(self, value):
         if value:
             ext = value.name.lower().rsplit('.', 1)[-1] if '.' in value.name else ''
-            if ext not in ('pdf', 'pptx'):
-                raise serializers.ValidationError("Chỉ hỗ trợ file PDF hoặc PPTX")
-            if value.size > 50 * 1024 * 1024:
-                raise serializers.ValidationError("File không được lớn hơn 50MB")
+            if ext != 'pdf':
+                raise serializers.ValidationError('Chỉ hỗ trợ file PDF')
+            if value.size > settings.LESSON_PDF_MAX_BYTES:
+                raise serializers.ValidationError('File PDF vượt quá dung lượng cho phép')
+            content_type = getattr(value, 'content_type', '')
+            if content_type and content_type not in ('application/pdf', 'application/octet-stream'):
+                raise serializers.ValidationError('Nội dung tải lên không phải PDF')
+
+            position = value.tell()
+            try:
+                value.seek(0)
+                if value.read(5) != b'%PDF-':
+                    raise serializers.ValidationError('Nội dung tải lên không phải PDF hợp lệ')
+            finally:
+                value.seek(position)
         return value
 
 

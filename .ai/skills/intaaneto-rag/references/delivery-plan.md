@@ -61,12 +61,17 @@ and API contract tests pass.
 
 ## Slice 4 — Upload ingestion
 
-- Validate approved file types and sizes.
-- Extract PDF/PPT locations and preserve page/slide metadata.
+Status: In progress. A synchronous PDF-only upload-to-index path with ownership,
+bounded validation, safe failures, and idempotent retry tests was implemented on
+2026-07-15. Durable background execution and structured page metadata remain.
+
+- Accept only PDF uploads; DOCX, PPT, and PPTX are deliberately out of scope.
+- Validate the allowlisted file type, content signature, structure, and size.
+- Extract PDF page locations.
 - Move expensive work to a retriable background job when infrastructure exists.
 - Surface processing status and safe error messages.
 
-Exit: upload-to-query works for representative PDF/PPT fixtures, retries do not
+Exit: upload-to-query works for representative PDF fixtures, retries do not
 duplicate data, and malformed/encrypted/empty files fail safely.
 
 ## Slice 5 — Evaluate and harden

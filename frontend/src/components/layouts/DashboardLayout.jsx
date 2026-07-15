@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import logoFull from '../../assets/images/logo-full.png'
 export default function DashboardLayout() {
   const { user, logout } = useAuthStore()
   const location = useLocation()
+  const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -17,7 +18,7 @@ export default function DashboardLayout() {
 
   const handleLogout = async () => {
     await logout()
-    window.location.href = '/'
+    navigate('/', { replace: true })
   }
 
   // Get user avatar - prefer Google avatar, fallback to uploaded avatar
@@ -25,6 +26,9 @@ export default function DashboardLayout() {
 
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard' },
+    ...((user?.role === 'teacher' || user?.role === 'admin')
+      ? [{ href: '/teacher/upload', label: 'Tải PDF' }]
+      : []),
     { href: '/courses', label: 'Khóa học' },
     { href: '/forum', label: 'Diễn đàn' },
   ]
@@ -48,13 +52,13 @@ export default function DashboardLayout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-14 items-center">
             <div className="flex-shrink-0">
-              <a href="/dashboard" className="block transition-all duration-300 hover:drop-shadow-[0_0_15px_rgba(249,115,22,0.8)]">
+              <Link to="/dashboard" className="block transition-all duration-300 hover:drop-shadow-[0_0_15px_rgba(249,115,22,0.8)]">
                 <img 
                   src={logoFull} 
                   alt="Intaaneto" 
                   className="h-12 w-auto"
                 />
-              </a>
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               {navLinks.map(link => (
@@ -63,17 +67,17 @@ export default function DashboardLayout() {
                     ? 'text-black hover:text-black hover:bg-black/10 font-semibold'
                     : 'text-white hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(249,115,22,0.6)]'
                 }`}>
-                  <a href={link.href} className="relative">
+                  <Link to={link.href} className="relative">
                     {link.label}
                     {isActive(link.href) && (
                       <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-orange-400 rounded-full" />
                     )}
-                  </a>
+                  </Link>
                 </Button>
               ))}
               
               <div className="flex items-center space-x-4 border-l border-white/20 pl-4">
-                <a href="/profile" className="flex items-center space-x-2 group">
+                <Link to="/profile" className="flex items-center space-x-2 group">
                   {userAvatar ? (
                     <img 
                       src={userAvatar} 
@@ -95,7 +99,7 @@ export default function DashboardLayout() {
                   }`}>
                     {user?.full_name || user?.username}
                   </span>
-                </a>
+                </Link>
                 <Button 
                   onClick={handleLogout}
                   className={`rounded-full font-bold border-0 transition-all duration-300 ${

@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../services/api'
 import toast from 'react-hot-toast'
-import { ROLES } from '../utils/constants'
 import { Button } from '@/components/ui/button'
+import { getDefaultAuthenticatedPath } from '../utils/authNavigation'
 
 const PASSWORD_RULES = [
   { key: 'length', label: 'Ít nhất 8 ký tự', test: (p) => p.length >= 8 },
@@ -26,7 +26,6 @@ export default function Register() {
     full_name: '',
     password: '',
     password_confirm: '',
-    role: ROLES.STUDENT,
   })
 
   const passwordStrength = useMemo(() => {
@@ -124,9 +123,9 @@ export default function Register() {
             </h2>
             <p className="mt-3 text-center text-sm text-white/80">
               Đã có tài khoản?{' '}
-              <a href="/login" className="text-orange-400 hover:text-orange-300 font-semibold transition-colors">
+              <Link to="/login" className="text-orange-400 hover:text-orange-300 font-semibold transition-colors">
                 Đăng nhập
-              </a>
+              </Link>
             </p>
           </div>
           <form className="space-y-5" onSubmit={handleSubmit}>
@@ -162,17 +161,6 @@ export default function Register() {
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-white/90 mb-2">Vai trò</label>
-              <select
-                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent backdrop-blur-sm transition-all"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              >
-                <option value={ROLES.STUDENT} className="bg-gray-800">Học sinh</option>
-                <option value={ROLES.TEACHER} className="bg-gray-800">Giáo viên</option>
-              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-white/90 mb-2">Mật khẩu</label>
@@ -291,9 +279,9 @@ export default function Register() {
             className="w-full py-3 rounded-full bg-white hover:bg-gray-100 text-gray-900 font-bold shadow-lg border-0 transition-all duration-300 flex items-center justify-center space-x-2"
             onClick={async () => {
               try {
-                await googleLogin()
+                const data = await googleLogin()
                 toast.success('Đăng ký Google thành công!')
-                navigate('/dashboard')
+                navigate(getDefaultAuthenticatedPath(data.user), { replace: true })
               } catch (error) {
                 if (error.code === 'auth/popup-closed-by-user') {
                   return

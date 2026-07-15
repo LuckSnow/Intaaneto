@@ -8,14 +8,14 @@ Hệ thống được thiết kế theo mô hình Sequential & Event-driven Orch
 ### 2.1. Tầng Trích xuất Tri thức (Knowledge Extraction Layer)
 Lý thuyết: Sử dụng cơ chế In-context Learning của các mô hình ngôn ngữ lớn (LLM).
 
-Thực thi: Tiếp nhận input (PDF, DOCX). Hệ thống thực hiện chuẩn hóa văn bản, sau đó sử dụng GPT-4o để phân tích cấu trúc.
+Thực thi: Tiếp nhận input PDF. Hệ thống thực hiện chuẩn hóa văn bản, sau đó sử dụng mô hình AI để phân tích cấu trúc.
 
 Sản phẩm đầu ra: Một cấu trúc Semantically Structured JSON bao gồm: Key concepts, Script cho giảng viên ảo và kịch bản phân cảnh (Storyboarding).
 
 ### 2.2. Tầng Tổng hợp Thị giác (Visual Synthesis Layer)
 Lý thuyết: Áp dụng nguyên lý thiết kế đồ họa tự động (Automated Graphic Design).
 
-Thực thi: Sử dụng thư viện Pillow (PIL) hoặc python-pptx.
+Thực thi: Sử dụng thư viện Pillow (PIL) để tạo tài nguyên hình ảnh khi cần.
 
 Cơ chế: Map các "Key concepts" từ JSON vào các Template slide có sẵn. Tính toán bố cục (Layouting) và phối màu tự động dựa trên chủ đề của tài liệu đầu vào.
 

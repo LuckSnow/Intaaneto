@@ -1,5 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
+import { getDefaultAuthenticatedPath } from './utils/authNavigation'
 
 // Layouts
 import MainLayout from './components/layouts/MainLayout'
@@ -22,18 +24,49 @@ import Profile from './pages/Profile'
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useAuthStore()
-  return isAuthenticated ? children : <Navigate to="/login" replace />
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const location = useLocation()
+  return isAuthenticated
+    ? children
+    : <Navigate to="/login" replace state={{ from: location.pathname }} />
+}
+
+const GuestRoute = ({ children }) => {
+  const { isAuthenticated, user } = useAuthStore()
+  return isAuthenticated
+    ? <Navigate to={getDefaultAuthenticatedPath(user)} replace />
+    : children
+}
+
+const RoleRoute = ({ roles, children }) => {
+  const user = useAuthStore((state) => state.user)
+  return roles.includes(user?.role)
+    ? children
+    : <Navigate to="/dashboard" replace />
 }
 
 function App() {
+  const { initializeAuth, isInitializing } = useAuthStore()
+
+  useEffect(() => {
+    initializeAuth()
+  }, [initializeAuth])
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-slate-600" role="status">Đang kiểm tra phiên đăng nhập...</p>
+      </div>
+    )
+  }
+
   return (
     <Routes>
       {/* Public Routes */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+        <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/courses/:id" element={<CourseDetail />} />
@@ -51,7 +84,10 @@ function App() {
         }
       >
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/teacher/upload" element={<TeacherUpload />} />
+        <Route
+          path="/teacher/upload"
+          element={<RoleRoute roles={['teacher', 'admin']}><TeacherUpload /></RoleRoute>}
+        />
         <Route path="/exercises/:id" element={<ExercisePage />} />
         <Route path="/profile" element={<Profile />} />
       </Route>

@@ -1,65 +1,145 @@
 """
 AI Processing Services for Lessons
-Workflow: Upload PDF/PPT → Extract text → Llama summarize → D-ID generate video
+Legacy multimedia helpers plus the PDF-only RAG ingestion service.
 """
 
 import io
 import time
 import logging
+import unicodedata
 import requests
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
+
+from apps.ai_assistant.rag_services import LessonIndexingError, index_lesson
 
 logger = logging.getLogger(__name__)
 
 
+class PDFIngestionError(Exception):
+    """Safe, user-facing failure from the bounded PDF ingestion pipeline."""
+
+
 # ═══════════════════════════════════════════════════════════
-#  1. DOCUMENT TEXT EXTRACTION (PDF / PPT)
+#  1. DOCUMENT TEXT EXTRACTION (PDF ONLY)
 # ═══════════════════════════════════════════════════════════
+
+def _read_bounded_pdf(file):
+    from PyPDF2 import PdfReader
+
+    data = file.read(settings.LESSON_PDF_MAX_BYTES + 1)
+    if len(data) > settings.LESSON_PDF_MAX_BYTES:
+        raise PDFIngestionError('File PDF vượt quá dung lượng cho phép')
+    if not data.startswith(b'%PDF-'):
+        raise PDFIngestionError('Nội dung tải lên không phải PDF hợp lệ')
+    return PdfReader(io.BytesIO(data), strict=False)
+
+
+def sanitize_extracted_text(text: str) -> str:
+    """Normalize parser output and remove database-unsafe control characters."""
+
+    normalized = unicodedata.normalize('NFKC', text or '')
+    normalized = normalized.replace('\r\n', '\n').replace('\r', '\n')
+    return ''.join(
+        character
+        for character in normalized
+        if character in ('\n', '\t')
+        or unicodedata.category(character) not in ('Cc', 'Cs')
+    )
+
+
+def _extract_pdf_pages(reader):
+    if reader.is_encrypted:
+        raise PDFIngestionError('Chưa hỗ trợ PDF được mã hóa hoặc đặt mật khẩu')
+    if not reader.pages:
+        raise PDFIngestionError('PDF không có trang nội dung')
+    if len(reader.pages) > settings.LESSON_PDF_MAX_PAGES:
+        raise PDFIngestionError('PDF vượt quá số trang cho phép')
+
+    pages = []
+    extracted_chars = 0
+    for page_number, page in enumerate(reader.pages, start=1):
+        text = sanitize_extracted_text(page.extract_text()).strip()
+        if not text:
+            continue
+        extracted_chars += len(text)
+        if extracted_chars > settings.LESSON_PDF_MAX_EXTRACTED_CHARS:
+            raise PDFIngestionError('Nội dung PDF vượt quá giới hạn xử lý')
+        pages.append(f'--- Trang {page_number} ---\n{text}')
+    if not pages:
+        raise PDFIngestionError('Không tìm thấy văn bản có thể trích xuất trong PDF')
+    return '\n\n'.join(pages)
+
 
 def extract_text_from_pdf(file) -> str:
-    """Extract text from a PDF file."""
-    from PyPDF2 import PdfReader
-    
-    file.seek(0)
-    reader = PdfReader(io.BytesIO(file.read()))
-    pages = []
-    for i, page in enumerate(reader.pages):
-        text = page.extract_text()
-        if text and text.strip():
-            pages.append(f"--- Trang {i+1} ---\n{text.strip()}")
-    return "\n\n".join(pages)
+    """Extract bounded text while retaining stable, human-readable page markers."""
+    from PyPDF2.errors import PdfReadError
 
-
-def extract_text_from_pptx(file) -> str:
-    """Extract text from a PowerPoint (.pptx) file."""
-    from pptx import Presentation
-    
-    file.seek(0)
-    prs = Presentation(io.BytesIO(file.read()))
-    slides = []
-    for i, slide in enumerate(prs.slides):
-        texts = []
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                for para in shape.text_frame.paragraphs:
-                    text = para.text.strip()
-                    if text:
-                        texts.append(text)
-        if texts:
-            slides.append(f"--- Slide {i+1} ---\n" + "\n".join(texts))
-    return "\n\n".join(slides)
+    try:
+        file.seek(0)
+        return _extract_pdf_pages(_read_bounded_pdf(file))
+    except PDFIngestionError:
+        raise
+    except (PdfReadError, OSError, ValueError, TypeError, KeyError) as exc:
+        raise PDFIngestionError('Không thể đọc file PDF') from exc
+    finally:
+        file.seek(0)
 
 
 def extract_text(file, filename: str) -> str:
-    """Extract text from uploaded file based on extension."""
+    """Extract text from the only supported lesson document format."""
     ext = filename.lower().rsplit('.', 1)[-1] if '.' in filename else ''
     
     if ext == 'pdf':
         return extract_text_from_pdf(file)
-    elif ext in ('pptx', 'ppt'):
-        return extract_text_from_pptx(file)
-    else:
-        raise ValueError(f"Unsupported file type: .{ext}. Only PDF and PPT/PPTX are supported.")
+    raise PDFIngestionError('Chỉ hỗ trợ file PDF')
+
+
+def process_pdf_lesson(*, actor, lesson, embedding_provider=None):
+    """Authorize, extract, and synchronously index one uploaded lesson PDF."""
+
+    if not getattr(actor, 'is_authenticated', False):
+        raise PermissionDenied('Bạn không có quyền xử lý bài học này.')
+    if actor.role != 'admin' and (
+        actor.role != 'teacher' or lesson.course.teacher_id != actor.id
+    ):
+        raise PermissionDenied('Bạn không có quyền xử lý bài học này.')
+
+    try:
+        if not lesson.uploaded_file or not lesson.uploaded_file.name.lower().endswith('.pdf'):
+            raise PDFIngestionError('Bài học không có file PDF hợp lệ')
+
+        lesson.processing_status = 'extracting'
+        lesson.processing_error = ''
+        lesson.save(update_fields=['processing_status', 'processing_error'])
+
+        extracted = extract_text_from_pdf(lesson.uploaded_file)
+        lesson.extracted_text = extracted
+        lesson.save(update_fields=['extracted_text'])
+
+        source, created = index_lesson(
+            actor=actor,
+            lesson_id=lesson.id,
+            provider=embedding_provider,
+        )
+        lesson.processing_status = 'completed'
+        lesson.processing_error = ''
+        lesson.save(update_fields=['processing_status', 'processing_error'])
+        return source, created
+    except PermissionDenied:
+        raise
+    except PDFIngestionError as exc:
+        safe_error = str(exc)
+    except LessonIndexingError:
+        safe_error = 'Không thể lập chỉ mục nội dung PDF'
+    except Exception:
+        logger.exception('Unexpected PDF ingestion failure for lesson %s', lesson.id)
+        safe_error = 'Không thể xử lý file PDF'
+
+    lesson.processing_status = 'failed'
+    lesson.processing_error = safe_error
+    lesson.save(update_fields=['processing_status', 'processing_error'])
+    raise PDFIngestionError(safe_error)
 
 
 # ═══════════════════════════════════════════════════════════

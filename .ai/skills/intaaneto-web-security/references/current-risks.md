@@ -15,17 +15,16 @@ exploitation. Re-check code and tests before changing status.
 - `get_hint` loads exercises without explicit course/enrollment authorization.
 - Forum object-owner permission logic exists but is not applied; authenticated
   users may be able to update/delete content owned by others.
-- Logout attempts token blacklisting, but the Simple JWT blacklist app is not
-  installed, so logout behavior requires verification.
-- Upload processing runs in daemon threads, is not durable, and performs long
-  external calls without a persistent job boundary.
+- PDF extraction and local embedding run synchronously in the upload request;
+  this removes the daemon-thread loss mode but still lacks parser wall-clock
+  isolation and a durable background job boundary for production workloads.
 
 ## Operational gaps
 
 - No rate limiting or request throttling is configured.
 - Security regression coverage now includes initial role, lesson ownership,
-  enrollment, hidden-answer, chat-scope, indexing-owner, and lesson-scoped vector
-  retrieval boundaries. Upload abuse still lacks coverage.
+  enrollment, hidden-answer, chat-scope, indexing-owner, lesson-scoped vector
+  retrieval boundaries, and initial PDF spoofing/type/size/owner failure paths.
 - Docker Compose uses development mode and hard-coded database credentials.
 - Compose is a development configuration with bind mounts and Django/Vite
   development servers; it is not a production deployment definition.
@@ -65,6 +64,14 @@ exploitation. Re-check code and tests before changing status.
   uploads, or vectors. Demo accounts have unusable passwords unless each machine
   supplies ignored environment values, and the legacy fixed seed password has
   been removed.
+- Lesson upload now accepts PDF only, validates its signature and bounded parser
+  inputs, rejects the removed document formats, authorizes ownership before
+  extraction/embedding, and never activates partial chunks after an indexing
+  failure. The old daemon-thread upload endpoint path is no longer used.
+- JWT refresh rotation and logout blacklisting are enabled through SimpleJWT's
+  blacklist app and covered by API tests. The frontend stores a rotated refresh
+  token, validates the current user during app startup, and does not attempt a
+  refresh when login or registration itself returns 401.
 
 ## Status discipline
 

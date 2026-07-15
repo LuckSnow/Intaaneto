@@ -22,7 +22,7 @@ tập của người học.
 
 - Xây dựng website E-learning có phân quyền giảng viên và người học.
 - Quản lý khóa học, bài học, bài tập và tài liệu học thuật.
-- Nghiên cứu phương pháp trích xuất nội dung từ PDF, PPT/PPTX và các học liệu
+- Nghiên cứu phương pháp trích xuất nội dung từ PDF và các học liệu
   được giảng viên phê duyệt.
 - Xây dựng cơ sở tri thức RAG để AI trả lời dựa trên đúng nội dung bài học và có
   nguồn tham chiếu.
@@ -73,7 +73,7 @@ Câu hỏi của người học + phạm vi bài học được cấp quyền
   vector cho tài liệu và câu hỏi.
 - **Response model:** gọi qua API trực tuyến thông qua một lớp provider độc lập,
   cho phép thử nghiệm hoặc thay đổi nhà cung cấp.
-- **Object storage:** Cloudflare R2 hoặc dịch vụ tương đương để lưu PDF/PPTX,
+- **Object storage:** Cloudflare R2 hoặc dịch vụ tương đương để lưu PDF,
   audio, ảnh và video. Google Drive có thể dùng cho dữ liệu nghiên cứu ban đầu,
   nhưng không thay thế vector database.
 - **Vector storage:** PostgreSQL kết hợp pgvector để lưu chunk, embedding,
@@ -126,7 +126,7 @@ Phiên bản nghiên cứu đầu tiên cần chứng minh được một vòng 
 - **Database:** PostgreSQL 15.
 - **Authentication:** JWT với Simple JWT.
 - **Frontend:** React 18, Vite, Tailwind CSS, Zustand và React Router.
-- **Document libraries:** PyPDF2, python-pptx và Pillow.
+- **Document libraries:** PyPDF2 và Pillow.
 - **AI integration hiện có:** OpenAI/Groq ở mức tích hợp ban đầu.
 - **Infrastructure:** Docker và Docker Compose.
 
@@ -176,7 +176,7 @@ intaaneto/
 2. Lập chỉ mục được nội dung của một bài học và re-index không trùng dữ liệu.
 3. Truy xuất đúng chunk theo quyền truy cập bài học/khóa học.
 4. Sinh câu trả lời grounded kèm citation và cơ chế từ chối khi thiếu bằng chứng.
-5. Hoàn thiện upload và ingestion PDF/PPTX.
+5. Hoàn thiện upload và ingestion PDF; không hỗ trợ DOCX, PPT hoặc PPTX.
 6. Xây dựng hội thoại kiểm tra kiến thức, rubric và progression rule.
 7. Đánh giá retrieval, groundedness, citation, độ nhất quán, latency và chi phí.
 8. Tích hợp báo cáo tiến độ.

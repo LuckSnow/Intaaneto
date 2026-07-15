@@ -8,9 +8,7 @@ import toast from 'react-hot-toast'
 const STATUS_MAP = {
   pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: '⏳' },
   extracting: { label: 'Đang trích xuất văn bản...', color: 'text-blue-400', icon: '📄' },
-  summarizing: { label: 'AI đang tóm tắt bài giảng...', color: 'text-purple-400', icon: '🤖' },
-  generating_video: { label: 'Đang tạo video AI...', color: 'text-cyan-400', icon: '🎬' },
-  completed: { label: 'Hoàn thành!', color: 'text-green-400', icon: '✅' },
+  completed: { label: 'Đã lập chỉ mục và sẵn sàng hỏi đáp', color: 'text-green-400', icon: '✅' },
   failed: { label: 'Xử lý thất bại', color: 'text-red-400', icon: '❌' },
 }
 
@@ -35,34 +33,6 @@ export default function TeacherUpload() {
     fetchCourses()
   }, [user, navigate])
 
-  // Poll processing status for uploaded lessons
-  useEffect(() => {
-    const processing = uploadedLessons.filter(
-      (l) => l.status !== 'completed' && l.status !== 'failed'
-    )
-    if (processing.length === 0) return
-
-    const interval = setInterval(async () => {
-      const updated = await Promise.all(
-        uploadedLessons.map(async (l) => {
-          if (l.status === 'completed' || l.status === 'failed') return l
-          try {
-            const data = await courseService.getLessonStatus(l.id)
-            if (data.status === 'completed') {
-              toast.success(`"${l.title}" đã tạo video thành công!`)
-            }
-            return { ...l, status: data.status, error: data.error, videoUrl: data.ai_video_url }
-          } catch {
-            return l
-          }
-        })
-      )
-      setUploadedLessons(updated)
-    }, 8000)
-
-    return () => clearInterval(interval)
-  }, [uploadedLessons])
-
   const fetchCourses = async () => {
     try {
       const data = await courseService.getCourses()
@@ -77,12 +47,12 @@ export default function TeacherUpload() {
     const selected = e.target.files[0]
     if (!selected) return
     const ext = selected.name.split('.').pop().toLowerCase()
-    if (!['pdf', 'pptx', 'ppt'].includes(ext)) {
-      toast.error('Chỉ hỗ trợ file PDF hoặc PowerPoint (.pptx)')
+    if (ext !== 'pdf') {
+      toast.error('Chỉ hỗ trợ file PDF')
       return
     }
-    if (selected.size > 50 * 1024 * 1024) {
-      toast.error('File không được vượt quá 50MB')
+    if (selected.size > 20 * 1024 * 1024) {
+      toast.error('File PDF không được vượt quá 20MB')
       return
     }
     setFile(selected)
@@ -113,7 +83,7 @@ export default function TeacherUpload() {
       formData.append('order', order)
 
       const result = await courseService.uploadLesson(formData)
-      toast.success('Đã tải lên! AI đang xử lý tạo video...')
+      toast.success('PDF đã được trích xuất và lập chỉ mục')
 
       // Add to tracking list
       const lesson = result.lesson
@@ -123,7 +93,6 @@ export default function TeacherUpload() {
           title: lesson.title,
           status: lesson.processing_status || 'pending',
           error: '',
-          videoUrl: '',
         },
         ...prev,
       ])
@@ -151,11 +120,13 @@ export default function TeacherUpload() {
 
   const handleReprocess = async (lessonId) => {
     try {
-      await courseService.reprocessLesson(lessonId)
+      const result = await courseService.reprocessLesson(lessonId)
       setUploadedLessons((prev) =>
-        prev.map((l) => (l.id === lessonId ? { ...l, status: 'pending', error: '' } : l))
+        prev.map((l) => (l.id === lessonId
+          ? { ...l, status: result.lesson?.processing_status || 'completed', error: '' }
+          : l))
       )
-      toast.success('Đang xử lý lại...')
+      toast.success('PDF đã được xử lý lại')
     } catch {
       toast.error('Không thể xử lý lại')
     }
@@ -178,7 +149,7 @@ export default function TeacherUpload() {
             📤 Tải Bài Giảng
           </h1>
           <p className="text-lg text-white/70">
-            Tải lên file PDF/PPT — AI sẽ tóm tắt và tạo video bài giảng tự động
+            Tải lên một file PDF để trích xuất nội dung và lập chỉ mục cho AI Tutor
           </p>
         </div>
 
@@ -239,12 +210,12 @@ export default function TeacherUpload() {
 
             {/* File Upload */}
             <div>
-              <label className="block text-white/80 text-sm font-semibold mb-2">File bài giảng (PDF / PPTX)</label>
+              <label className="block text-white/80 text-sm font-semibold mb-2">File bài giảng (PDF)</label>
               <div className="relative">
                 <input
                   id="lesson-file-input"
                   type="file"
-                  accept=".pdf,.pptx,.ppt"
+                  accept=".pdf,application/pdf"
                   onChange={handleFileChange}
                   className="block w-full text-white/70 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:bg-orange-500/20 file:text-orange-300 file:font-semibold file:cursor-pointer hover:file:bg-orange-500/30 transition"
                 />
@@ -265,10 +236,10 @@ export default function TeacherUpload() {
               {uploading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                  Đang tải lên...
+                  Đang tải lên và lập chỉ mục...
                 </span>
               ) : (
-                '🚀 Tải lên & Tạo video AI'
+                'Tải lên & lập chỉ mục PDF'
               )}
             </Button>
           </form>
@@ -302,12 +273,12 @@ export default function TeacherUpload() {
                       </div>
                     )}
 
-                    {lesson.status === 'completed' && lesson.videoUrl && (
+                    {lesson.status === 'completed' && (
                       <Button
                         onClick={() => navigate(`/lessons/${lesson.id}`)}
                         className="bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30 rounded-lg px-4 py-2 text-sm"
                       >
-                        Xem video →
+                        Mở bài học →
                       </Button>
                     )}
 

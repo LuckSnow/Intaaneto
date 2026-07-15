@@ -26,7 +26,6 @@ fastembed==0.8.0
 
 # Document Processing
 PyPDF2==3.0.1
-python-pptx==1.0.2
 
 # Google Auth (Firebase token verification)
 google-auth==2.48.0

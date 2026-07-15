@@ -99,11 +99,11 @@ class Lesson(models.Model):
     video_url = models.URLField(_('video URL'), blank=True, max_length=500)
     video_file = models.FileField(_('video file'), upload_to='courses/videos/', null=True, blank=True)
     
-    # Teacher uploaded document (PDF/PPT)
+    # Teacher uploaded document (PDF only)
     uploaded_file = models.FileField(_('uploaded file'), upload_to='courses/uploads/', null=True, blank=True)
     
     # AI Processing
-    extracted_text = models.TextField(_('extracted text'), blank=True, help_text='Raw text extracted from uploaded PDF/PPT')
+    extracted_text = models.TextField(_('extracted text'), blank=True, help_text='Raw text extracted from uploaded PDF')
     ai_summary = models.TextField(_('AI summary'), blank=True, help_text='AI-generated lecture summary script')
     ai_video_url = models.URLField(_('AI video URL'), blank=True, max_length=500, help_text='D-ID generated video URL')
     ai_video_id = models.CharField(_('D-ID talk ID'), max_length=100, blank=True, help_text='D-ID talk ID for polling')

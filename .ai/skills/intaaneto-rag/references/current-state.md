@@ -1,6 +1,6 @@
 # Current state
 
-Last repository inspection: 2026-07-15.
+Last repository inspection: 2026-07-16.
 
 This is a living factual snapshot, not a roadmap. Verify it against code before
 relying on it and update it after material implementation changes.
@@ -17,7 +17,18 @@ relying on it and update it after material implementation changes.
   `get_hint` actions.
 - `AIService` builds a Vietnamese tutoring system prompt and can add caller-
   supplied lesson, exercise, or code context.
-- PDF/PPT processing libraries are declared (`PyPDF2`, `python-pptx`).
+- PDF-only lesson ingestion is implemented synchronously through the teacher
+  upload and reprocess endpoints. The backend allowlists `.pdf`, checks MIME and
+  `%PDF-` signature, bounds bytes/pages/extracted characters, rejects encrypted,
+  malformed, and text-empty files, preserves page markers in extracted text,
+  normalizes Unicode and removes database-unsafe NUL/control characters, and
+  invokes the existing idempotent lesson indexer. DOCX/PPT/PPTX are outside
+  the product target and `python-pptx` is no longer a runtime dependency.
+- PDF ingestion authorizes the owning teacher or admin before extraction and
+  embedding. A complete index is activated only after extraction and all
+  embeddings succeed; failures persist a bounded safe status without activating
+  partial knowledge. The request is deliberately synchronous for this first
+  tested slice and does not invoke Groq, D-ID, Celery, Redis, or R2.
 - AI generation now uses a provider adapter with the supported OpenAI client,
   configurable model/timeout, bounded history, and explicit provider failures.
 - AI Tutor generation can now select `openai` or `gemini` through
@@ -77,7 +88,7 @@ relying on it and update it after material implementation changes.
   displays grounded/fallback status plus expandable source excerpts. React text
   rendering is used for excerpts; no raw HTML is injected.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. Fifty-four backend tests passed on 2026-07-15 in the
+  regression coverage. Seventy-two backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -95,6 +106,19 @@ relying on it and update it after material implementation changes.
 - Four demo-seed cases cover idempotency, exclusion of private/RAG-derived state,
   environment-only passwords, collision safety, and removal of the legacy fixed
   seed password.
+- Fourteen PDF-ingestion cases cover real PDF extraction with page markers, empty,
+  encrypted, oversized, spoofed and non-PDF rejection, owner authorization before processing,
+  NUL/control-character sanitization, upload-to-active-index, embedding failure
+  without partial activation, and idempotent reprocessing.
+- A live retry of the previously failing uploaded PDF completed on 2026-07-16:
+  33,683 sanitized characters with zero NUL characters produced one active
+  source with 40 chunks. This proves the observed PostgreSQL NUL failure is fixed
+  for that file; it is not a broad PDF-parser quality evaluation.
+- The web auth flow now validates an existing JWT session against `/users/me/`
+  during startup, preserves safe intended routes, directs teachers/admins to the
+  PDF upload surface and learners to their dashboard, hides login/register from
+  authenticated users, and keeps public registration learner-only. SimpleJWT
+  refresh rotation/logout blacklisting is installed and covered by API tests.
 - Rollback-only PostgreSQL smoke tests persisted and ranked pgvector chunks with
   exact cosine distance. A live FastEmbed smoke ranked the intended RAG and
   Python chunks first (`0.494` and `0.756`) and marked the unsupported weather
@@ -133,14 +157,18 @@ relying on it and update it after material implementation changes.
 - The local model cache is not baked into the backend image. First use downloads
   about 0.22 GB and therefore still needs deployment cache/network planning.
 - No Redis/Celery services in `docker-compose.yml`.
+- PDF upload currently performs extraction and local embedding inside the HTTP
+  request. Durable background execution, parser wall-clock isolation, structured
+  per-chunk page fields, and orphan-file cleanup are not implemented yet.
 - Chat history restoration in the lesson UI is not implemented; the current page
   keeps one server-owned session until navigation or reload.
 
 ## Known integration risks
 
 - `get_hint` fetches an exercise without an explicit enrollment/access check.
-- Uploaded lesson files allow broad types at the model level; size exists in
-  global settings but type, parsing, and content safety need explicit handling.
+- PDF type/content/page/text bounds are enforced at the upload and extraction
+  seams, but parser wall-clock isolation, malware scanning, and durable job
+  recovery remain deployment work.
 - A live OpenAI generation diagnostic reached the configured model but returned
   `insufficient_quota`. Gemini support is implemented but still needs a real
   AI Studio key and a deliberate grounded-chat smoke; automated generation
@@ -152,7 +180,8 @@ relying on it and update it after material implementation changes.
 ## Session handoff — start here
 
 - Product priority remains RAG. Slices 0 through 3 are complete; Slice 4
-  (safe upload ingestion) is next after a deliberate live grounded-chat smoke.
+  now has a tested synchronous PDF-only upload-to-index path. Durable background
+  jobs and structured page-location persistence remain intentionally deferred.
 - For the live smoke, configure one generation provider, use an enrolled learner
   and an indexed lesson, ask one answerable and one unsupported question, and
   confirm citations/fallback in the UI without exposing provider or retrieval

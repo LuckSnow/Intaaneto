@@ -25,7 +25,7 @@ export const courseService = {
     return response.data
   },
 
-  // Teacher: upload lesson with PDF/PPT
+  // Teacher: upload and index a PDF lesson
   uploadLesson: async (formData) => {
     const response = await api.post('/courses/lessons/upload/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

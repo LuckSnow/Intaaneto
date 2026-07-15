@@ -139,3 +139,18 @@ affected files or migration.
   while database volumes contain machine-local and potentially private state.
 - Constraint: Vector indexing remains explicit because it depends on the local
   embedding model/configuration and may download model weights on first use.
+
+## RAG-012 — Limit lesson document ingestion to PDF
+
+- Status: Implemented for the current upload contract
+- Date: 2026-07-15
+- Affected: course upload serializer/service/view, PDF ingestion tests, frontend
+  teacher upload page, and document-processing dependencies
+- Decision: Support teacher-uploaded PDF lesson documents only. DOCX, PPT, and
+  PPTX uploads are outside the ingestion target.
+- Reason: One format covers the required learning-material workflow while
+  keeping parser validation, page metadata, fixtures, and security testing small
+  enough for a focused vertical slice.
+- Implementation note: Slice 4 replaced the legacy PDF/PPTX upload contract with
+  a synchronous PDF-only upload-to-index path. Production job durability remains
+  a separate concern recorded in `current-state.md`.

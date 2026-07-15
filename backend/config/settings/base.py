@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_yasg',
     'social_django',
@@ -235,6 +236,13 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 # File Upload Settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
+LESSON_PDF_MAX_BYTES = config('LESSON_PDF_MAX_BYTES', default=20 * 1024 * 1024, cast=int)
+LESSON_PDF_MAX_PAGES = config('LESSON_PDF_MAX_PAGES', default=100, cast=int)
+LESSON_PDF_MAX_EXTRACTED_CHARS = config(
+    'LESSON_PDF_MAX_EXTRACTED_CHARS',
+    default=250000,
+    cast=int,
+)
 
 # Email Configuration - Mailjet via Anymail
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='anymail.backends.mailjet.EmailBackend')

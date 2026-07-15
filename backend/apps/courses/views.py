@@ -1,5 +1,3 @@
-import threading
-import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -14,9 +12,7 @@ from .serializers import (
     LessonUploadSerializer, LessonDetailSerializer, LessonCommentSerializer,
     EnrollmentSerializer, LessonProgressSerializer, ReviewSerializer
 )
-from .services import process_lesson
-
-logger = logging.getLogger(__name__)
+from .services import PDFIngestionError, process_pdf_lesson
 
 
 class IsTeacher(BasePermission):
@@ -153,9 +149,12 @@ class LessonViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsTeacher])
     def upload(self, request):
         """
-        Teacher uploads a PDF/PPT lesson.
-        Triggers async AI processing: extract → summarize → generate video.
+        Teacher uploads one PDF, then extraction and RAG indexing run synchronously.
         """
+        course = Course.objects.filter(pk=request.data.get('course')).first()
+        if course is not None:
+            self._validate_course_owner(course)
+
         serializer = LessonUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self._validate_course_owner(serializer.validated_data['course'])
@@ -163,22 +162,20 @@ class LessonViewSet(viewsets.ModelViewSet):
             lesson_type='text',
             processing_status='pending',
         )
-        
-        # Start async processing in background thread
-        def _process():
-            try:
-                from django import db
-                db.connections.close_all()
-                process_lesson(lesson)
-            except Exception as e:
-                logger.error(f"Background processing failed for lesson {lesson.id}: {e}")
-        
-        thread = threading.Thread(target=_process, daemon=True)
-        thread.start()
+
+        try:
+            source, created = process_pdf_lesson(actor=request.user, lesson=lesson)
+        except PDFIngestionError as exc:
+            return Response(
+                {'error': str(exc), 'lesson_id': lesson.id},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
         return Response({
-            'message': 'Bài giảng đã được tải lên! AI đang xử lý tạo video...',
+            'message': 'PDF đã được trích xuất và lập chỉ mục.',
             'lesson': LessonDetailSerializer(lesson).data,
+            'knowledge_source_id': source.id,
+            'index_created': created,
         }, status=status.HTTP_201_CREATED)
     
     @action(detail=True, methods=['get'])
@@ -195,27 +192,22 @@ class LessonViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def reprocess(self, request, pk=None):
-        """Re-trigger AI processing for a failed lesson."""
+        """Safely extract and index the lesson PDF again."""
         lesson = self.get_object()
         if lesson.processing_status not in ('failed', 'completed'):
             return Response({'error': 'Bài giảng đang được xử lý'}, status=400)
         
-        lesson.processing_status = 'pending'
-        lesson.processing_error = ''
-        lesson.save(update_fields=['processing_status', 'processing_error'])
-        
-        def _process():
-            try:
-                from django import db
-                db.connections.close_all()
-                process_lesson(lesson)
-            except Exception as e:
-                logger.error(f"Reprocess failed for lesson {lesson.id}: {e}")
-        
-        thread = threading.Thread(target=_process, daemon=True)
-        thread.start()
-        
-        return Response({'message': 'Đang xử lý lại...'})
+        try:
+            source, created = process_pdf_lesson(actor=request.user, lesson=lesson)
+        except PDFIngestionError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'message': 'PDF đã được xử lý lại.',
+            'lesson': LessonDetailSerializer(lesson).data,
+            'knowledge_source_id': source.id,
+            'index_created': created,
+        })
 
 
 class LessonCommentViewSet(viewsets.ModelViewSet):

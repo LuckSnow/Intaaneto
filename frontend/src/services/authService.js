@@ -1,6 +1,11 @@
 import api from './api'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '../config/firebase'
+import {
+  clearAuthSession,
+  getStoredRefreshToken,
+  storeAuthSession,
+} from '../utils/authStorage'
 
 export const authService = {
   // Register new user (no auto-login, requires email verification)
@@ -14,10 +19,7 @@ export const authService = {
     const response = await api.post('/auth/login/', credentials)
     const { user, tokens } = response.data
     
-    // Store tokens
-    localStorage.setItem('access_token', tokens.access)
-    localStorage.setItem('refresh_token', tokens.refresh)
-    localStorage.setItem('user', JSON.stringify(user))
+    storeAuthSession({ user, tokens })
     
     return response.data
   },
@@ -38,10 +40,7 @@ export const authService = {
     const response = await api.post('/auth/google/', { id_token: idToken })
     const { user, tokens } = response.data
 
-    // 3. Store tokens locally
-    localStorage.setItem('access_token', tokens.access)
-    localStorage.setItem('refresh_token', tokens.refresh)
-    localStorage.setItem('user', JSON.stringify(user))
+    storeAuthSession({ user, tokens })
 
     return response.data
   },
@@ -49,12 +48,12 @@ export const authService = {
   // Logout user
   logout: async () => {
     try {
-      const refreshToken = localStorage.getItem('refresh_token')
-      await api.post('/auth/logout/', { refresh_token: refreshToken })
+      const refreshToken = getStoredRefreshToken()
+      if (refreshToken) {
+        await api.post('/auth/logout/', { refresh_token: refreshToken })
+      }
     } finally {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
-      localStorage.removeItem('user')
+      clearAuthSession()
     }
   },
 

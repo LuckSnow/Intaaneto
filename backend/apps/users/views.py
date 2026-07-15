@@ -136,8 +136,13 @@ class AuthViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):
         """Logout user (blacklist refresh token)"""
+        refresh_token = request.data.get('refresh_token')
+        if not refresh_token:
+            return Response(
+                {'error': 'Refresh token is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
-            refresh_token = request.data.get('refresh_token')
             token = RefreshToken(refresh_token)
             token.blacklist()
             return Response({'message': 'Successfully logged out'})
@@ -203,9 +208,9 @@ class AuthViewSet(viewsets.GenericViewSet):
                 google_requests.Request(),
                 audience=settings.FIREBASE_PROJECT_ID,
             )
-        except Exception as e:
+        except Exception:
             return Response(
-                {'error': f'Invalid token: {str(e)}'},
+                {'error': 'Google token không hợp lệ'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 

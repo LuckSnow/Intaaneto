@@ -27,7 +27,9 @@ docker compose exec backend python manage.py createsuperuser
 
 Nhập email, username, full name và một mật khẩu mạnh riêng trên từng máy. Không
 dùng hoặc ghi một mật khẩu quản trị mặc định trong repository.
-
+## Tài khoản demo cho giáo viên
+Email: demo.teacher@example.invalid
+Password: Teacher123!
 ## Tạo dữ liệu mẫu dùng chung
 
 Không copy Docker volume hoặc dump toàn bộ database development sang máy khác vì
@@ -68,6 +70,17 @@ Tài khoản demo:
 Cuối output của `seed_demo_data` có lệnh `index_lesson` với ID đúng trên database
 của từng máy. Chỉ chạy lệnh đó khi muốn kiểm tra RAG vì lần đầu có thể phải tải
 embedding model local.
+
+### Đăng nhập trên web
+
+Mở `http://localhost:5173/login` cho cả học viên và giáo viên. Đăng ký công khai
+luôn tạo tài khoản học viên; quyền giáo viên phải được cấp bởi dữ liệu seed hoặc
+quản trị viên, không được chọn từ form đăng ký.
+
+- Giáo viên/admin đăng nhập thành công được đưa tới `/teacher/upload`.
+- Học viên đăng nhập thành công được đưa tới `/dashboard`.
+- Đặt `DEMO_TEACHER_PASSWORD` hoặc `DEMO_STUDENT_PASSWORD` trong `backend/.env`,
+  rồi chạy lại `seed_demo_data` để đặt mật khẩu demo trên máy local.
 
 Các địa chỉ:
 
