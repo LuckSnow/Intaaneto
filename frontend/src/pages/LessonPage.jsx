@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore'
 import { courseService } from '../services/courseService'
 import { aiService } from '../services/aiService'
 import toast from 'react-hot-toast'
-import { AlertCircle, BookOpen, Bot, CheckCircle2, Send } from 'lucide-react'
+import { AlertCircle, ArrowRight, BookOpen, Bot, CheckCircle2, Send } from 'lucide-react'
 
 const STATUS_MAP = {
   pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: '⏳' },
@@ -40,6 +40,7 @@ export default function LessonPage() {
 
   // Polling for processing
   const [polling, setPolling] = useState(false)
+  const [completion, setCompletion] = useState(null)
 
   useEffect(() => {
     fetchLesson()
@@ -49,6 +50,7 @@ export default function LessonPage() {
     setChatMessages([])
     setChatInput('')
     setChatSessionId(null)
+    setCompletion(null)
   }, [id])
 
   useEffect(() => {
@@ -118,7 +120,8 @@ export default function LessonPage() {
 
   const handleCompleteLesson = async () => {
     try {
-      await courseService.completeLesson(id)
+      const result = await courseService.completeLesson(id)
+      setCompletion(result)
       toast.success('Đã hoàn thành bài học!')
     } catch {
       toast.error('Không thể đánh dấu hoàn thành')
@@ -506,12 +509,31 @@ export default function LessonPage() {
               </div>
 
               {isAuthenticated && (
-                <Button
-                  onClick={handleCompleteLesson}
-                  className="w-full mt-6 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold border-0 transition-all"
-                >
-                  ✅ Đánh dấu hoàn thành
-                </Button>
+                <div className="mt-6 space-y-3">
+                  <Button
+                    onClick={handleCompleteLesson}
+                    disabled={completion?.is_completed}
+                    className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-green-700/60 text-white font-semibold border-0 transition-colors"
+                  >
+                    {completion?.is_completed ? '✓ Đã hoàn thành' : 'Đánh dấu hoàn thành'}
+                  </Button>
+
+                  {completion?.next_lesson && (
+                    <Button
+                      onClick={() => navigate(`/lessons/${completion.next_lesson.id}`)}
+                      className="w-full py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold border-0 transition-colors"
+                    >
+                      Sang bài tiếp theo
+                      <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  )}
+
+                  {completion?.is_completed && !completion.next_lesson && (
+                    <p className="text-center text-sm text-white/60">
+                      Bạn đã hoàn thành bài khả dụng cuối cùng trong khóa học.
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 

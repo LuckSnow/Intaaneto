@@ -110,6 +110,13 @@ relying on it and update it after material implementation changes.
   encrypted, oversized, spoofed and non-PDF rejection, owner authorization before processing,
   NUL/control-character sanitization, upload-to-active-index, embedding failure
   without partial activation, and idempotent reprocessing.
+- Lesson completion now returns the next authorized, published, usable lesson,
+  updates enrollment progress and resume position, and skips PDF lessons without
+  readable content or an active ready RAG source. The lesson page shows a
+  server-confirmed next-lesson action, while enrolled learners can also open
+  lessons directly from the course outline. Three API tests cover a ready PDF
+  after an unusable upload, final-lesson completion, and preview isolation so an
+  unenrolled viewer cannot discover the next enrolled-only lesson.
 - A live retry of the previously failing uploaded PDF completed on 2026-07-16:
   33,683 sanitized characters with zero NUL characters produced one active
   source with 40 chunks. This proves the observed PostgreSQL NUL failure is fixed
@@ -141,8 +148,8 @@ relying on it and update it after material implementation changes.
   Firebase values no longer crash React during module import; Google login and
   Firestore realtime helpers remain inactive until configured, while the normal
   REST-backed application can render.
-- Frontend lint and the container production build passed after the Slice 3 UI
-  update on 2026-07-14. The build still warns about a JavaScript
+- Frontend lint and a production build passed after the lesson-progression UI
+  update on 2026-07-16. The build still warns about a JavaScript
   chunk above 500 kB and stale Browserslist data.
 
 ## Not implemented as of the inspection
