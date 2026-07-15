@@ -45,6 +45,12 @@ relying on it and update it after material implementation changes.
   test produced two 384-dimensional vectors; model quality is not yet evaluated.
 - `python manage.py index_lesson <lesson_id> --actor-id <user_id>` is the first
   trusted entry point. It has no HTTP/upload/background-job surface.
+- `python manage.py seed_demo_data` creates a deterministic, idempotent local
+  teacher/student/enrollment/course and text-only RAG lesson for collaborators.
+  It excludes uploads, chat history, vectors, and fixed credentials; optional
+  local login passwords come only from ignored environment values. Indexing is
+  deliberately a separate command so setup does not unexpectedly download or
+  run the embedding model.
 - Slice 2 lesson retrieval is implemented in `ai_assistant.rag_services` without
   invoking an LLM. It resolves the actor's readable lesson scope before query
   embedding, selects only the compatible complete active source, and returns
@@ -71,7 +77,7 @@ relying on it and update it after material implementation changes.
   displays grounded/fallback status plus expandable source excerpts. React text
   rendering is used for excerpts; no raw HTML is injected.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. Fifty backend tests passed on 2026-07-15 in the
+  regression coverage. Fifty-four backend tests passed on 2026-07-15 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -86,6 +92,9 @@ relying on it and update it after material implementation changes.
 - Six generation-provider cases cover OpenAI/Gemini selection, Gemini's
   OpenAI-compatible request contract, missing server-side keys, and an unknown
   provider failing closed.
+- Four demo-seed cases cover idempotency, exclusion of private/RAG-derived state,
+  environment-only passwords, collision safety, and removal of the legacy fixed
+  seed password.
 - Rollback-only PostgreSQL smoke tests persisted and ranked pgvector chunks with
   exact cosine distance. A live FastEmbed smoke ranked the intended RAG and
   Python chunks first (`0.494` and `0.756`) and marked the unsupported weather
@@ -154,6 +163,8 @@ relying on it and update it after material implementation changes.
   pgvector search is sufficient for the current small corpus baseline.
 - Do not add R2, Google Drive, Celery, Redis, avatar, voice, or video work to this
   slice. Original lesson fields are sufficient for the first indexing path.
+- Collaborators should run migrations and `seed_demo_data` locally rather than
+  sharing development database volumes or dumps containing accounts and chats.
 - The worktree contains intentional uncommitted changes from stabilization,
   Docker/docs/environment cleanup, authorization/chat work, and frontend
   Firebase fallback. Inspect and preserve them; do not reset or overwrite them.

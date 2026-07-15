@@ -126,3 +126,16 @@ affected files or migration.
 - Constraint: Fail closed for a missing key or unknown provider. Free-tier
   providers are for non-sensitive prototype material only unless their data
   handling terms meet the deployment's privacy requirements.
+
+## RAG-011 — Reproducible source seed instead of shared development databases
+
+- Status: Implemented
+- Date: 2026-07-15
+- Affected: `seed_demo_data`, its tests, environment example, and `docs/SETUP.md`
+- Decision: Recreate a minimal text-only RAG course from an idempotent management
+  command on each developer database. Do not distribute local database dumps,
+  media, chat history, vectors, or fixed login credentials as demo data.
+- Reason: Migrations plus deterministic source data are reviewable and portable,
+  while database volumes contain machine-local and potentially private state.
+- Constraint: Vector indexing remains explicit because it depends on the local
+  embedding model/configuration and may download model weights on first use.

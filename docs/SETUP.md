@@ -24,10 +24,50 @@ chạy các migration đã commit khi container khởi động. Tạo tài kho�
 ```bash
 docker compose exec backend python manage.py createsuperuser
 ```
-=> superadmin@intaaneto.com
-Tên đăng nhập: SuAdmin
-Mật khẩu: 12345678
-Full name: Supreme Admin
+
+Nhập email, username, full name và một mật khẩu mạnh riêng trên từng máy. Không
+dùng hoặc ghi một mật khẩu quản trị mặc định trong repository.
+
+## Tạo dữ liệu mẫu dùng chung
+
+Không copy Docker volume hoặc dump toàn bộ database development sang máy khác vì
+chúng có thể chứa tài khoản, chat, uploads và vectors cục bộ. Repository cung cấp
+command idempotent để mỗi thành viên tự tạo cùng một bộ dữ liệu demo an toàn:
+
+```bash
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py seed_demo_data
+```
+
+Command tạo một giảng viên demo, một học viên đã enroll, course `Demo AI Tutor
+với RAG` và lesson `RAG là gì?`. Chạy lại command sẽ cập nhật đúng bộ dữ liệu đó
+thay vì tạo duplicate. Command không tạo uploads, chat history hoặc vector index.
+
+Mặc định hai tài khoản có password không sử dụng được. Nếu cần đăng nhập, mỗi
+developer tự đặt các giá trị sau trong `backend/.env`; không commit hoặc gửi các
+password này qua Git:
+
+```env
+DEMO_TEACHER_PASSWORD=your-local-teacher-password
+DEMO_STUDENT_PASSWORD=your-local-student-password
+```
+
+Nếu container backend đã được tạo trước khi thêm các biến trên, recreate để Docker
+nạp lại `.env`:
+
+```bash
+docker compose up -d --force-recreate backend
+docker compose exec backend python manage.py seed_demo_data
+```
+
+Tài khoản demo:
+
+- Teacher: `demo.teacher@example.invalid`
+- Student: `demo.student@example.invalid`
+
+Cuối output của `seed_demo_data` có lệnh `index_lesson` với ID đúng trên database
+của từng máy. Chỉ chạy lệnh đó khi muốn kiểm tra RAG vì lần đầu có thể phải tải
+embedding model local.
 
 Các địa chỉ:
 

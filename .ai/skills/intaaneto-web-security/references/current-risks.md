@@ -37,7 +37,7 @@ exploitation. Re-check code and tests before changing status.
   submitted prompts/responses; do not send sensitive, confidential, or personal
   lesson/student data until an appropriate provider/data-processing tier is used.
 
-## Resolved with regression tests through 2026-07-14
+## Resolved with regression tests through 2026-07-15
 
 - User API no longer exposes global CRUD; role and active status are read-only,
   registration always creates a learner, and self-upgrade is admin-gated.
@@ -61,6 +61,10 @@ exploitation. Re-check code and tests before changing status.
 - Registration no longer logs the submitted payload or validation errors.
 - Fresh Compose startup applies committed migrations, waits for database health,
   and gates frontend startup on backend health.
+- Collaborative demo data is recreated without copying development users, chats,
+  uploads, or vectors. Demo accounts have unusable passwords unless each machine
+  supplies ignored environment values, and the legacy fixed seed password has
+  been removed.
 
 ## Status discipline
 
