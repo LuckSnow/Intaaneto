@@ -5,6 +5,7 @@ django-cors-headers==4.3.1
 
 # Database
 psycopg2-binary==2.9.9
+pgvector==0.5.0
 
 # Authentication
 djangorestframework-simplejwt==5.3.1
@@ -15,11 +16,13 @@ django-allauth==0.57.0
 python-decouple==3.8
 
 # File Upload
-Pillow==10.2.0
+Pillow==10.4.0
 
 # AI Integration
 openai==1.10.0
 groq==1.0.0
+httpx==0.27.2
+fastembed==0.8.0
 
 # Document Processing
 PyPDF2==3.0.1
@@ -30,6 +33,7 @@ google-auth==2.48.0
 
 # API Documentation
 drf-yasg==1.21.7
+setuptools<81
 
 # Testing
 pytest==7.4.4

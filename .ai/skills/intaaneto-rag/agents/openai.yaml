@@ -1,0 +1,4 @@
+interface:
+  display_name: "Intaaneto RAG Core"
+  short_description: "Build and maintain the RAG-first learning assistant"
+  default_prompt: "Use $intaaneto-rag to continue building the Intaaneto RAG core from the current repository state."

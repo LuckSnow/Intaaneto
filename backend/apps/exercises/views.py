@@ -6,7 +6,7 @@ from .models import Exercise, Submission
 from .serializers import ExerciseSerializer, SubmissionSerializer, SubmissionCreateSerializer
 
 
-class ExerciseViewSet(viewsets.ModelViewSet):
+class ExerciseViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Exercise.objects.filter(is_published=True)
     serializer_class = ExerciseSerializer
     permission_classes = [IsAuthenticated]

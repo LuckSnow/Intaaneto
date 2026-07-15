@@ -298,6 +298,10 @@ export default function Register() {
                 if (error.code === 'auth/popup-closed-by-user') {
                   return
                 }
+                if (error.code === 'firebase/not-configured') {
+                  toast.error(error.message)
+                  return
+                }
                 toast.error(error.response?.data?.error || 'Đăng ký Google thất bại')
               }
             }}

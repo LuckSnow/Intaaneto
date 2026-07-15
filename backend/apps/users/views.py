@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
@@ -76,10 +76,8 @@ class AuthViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['post'])
     def register(self, request):
         """Register new user - requires email verification"""
-        print(f"Register request data: {request.data}")
         serializer = RegisterSerializer(data=request.data)
         if not serializer.is_valid():
-            print(f"Validation errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         user = serializer.save()
@@ -256,12 +254,15 @@ class AuthViewSet(viewsets.GenericViewSet):
         })
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(viewsets.GenericViewSet):
     """User ViewSet"""
     
-    queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Never expose the global user collection through this API."""
+        return User.objects.filter(pk=self.request.user.pk)
     
     @action(detail=False, methods=['get'])
     def me(self, request):
@@ -281,7 +282,7 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data)
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser])
     def upgrade_to_teacher(self, request):
         """Upgrade current user from student to teacher"""
         user = request.user

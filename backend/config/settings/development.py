@@ -8,9 +8,12 @@ DEBUG = True
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
-# Email backend - use base.py config (Mailjet via Anymail)
-# To use console backend for local testing without sending real emails, uncomment:
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Avoid requiring external email credentials for local development. Override in
+# backend/.env when an actual provider is intentionally being tested.
+EMAIL_BACKEND = config(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend',
+)
 
 # Django Debug Toolbar (optional - uncomment if needed)
 # INSTALLED_APPS += ['debug_toolbar']

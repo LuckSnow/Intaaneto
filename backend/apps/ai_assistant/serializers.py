@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import serializers
 from .models import ChatSession, ChatMessage
 
@@ -16,21 +17,26 @@ class ChatSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatSession
         fields = ['id', 'title', 'context', 'messages_count', 'messages', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'context', 'created_at', 'updated_at']
     
     def get_messages_count(self, obj):
         return obj.messages.count()
 
 
 class ChatRequestSerializer(serializers.Serializer):
-    message = serializers.CharField()
+    message = serializers.CharField(max_length=settings.RAG_MAX_QUESTION_CHARS)
     session_id = serializers.IntegerField(required=False)
-    context = serializers.JSONField(required=False)
+    lesson_id = serializers.IntegerField(required=False)
+
+    def validate(self, attrs):
+        if not attrs.get('session_id') and not attrs.get('lesson_id'):
+            raise serializers.ValidationError('lesson_id is required for a new chat session')
+        return attrs
 
 
 class ExplainCodeSerializer(serializers.Serializer):
-    code = serializers.CharField()
-    language = serializers.CharField(default='javascript')
+    code = serializers.CharField(max_length=20000)
+    language = serializers.CharField(default='javascript', max_length=30)
 
 
 class HintRequestSerializer(serializers.Serializer):

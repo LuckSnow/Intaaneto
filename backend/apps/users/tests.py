@@ -60,17 +60,40 @@ class TestUserAPI:
             'email': 'newuser@example.com',
             'username': 'newuser',
             'full_name': 'New User',
-            'role': 'student',
-            'password': 'newpass123',
-            'password_confirm': 'newpass123'
+            'role': 'teacher',
+            'password': 'Newpass123!',
+            'password_confirm': 'Newpass123!'
         }
         
         response = api_client.post('/api/auth/register/', data)
         
         assert response.status_code == 201
         assert 'user' in response.data
-        assert 'tokens' in response.data
+        assert 'tokens' not in response.data
         assert response.data['user']['email'] == data['email']
+        assert response.data['user']['role'] == 'student'
+
+    def test_user_cannot_change_role(self, authenticated_client, student_user):
+        response = authenticated_client.patch(
+            '/api/auth/users/update_profile/',
+            {'role': 'admin', 'is_active': False, 'full_name': 'Updated Name'},
+            format='json',
+        )
+
+        assert response.status_code == 200
+        student_user.refresh_from_db()
+        assert student_user.role == 'student'
+        assert student_user.is_active is True
+        assert student_user.full_name == 'Updated Name'
+
+    def test_user_cannot_self_upgrade_to_teacher(self, authenticated_client):
+        response = authenticated_client.post(
+            '/api/auth/users/upgrade_to_teacher/',
+            {'specialization': 'Web'},
+            format='json',
+        )
+
+        assert response.status_code == 403
     
     def test_login_user(self, api_client, student_user):
         """Test user login"""

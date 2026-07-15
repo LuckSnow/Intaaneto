@@ -1,149 +1,249 @@
-# Intaaneto - Nền Tảng Học Lập Trình Web Với AI
+# Intaaneto — Hệ thống E-learning tích hợp Giảng viên ảo AI
 
-## 📖 Giới thiệu
+## Tổng quan đề tài
 
-Intaaneto là nền tảng học lập trình web được thiết kế dành cho người mới bắt đầu, với giao diện thân thiện và trợ lý AI hỗ trợ 24/7.
+**Tên đề tài:** Nghiên cứu xây dựng hệ thống E-learning trên môi trường web tích
+hợp giảng viên ảo dựa trên công nghệ Trí tuệ nhân tạo.
 
-### 🎯 Tính năng chính
-- Trang web __tập trung__ vào phát triển module kiểm tra kiến thức bài tập, cho 1 mốc điểm để kiểm tra bài tập của học sinh.__Nếu không vượt qua mốc điểm này, học sinh sẽ không hoàn thành module__ bài học đó. Cho nên sẽ cần AI hỗ trợ để củng cố lại kiến thức/Hoặc đọc lại phần bài giảng.
-- Phần bài giảng sinh động, dễ hiểu với ví dụ minh họa cụ thể về HTML, CSS, JavaScript cơ bản.
-- Nếu có thể thì phần bài giảng sẽ có 1 mô hình AI tạo avt tự động, video âm thanh để học sinh dễ hiểu, có 1 ô chức năng hỏi đáp với trợ lý AI nhưng mà không khô khan như việc chỉ có nhắn tin văn bản. 
+Intaaneto là nền tảng E-learning hướng đến việc tạo ra một môi trường học tập
+chủ động. AI đóng vai trò gia sư (AI Tutor), hỗ trợ người học tiếp thu nội dung,
+giải đáp thắc mắc và kiểm tra mức độ hiểu bài trước khi chuyển sang nội dung
+tiếp theo.
 
-- 🤖 **Trợ lý AI**: Giải đáp thắc mắc, hướng dẫn làm bài tập, 
-- 📚 **Bài giảng sinh động**: HTML, CSS, JavaScript cơ bản, các kiến thức liên quan đến lập trình web, khả thi thì thêm các kiến thức hiện đại hơn.
-- 💬 **Forum trao đổi**: Cộng đồng học sinh, phụ huynh, giáo viên, giáo viên xem xét để sau do phải phân quyền
-- 📊 **Theo dõi tiến độ**: Analytics và achievements
-- 👨‍🏫 **Hệ thống giáo viên**: Tạo và quản lý bài giảng (ĐỂ SAU)
+Hệ thống đồng thời hướng đến việc giảm công việc lặp lại của giảng viên trong
+khâu tóm tắt học liệu, xây dựng câu hỏi kiểm tra cơ bản và theo dõi kết quả học
+tập của người học.
 
-## 🛠️ Tech Stack
+> **Ưu tiên hiện tại:** xây dựng RAG ở backend làm cơ sở tri thức đáng tin cậy
+> cho AI Tutor. Các chức năng giọng nói, avatar và video sẽ được tích hợp sau
+> khi vòng hỏi đáp và đánh giá dựa trên học liệu hoạt động ổn định.
 
-### Backend
-- **Framework**: Django 5.0 + Django REST Framework
-- **Database**: PostgreSQL 15
-- **Authentication**: JWT (Simple JWT)
-- **AI**: OpenAI GPT-3.5
-- **các option AI**: Kiểu AI mà có video khuôn mặt, có âm thanh video, tạo avt tự động (dùng DALL·E 2 hoặc Stable Diffusion)
-- 
-### Frontend
-- **Framework**: React 18
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand
-- **Data Fetching**: React Query
-- **Routing**: React Router v6
+## Mục tiêu nghiên cứu
 
-## 📦 Cấu trúc dự án
+- Xây dựng website E-learning có phân quyền giảng viên và người học.
+- Quản lý khóa học, bài học, bài tập và tài liệu học thuật.
+- Nghiên cứu phương pháp trích xuất nội dung từ PDF, PPT/PPTX và các học liệu
+  được giảng viên phê duyệt.
+- Xây dựng cơ sở tri thức RAG để AI trả lời dựa trên đúng nội dung bài học và có
+  nguồn tham chiếu.
+- Xây dựng AI Tutor có khả năng tóm tắt, giải đáp, gợi ý và kiểm tra kiến thức
+  qua đối thoại.
+- Áp dụng ngưỡng đánh giá để xác định người học đã đủ điều kiện chuyển tiếp nội
+  dung hay cần được củng cố kiến thức.
+- Tạo nội dung trình bày bằng giọng nói, hình ảnh hoặc avatar/video AI.
+- Tổng hợp tiến độ học tập từ kết quả đánh giá của hệ thống.
+- Xây dựng tài liệu báo cáo và kết quả đánh giá phục vụ nghiên cứu khoa học.
 
+## Kết quả dự kiến
+
+- Website E-learning có luồng giảng viên quản lý học liệu và người học tham gia
+  khóa học.
+- Giảng viên ảo có khả năng tóm tắt và trình bày bài học bằng giọng nói, hình ảnh
+  hoặc video.
+- Chatbot trả lời câu hỏi dựa trên học liệu được cấp quyền, kèm nguồn tham chiếu.
+- Hệ thống kiểm tra kiến thức bằng đối thoại AI với tiêu chí đánh giá có thể
+  giải thích và kiểm chứng.
+- Cơ chế khóa/mở nội dung dựa trên kết quả tiếp thu của người học.
+- Báo cáo tiến độ học tập và báo cáo kết quả nghiên cứu khoa học.
+
+## Kiến trúc AI Tutor
+
+RAG là lõi tri thức của AI Tutor, nhưng không phải toàn bộ hệ thống giảng viên
+ảo. Luồng cốt lõi được định hướng như sau:
+
+```text
+Học liệu do giảng viên cung cấp
+  → kiểm tra và trích xuất nội dung
+  → chuẩn hóa và chia đoạn (chunking)
+  → embedding model
+  → PostgreSQL + pgvector
+
+Câu hỏi của người học + phạm vi bài học được cấp quyền
+  → truy xuất các đoạn liên quan
+  → kiểm tra mức độ đủ bằng chứng
+  → response model
+  → câu trả lời tiếng Việt + nguồn tham chiếu
+  → hỏi kiểm tra/đánh giá
+  → lưu kết quả và cập nhật tiến độ
 ```
+
+### Mô hình triển khai dự kiến
+
+- **Embedding model:** chạy local hoặc trong dịch vụ nội bộ của backend để tạo
+  vector cho tài liệu và câu hỏi.
+- **Response model:** gọi qua API trực tuyến thông qua một lớp provider độc lập,
+  cho phép thử nghiệm hoặc thay đổi nhà cung cấp.
+- **Object storage:** Cloudflare R2 hoặc dịch vụ tương đương để lưu PDF/PPTX,
+  audio, ảnh và video. Google Drive có thể dùng cho dữ liệu nghiên cứu ban đầu,
+  nhưng không thay thế vector database.
+- **Vector storage:** PostgreSQL kết hợp pgvector để lưu chunk, embedding,
+  metadata nguồn và phạm vi truy cập.
+- **Multimedia:** TTS và avatar/lip-sync/video là pipeline phía sau, sử dụng nội
+  dung bài học đã được kiểm duyệt.
+
+## Vòng chức năng cốt lõi
+
+Phiên bản nghiên cứu đầu tiên cần chứng minh được một vòng khép kín:
+
+1. Giảng viên tải lên hoặc phê duyệt học liệu.
+2. Backend trích xuất, chia đoạn, embedding và lập chỉ mục tài liệu.
+3. Người học được cấp quyền đặt câu hỏi theo bài học.
+4. AI trả lời dựa trên các đoạn được truy xuất và cung cấp nguồn tham chiếu.
+5. AI thực hiện một phiên kiểm tra kiến thức có giới hạn và tiêu chí rõ ràng.
+6. Hệ thống lưu kết quả, quyết định chuyển tiếp hoặc yêu cầu ôn tập.
+7. Kết quả được dùng trong báo cáo tiến độ và đánh giá nghiên cứu.
+
+## Trạng thái hiện tại
+
+### Đã có trong repository
+
+- Backend Django 5, Django REST Framework và cấu hình PostgreSQL.
+- JWT authentication và mô hình người dùng có phân vai trò.
+- Các Django app cho users, courses, exercises, AI assistant, forum và analytics.
+- Course, Lesson, Exercise, Submission, ChatSession và ChatMessage models.
+- API cơ bản cho khóa học, bài học, bài tập và AI chat.
+- Frontend React/Vite với luồng đăng nhập, khóa học, bài học và giao diện hỏi AI.
+- Các trường dữ liệu cho file bài học, nội dung trích xuất, tóm tắt AI và trạng
+  thái xử lý.
+
+### Đang nghiên cứu và chưa hoàn thiện
+
+- Pipeline trích xuất và chuẩn hóa học liệu.
+- Chunking, embedding, pgvector và truy xuất theo phạm vi bài học.
+- Grounded answer và citation.
+- Bộ dữ liệu đánh giá chất lượng RAG.
+- Kiểm tra kiến thức bằng hội thoại và progression rule.
+- Background processing với Celery/Redis.
+- Lưu trữ object trên Cloudflare R2.
+- TTS, avatar/lip-sync và tạo video giảng viên ảo.
+- Báo cáo tiến độ dựa trên kết quả đánh giá AI.
+
+## Công nghệ
+
+### Đã sử dụng
+
+- **Backend:** Python, Django 5, Django REST Framework.
+- **Database:** PostgreSQL 15.
+- **Authentication:** JWT với Simple JWT.
+- **Frontend:** React 18, Vite, Tailwind CSS, Zustand và React Router.
+- **Document libraries:** PyPDF2, python-pptx và Pillow.
+- **AI integration hiện có:** OpenAI/Groq ở mức tích hợp ban đầu.
+- **Infrastructure:** Docker và Docker Compose.
+
+### Dự kiến cho RAG và giảng viên ảo
+
+- **Vector search:** pgvector.
+- **Embedding:** model mã nguồn mở chạy local.
+- **Generation:** LLM API có thể cấu hình theo provider.
+- **Object storage:** Cloudflare R2 hoặc S3-compatible storage.
+- **Background jobs:** Celery và Redis.
+- **Voice/video:** TTS kết hợp avatar hoặc lip-sync pipeline.
+
+## Cấu trúc dự án
+
+```text
 intaaneto/
-├── backend/                  # Django Backend
-│   ├── config/              # Settings & URLs
-│   ├── apps/                # Django apps
-│   │   ├── users/          # User management
-│   │   ├── courses/        # Courses & Lessons
-│   │   ├── exercises/      # Exercises & Submissions
-│   │   ├── ai_assistant/   # AI Chat
-│   │   ├── forum/          # Forum & Comments
-│   │   └── analytics/      # Analytics & Achievements
+├── .ai/                       # Context và skill cho AI agents
+│   └── skills/intaaneto-rag/  # Kiến trúc, roadmap và quy tắc RAG
+├── backend/
+│   ├── config/                # Django settings và URL configuration
+│   ├── apps/
+│   │   ├── users/             # Người dùng và phân quyền
+│   │   ├── courses/           # Khóa học, bài học và học liệu
+│   │   ├── exercises/         # Bài tập và bài nộp
+│   │   ├── ai_assistant/      # Chat và RAG core
+│   │   ├── forum/             # Bài viết và bình luận
+│   │   └── analytics/         # Tiến độ và thống kê
 │   ├── requirements.txt
 │   └── manage.py
-│
-├── frontend/                # React Frontend
+├── frontend/
 │   ├── src/
-│   │   ├── components/     # Reusable components
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API services
-│   │   ├── store/          # State management
-│   │   └── utils/          # Utilities
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── store/
+│   │   └── utils/
 │   ├── package.json
 │   └── vite.config.js
-│
-├── docs/                    # Documentation
+├── docs/
 ├── docker-compose.yml
 └── README.md
 ```
 
-## 🚀 Hướng dẫn cài đặt
+## Lộ trình ưu tiên
 
-### Yêu cầu hệ thống
+1. Ổn định contract chat giữa frontend và backend.
+2. Lập chỉ mục được nội dung của một bài học và re-index không trùng dữ liệu.
+3. Truy xuất đúng chunk theo quyền truy cập bài học/khóa học.
+4. Sinh câu trả lời grounded kèm citation và cơ chế từ chối khi thiếu bằng chứng.
+5. Hoàn thiện upload và ingestion PDF/PPTX.
+6. Xây dựng hội thoại kiểm tra kiến thức, rubric và progression rule.
+7. Đánh giá retrieval, groundedness, citation, độ nhất quán, latency và chi phí.
+8. Tích hợp báo cáo tiến độ.
+9. Tích hợp TTS, hình ảnh/avatar và video giảng viên ảo.
+
+Chi tiết dành cho AI agents nằm tại
+[`.ai/skills/intaaneto-rag/SKILL.md`](.ai/skills/intaaneto-rag/SKILL.md).
+
+## Cài đặt
+
+### Yêu cầu
 
 - Python 3.11+
 - Node.js 20+
 - PostgreSQL 15+
-- Docker & Docker Compose (optional)
+- Docker và Docker Compose nếu chạy bằng container
 
-### Cài đặt với Docker (Khuyến nghị)
+### Chạy bằng Docker
 
 ```bash
-# Clone repository
 git clone <repository-url>
 cd intaaneto
 
-# Copy environment files
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 
-# Chỉnh sửa các file .env với thông tin của bạn
-# Đặc biệt quan trọng: OPENAI_API_KEY trong backend/.env
-
-# Start all services
 docker-compose up -d
-
-# Create superuser
 docker-compose exec backend python manage.py createsuperuser
-
-# Access the application
-# Frontend: http://localhost:5173
-# Backend API: http://localhost:8000/api
-# Admin: http://localhost:8000/admin
 ```
 
-### Cài đặt thủ công
+Các địa chỉ mặc định:
 
-#### Backend
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:8000/api`
+- Django Admin: `http://localhost:8000/admin`
+- Adminer: `http://localhost:8888`
+
+### Chạy thủ công
+
+Backend:
 
 ```bash
 cd backend
-
-# Create virtual environment
 python -m venv venv
-venv\Scripts\activate  # Windows
-# source venv/bin/activate  # Linux/Mac
 
-# Install dependencies
+# Linux/macOS
+source venv/bin/activate
+
+# Windows PowerShell
+# .\venv\Scripts\Activate.ps1
+
 pip install -r requirements.txt
-
-# Copy and configure .env
-copy .env.example .env
-# Chỉnh sửa .env với thông tin database và API keys
-
-# Run migrations
 python manage.py migrate
-
-# Create superuser
-python manage.py createsuperuser
-
-# Start development server
 python manage.py runserver
 ```
 
-#### Frontend
+Frontend:
 
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Copy and configure .env
-copy .env.example .env
-
-# Start development server
 npm run dev
 ```
 
-## 🔧 Cấu hình
+## Cấu hình môi trường
 
-### Backend (.env)
+Ví dụ backend:
 
 ```env
 SECRET_KEY=your-secret-key
@@ -157,123 +257,72 @@ DB_HOST=localhost
 DB_PORT=5432
 
 OPENAI_API_KEY=your-openai-api-key
+GROQ_API_KEY=your-groq-api-key
 ```
 
-### Frontend (.env)
+Ví dụ frontend:
 
 ```env
 VITE_API_URL=http://localhost:8000/api
 ```
 
-## 📚 API Documentation
+Không commit API key, secret hoặc file `.env` thật vào repository.
 
-API documentation được tạo tự động với Swagger:
-- Swagger UI: http://localhost:8000/api/docs/
-- ReDoc: http://localhost:8000/api/redoc/
+## API hiện có
 
-### Các endpoints chính
+### Authentication
 
-#### Authentication
-- POST `/api/auth/register/` - Đăng ký
-- POST `/api/auth/login/` - Đăng nhập
-- POST `/api/auth/logout/` - Đăng xuất
-- GET `/api/auth/users/me/` - Thông tin user hiện tại
+- `POST /api/auth/register/`
+- `POST /api/auth/login/`
+- `POST /api/auth/logout/`
+- `GET /api/auth/users/me/`
 
-#### Courses
-- GET `/api/courses/` - Danh sách khóa học
-- GET `/api/courses/{id}/` - Chi tiết khóa học
-- POST `/api/courses/{id}/enroll/` - Đăng ký khóa học
+### Courses
 
-#### AI Assistant
-- POST `/api/ai/chat/send_message/` - Gửi tin nhắn cho AI
-- POST `/api/ai/chat/explain_code/` - Giải thích code
-- POST `/api/ai/chat/get_hint/` - Xin gợi ý bài tập
+- `GET /api/courses/`
+- `GET /api/courses/{id}/`
+- `POST /api/courses/{id}/enroll/`
 
-#### Forum
-- GET `/api/forum/posts/` - Danh sách bài đăng
-- POST `/api/forum/posts/` - Tạo bài đăng mới
-- POST `/api/forum/posts/{id}/like/` - Like bài đăng
+### AI Assistant
 
-## 🧪 Testing
+- `POST /api/ai/chat/send_message/`
+- `POST /api/ai/chat/explain_code/`
+- `POST /api/ai/chat/get_hint/`
 
-### Backend Tests
+Các endpoint trên là API hiện có; chúng chưa đồng nghĩa với việc pipeline RAG
+đã hoàn thiện.
+
+## Kiểm thử
+
+Backend:
 
 ```bash
 cd backend
 pytest
 ```
 
-### Frontend Tests
+Frontend chưa có test runner riêng được cấu hình trong repository. Khi bổ sung
+test frontend, cập nhật lại hướng dẫn này cùng `frontend/package.json`.
 
-```bash
-cd frontend
-npm test
-```
+## Tài liệu
 
-## 📝 Database Schema
+- [Database schema](docs/database-schema.md)
+- [API documentation](docs/api-documentation.md)
+- [Roadmap](docs/ROADMAP.md)
+- [RAG architecture](.ai/skills/intaaneto-rag/references/architecture.md)
+- [RAG delivery plan](.ai/skills/intaaneto-rag/references/delivery-plan.md)
+- [RAG quality and safety](.ai/skills/intaaneto-rag/references/quality-and-safety.md)
+- [Web and RAG security skill](.ai/skills/intaaneto-web-security/SKILL.md)
 
-Xem chi tiết trong [docs/database-schema.md](docs/database-schema.md)
+## Thành viên
 
-### Các models chính
+- **Nguyễn Thái Tuấn** — N23DCPT054
+- **Phùng Anh Lực** — N23DCPT033
 
-- **User**: Người dùng (student, parent, teacher, admin)
-- **Course**: Khóa học
-- **Lesson**: Bài học trong khóa học
-- **Exercise**: Bài tập
-- **Submission**: Bài nộp của học sinh
-- **Post**: Bài đăng forum
-- **ChatSession**: Phiên chat với AI
-- **LearningAnalytics**: Thống kê học tập
+## License
 
-## 🎨 UI/UX Guidelines
+Xem [LICENSE](LICENSE).
 
-- **Màu chủ đạo**: Primary (Blue), Secondary (Purple)
-- **Typography**: Inter font family
-- **Design system**: Tailwind CSS utilities
-- **Responsive**: Mobile-first approach
+## Liên hệ
 
-## 🔐 Security
-
-- JWT authentication với access & refresh tokens
-- Password hashing với Django's built-in system
-- CORS configuration cho production
-- SQL injection prevention với ORM
-- XSS protection với React
-
-## 🚢 Deployment
-
-### Production Settings
-
-1. Set `DEBUG=False` trong backend/.env
-2. Configure ALLOWED_HOSTS
-3. Setup static files serving
-4. Configure PostgreSQL production database
-5. Setup SSL certificates
-6. Use environment variables cho sensitive data
-
-### Deployment Platforms
-
-- **Backend**: Heroku, Railway, DigitalOcean
-- **Frontend**: Vercel, Netlify, Cloudflare Pages
-- **Database**: Railway PostgreSQL, AWS RDS
-
-## 👥 Team
-
-- **Nguyễn Thái Tuấn** - N23DCPT054
-- **Phùng Anh Lực** - N23DCPT033
-
-## 📄 License
-
-Xem file [LICENSE](LICENSE)
-
-## 🤝 Contributing
-
-1. Fork the project
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
-
-## 📞 Support
-
-Email: n23dcpt054@student.ptithcm.edu.vn.
+n23dcpt054@student.ptithcm.edu.vn

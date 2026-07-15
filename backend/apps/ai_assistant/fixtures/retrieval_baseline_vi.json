@@ -1,0 +1,20 @@
+[
+  {
+    "id": "rag-purpose",
+    "question": "RAG dùng truy xuất tài liệu để làm gì?",
+    "answerable": true,
+    "expected_chunk_ordinal": 0
+  },
+  {
+    "id": "python-list",
+    "question": "Danh sách trong Python có thể thay đổi sau khi tạo không?",
+    "answerable": true,
+    "expected_chunk_ordinal": 1
+  },
+  {
+    "id": "unsupported-weather",
+    "question": "Ngày mai ở Hà Nội có mưa không?",
+    "answerable": false,
+    "expected_chunk_ordinal": null
+  }
+]

@@ -24,6 +24,12 @@ export const authService = {
 
   // Google Sign-In via Firebase
   googleLogin: async () => {
+    if (!auth || !googleProvider) {
+      const error = new Error('Firebase chưa được cấu hình cho Google Login')
+      error.code = 'firebase/not-configured'
+      throw error
+    }
+
     // 1. Firebase popup → get Google ID token
     const result = await signInWithPopup(auth, googleProvider)
     const idToken = await result.user.getIdToken()

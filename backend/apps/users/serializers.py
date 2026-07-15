@@ -1,7 +1,5 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as DjangoValidationError
 import re
 from .models import Profile
 
@@ -22,52 +20,31 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     """User Serializer"""
-    
+
     profile = ProfileSerializer(read_only=True)
-    password = serializers.CharField(write_only=True, required=False)
-    
+
     class Meta:
         model = User
         fields = [
             'id', 'email', 'username', 'full_name', 'role',
             'phone_number', 'date_of_birth', 'avatar', 'google_avatar', 'bio',
             'is_active', 'is_verified', 'profile',
-            'created_at', 'updated_at', 'password'
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'is_verified']
-    
-    def create(self, validated_data):
-        """Create user with password"""
-        password = validated_data.pop('password', None)
-        user = User.objects.create(**validated_data)
-        if password:
-            user.set_password(password)
-            user.save()
-        return user
-    
-    def update(self, instance, validated_data):
-        """Update user with password handling"""
-        password = validated_data.pop('password', None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        
-        if password:
-            instance.set_password(password)
-        
-        instance.save()
-        return instance
+        read_only_fields = [
+            'id', 'role', 'is_active', 'is_verified', 'created_at', 'updated_at'
+        ]
 
 
 class RegisterSerializer(serializers.ModelSerializer):
     """Registration Serializer"""
-    
+
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, min_length=8)
-    role = serializers.ChoiceField(choices=[('student', 'Học sinh'), ('teacher', 'Giáo viên')], default='student')
-    
+
     class Meta:
         model = User
-        fields = ['email', 'username', 'full_name', 'role', 'password', 'password_confirm']
+        fields = ['email', 'username', 'full_name', 'password', 'password_confirm']
     
     def validate_password(self, value):
         """Validate password strength"""
@@ -103,9 +80,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         """Create user"""
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
-        user = User.objects.create(**validated_data)
-        user.set_password(password)
-        user.save()
+        user = User.objects.create_user(password=password, role='student', **validated_data)
         return user
 
 
