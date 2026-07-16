@@ -4,8 +4,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Achievement, UserAchievement, LearningAnalytics
 from .serializers import (
-    AchievementSerializer, UserAchievementSerializer, LearningAnalyticsSerializer
+    AchievementSerializer, UserAchievementSerializer, LearningAnalyticsSerializer,
+    ProgressReportQuerySerializer,
 )
+from .progress_reporting import learner_progress_report, teaching_progress_report
 
 
 class AnalyticsViewSet(viewsets.ViewSet):
@@ -24,6 +26,20 @@ class AnalyticsViewSet(viewsets.ViewSet):
         achievements = UserAchievement.objects.filter(user=request.user)
         serializer = UserAchievementSerializer(achievements, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def progress_report(self, request):
+        """Return server-derived learner or owned-course progress evidence."""
+        query = ProgressReportQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        if request.user.role == 'student':
+            return Response(learner_progress_report(request.user))
+        if request.user.role in ('teacher', 'admin'):
+            return Response(teaching_progress_report(
+                actor=request.user,
+                **query.validated_data,
+            ))
+        return Response({'detail': 'Vai trò không được hỗ trợ.'}, status=403)
     
     @action(detail=False, methods=['get'])
     def leaderboard(self, request):

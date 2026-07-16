@@ -85,6 +85,37 @@ expected-source recall, latency và kết quả theo ID ca kiểm thử, không 
 embedding hay provider diagnostics. Nếu nội dung demo vừa được cập nhật, chạy lại
 `index_lesson` trước khi đánh giá để tạo source version hiện hành.
 
+## Nhập kho học liệu Markdown
+
+Hai bản thảo `docs/computer-networks.md` và `docs/web-programming.md` được biên
+tập thành 2 khóa học gồm 15 bài có mục tiêu và nguồn tham khảo. Docker chỉ mount
+thư mục này vào backend ở chế độ read-only. Luôn kiểm tra cấu trúc trước; lệnh
+sau không đọc hoặc ghi database:
+
+```bash
+docker compose exec backend python manage.py import_learning_corpus --dry-run
+```
+
+Sau khi một giảng viên active, đã xác thực email và có role `teacher` duyệt nội
+dung, nhập các khóa/bài ở trạng thái nháp bằng ID của giảng viên:
+
+```bash
+docker compose exec backend python manage.py import_learning_corpus --teacher-id 45
+```
+
+Lệnh có tính idempotent, không xóa dữ liệu và từ chối ghi đè bài tạo thủ công
+hoặc bài PDF. Output in checksum cùng lệnh `index_lesson` cho từng bài, nhưng
+không tự lập chỉ mục. Giảng viên cần rà soát trong Django admin trước, rồi mới
+chủ động publish và index. Chỉ dùng `--publish` khi đã duyệt toàn bộ corpus:
+
+```bash
+docker compose exec backend python manage.py import_learning_corpus --teacher-id 45 --publish
+```
+
+Chạy lại không có `--publish` sẽ giữ nguyên bài đã xuất bản, không tự unpublish.
+Không đưa đáp án bài đánh giá vào các file học liệu vì nội dung này sẽ được RAG
+lập chỉ mục và hiển thị làm nguồn trích dẫn.
+
 ## Email xác thực và Mailjet
 
 Môi trường development mặc định in email xác thực vào console backend. Để gửi

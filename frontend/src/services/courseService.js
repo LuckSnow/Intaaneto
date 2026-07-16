@@ -72,6 +72,15 @@ export const courseService = {
     return response.data
   },
 
+  // Retrieve lesson-scoped evidence for objectives missed in one owned attempt.
+  getAssessmentReinforcement: async (assessmentId, attemptId) => {
+    const response = await api.post(
+      `/exercises/assessments/${assessmentId}/reinforcement/`,
+      { attempt_id: attemptId },
+    )
+    return response.data
+  },
+
   // --- Comments ---
   getComments: async (lessonId) => {
     const response = await api.get(`/courses/lesson-comments/?lesson=${lessonId}`)

@@ -498,6 +498,18 @@ Mong đợi:
 - `Enrollment.mastery_percentage` phản ánh best score hiện tại.
 - Nhấn đánh dấu hoàn thành trước khi đạt trả `assessment_required`.
 
+Sau đó nhấn `Ôn theo tài liệu bài học`.
+
+Mong đợi:
+
+- Chỉ các weak learning objectives của chính lần làm vừa nộp được dùng.
+- Mỗi mục tiêu hiển thị đoạn học liệu và citation thuộc đúng lesson nếu RAG có
+  đủ bằng chứng.
+- Nếu lesson chưa index, UI nói rõ chưa có chỉ mục và không bịa nội dung.
+- Nút `Hỏi AI Tutor về mục tiêu này` chỉ điền câu hỏi và chuyển sang tab chat;
+  học viên vẫn chủ động gửi câu hỏi.
+- Việc mở học liệu củng cố không thay đổi score, mastery hoặc completion.
+
 ### 13.3 Lần làm đạt
 
 1. Làm lại và đạt ít nhất threshold.
@@ -650,7 +662,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `102` tests pass.
+- Backend: `116` tests pass.
 - Frontend: lint pass và production build pass.
 - Build còn cảnh báo JavaScript chunk lớn và Browserslist data cũ.
 - Frontend chưa có test runner tự động riêng.
@@ -660,7 +672,6 @@ Kết quả baseline tại thời điểm viết tài liệu:
 Không đánh `PASS` cho các mục sau chỉ vì model hoặc UI placeholder tồn tại:
 
 - AI đánh giá kiến thức bằng hội thoại và rubric đã được kiểm chứng.
-- RAG-grounded reinforcement có citation theo weak objective.
 - Báo cáo teacher/learner đầy đủ từ assessment.
 - Code execution và tự chấm coding exercise.
 - Durable Celery/Redis background ingestion.

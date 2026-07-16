@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission, IsAuthenticated
+from apps.ai_assistant.rag_services import LessonRetrievalError
 
 from apps.courses.models import Enrollment
 from apps.courses.serializers import LessonSerializer
@@ -15,9 +16,11 @@ from .serializers import (
     ExerciseSerializer,
     LessonAssessmentLearnerSerializer,
     LessonAssessmentTeacherSerializer,
+    ReinforcementRequestSerializer,
     SubmissionCreateSerializer,
     SubmissionSerializer,
 )
+from .reinforcement import build_reinforcement_packet
 from .services import grade_assessment
 
 
@@ -199,3 +202,34 @@ class LessonAssessmentViewSet(viewsets.ModelViewSet):
             if progression and progression['next_lesson'] else None
         )
         return Response(response_data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def reinforcement(self, request, pk=None):
+        assessment = self.get_object()
+        input_serializer = ReinforcementRequestSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        attempt = assessment.attempts.filter(
+            pk=input_serializer.validated_data['attempt_id'],
+            user=request.user,
+        ).first()
+        if attempt is None:
+            return Response(
+                {'detail': 'Không tìm thấy kết quả đánh giá.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            packet = build_reinforcement_packet(
+                attempt=attempt,
+                actor=request.user,
+            )
+        except LessonRetrievalError:
+            return Response(
+                {
+                    'detail': (
+                        'Kho kiến thức tạm thời không khả dụng. '
+                        'Vui lòng thử lại sau.'
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(packet)

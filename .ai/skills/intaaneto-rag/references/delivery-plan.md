@@ -106,8 +106,32 @@ Exit: enrolled learners can take a lesson assessment, cannot forge score or
 progression, receive an explainable result, and advance only after a passing
 server-owned decision. Cross-enrollment and teacher-ownership tests pass.
 
-Next: add RAG-grounded reinforcement tied to weak objectives, then design and
-evaluate a bounded conversational rubric against this deterministic baseline.
+RAG-grounded reinforcement tied to weak objectives was added on 2026-07-16 as a
+separate bounded retrieval action with application-owned citations. It does not
+change the deterministic result or invoke generation during grading.
+
+Next: expose learner and teacher progress reports from the deterministic
+attempt/progression evidence, then design and evaluate a bounded conversational
+rubric against this baseline.
+
+## Learning corpus A — Reviewed Markdown to draft lessons
+
+Status: Implemented on 2026-07-16 with eight focused tests and a database-free
+dry run against the checked-in documents.
+
+- Compile two versioned Markdown sources into 2 courses and 15 bounded lessons.
+- Add lesson objectives and primary references without embedding assessment
+  answer keys.
+- Require a verified teacher for writes and default all new records to drafts.
+- Keep publication and vector indexing as separate, explicit approval actions.
+- Reject ownership/manual/PDF collisions atomically and remain idempotent.
+
+Exit: the checked-in corpus validates reproducibly, imports without duplicates
+or unrelated derived state, and can be reviewed before publication/indexing.
+
+Next: author deterministic assessments for a small subset of these lessons and
+connect weak objectives to authorized RAG reinforcement before expanding the
+corpus or generating video.
 
 ## MVP acceptance criteria
 

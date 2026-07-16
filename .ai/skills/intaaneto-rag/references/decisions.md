@@ -187,3 +187,39 @@ affected files or migration.
 - Constraint: Retrieval similarity is evidence availability, not learner
   mastery. Future AI grades remain recommendations until a versioned rubric and
   evaluation set show sufficient accuracy and consistency.
+
+## RAG-015 — Reviewed Markdown corpus imports as drafts before indexing
+
+- Status: Implemented for the initial two-course corpus
+- Date: 2026-07-16
+- Affected: `backend/apps/courses/learning_corpus.py`,
+  `import_learning_corpus`, its tests, the two authoring documents, Docker
+  Compose, and `docs/SETUP.md`
+- Decision: Compile versioned, repository-reviewed Markdown sections into stable
+  text lessons through an idempotent management command. Database imports
+  default to drafts and require an active verified teacher; publication and RAG
+  indexing are explicit later operations.
+- Reason: The project needs reusable learning content without treating raw
+  notes as approved knowledge, coupling source editing to vectors, or sharing a
+  development database. Stable slugs and deterministic content let existing
+  source checksums/versioning handle later re-indexing.
+- Constraint: Never overwrite a PDF lesson, a manually authored same-slug
+  lesson, or a course owned by another teacher. Do not place assessment answer
+  keys in indexed corpus documents.
+
+## RAG-016 — Reinforcement retrieves weak objectives without grading by AI
+
+- Status: Implemented for current-version failed attempts
+- Date: 2026-07-16
+- Affected: `backend/apps/exercises/reinforcement.py`, assessment API/tests,
+  RAG settings, and `frontend/src/pages/LessonPage.jsx`
+- Decision: Make reinforcement a separate learner-triggered retrieval action.
+  Resolve the owned immutable attempt first, retrieve bounded evidence for its
+  server-recorded weak objectives inside the assessment lesson, and construct
+  citations in application code without calling an LLM.
+- Reason: Retrieval can guide review immediately while deterministic grading
+  remains the trusted control. Separating it from submission avoids making
+  scoring depend on embedding availability or incurring hidden provider work.
+- Constraint: Reinforcement never changes score, mastery, completion, or
+  progression. Passed, stale, and foreign attempts are not eligible, and a
+  generated Tutor question is only prefilled for the learner to send explicitly.

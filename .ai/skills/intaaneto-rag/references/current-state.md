@@ -105,7 +105,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and two backend tests passed on 2026-07-16 in the
+  regression coverage. One hundred and sixteen backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -148,6 +148,25 @@ relying on it and update it after material implementation changes.
 - The lesson page now renders the learner-safe multiple-choice assessment and
   server-confirmed pass/reinforcement/next-lesson states. Lessons without a
   published assessment retain the explicit completion action.
+- Failed current-version assessment attempts now expose an explicit,
+  learner-triggered RAG reinforcement action. The backend resolves the attempt
+  as owned by the authenticated learner, uses only its server-recorded weak
+  objectives, bounds objective count and top-k, retrieves inside the assessment
+  lesson, and constructs citation excerpts from authorized chunks without
+  invoking a generation provider or changing score/progress/mastery. Passed,
+  stale, foreign, and non-enrolled attempts are rejected; missing/weak indexes
+  return explicit fallback states. The lesson UI shows the review evidence and
+  lets the learner prefill—not auto-send—a grounded Tutor question.
+- A reviewed Markdown learning-corpus importer now compiles
+  `docs/computer-networks.md` and `docs/web-programming.md` into two stable,
+  structured courses with fifteen text lessons, explicit learning objectives,
+  revisions, and primary references. It validates source headings and size,
+  defaults to drafts, requires an active verified teacher for database writes,
+  preserves publication state on later runs, and atomically rejects ownership,
+  PDF, or manually authored lesson collisions. Import does not create vectors,
+  assessments, chats, or answer keys; indexing remains a separate explicit
+  teacher operation. Docker mounts the authoring documents read-only, and a
+  database-free dry run validates the real corpus.
 - Legacy coding exercises now have an optional lesson relationship for migration
   compatibility, while learner list/detail/submission queries exclude unscoped
   records and enforce enrollment. The separate AI `get_hint` action still needs
@@ -232,9 +251,13 @@ relying on it and update it after material implementation changes.
   grant a privileged role without an explicitly accepted policy.
 - No AI-dialogue assessment or AI-generated grade is implemented yet. The
   current lesson assessment is deterministic multiple choice and supplies the
-  trusted score/progression baseline; RAG-grounded reinforcement,
-  conversational rubric evaluation, teacher calibration, and assessment-quality
-  experiments remain.
+  trusted score/progression baseline; conversational rubric evaluation, teacher
+  calibration, and assessment-quality experiments remain.
+- No SadTalker/video-worker integration is implemented. Self-hosted SadTalker
+  itself does not require an API key, but it requires separately reviewed model
+  checkpoints/dependencies, FFmpeg, suitable compute, a consented or licensed
+  portrait, and a TTS audio input. Video generation must be isolated from the
+  Django request path and should only consume a teacher-approved script.
 
 ## Known integration risks
 
@@ -264,8 +287,10 @@ relying on it and update it after material implementation changes.
   refusal evaluation before tuning the provisional `0.45` threshold, changing
   the 384-dimensional model, or adding an ANN index. Exact pgvector search is
   sufficient for the current small corpus baseline.
-- Do not add R2, Google Drive, Celery, Redis, avatar, voice, or video work to this
-  slice. Original lesson fields are sufficient for the first indexing path.
+- The next product slice should expose learner/teacher progress reports from
+  existing deterministic assessment and enrollment evidence. SadTalker remains
+  a later, isolated PoC after script/TTS/avatar provenance and worker boundaries
+  are defined; do not run it inside an HTTP request.
 - Collaborators should run migrations and `seed_demo_data` locally rather than
   sharing development database volumes or dumps containing accounts and chats.
 - The worktree contains intentional uncommitted changes from stabilization,

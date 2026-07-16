@@ -1,5 +1,7 @@
 # Mạng Máy Tính (Computer Networks)
 
+> Bản thảo học liệu Intaaneto · Phiên bản biên tập: 2026-07-16. Nội dung cần được giảng viên duyệt trước khi xuất bản và lập chỉ mục cho AI Tutor.
+
 ## Tổng Quan
 
 **Mạng máy tính** là một tập hợp các thiết bị máy tính được kết nối với nhau để chia sẻ tài nguyên và thông tin. Các thiết bị này có thể là máy tính, máy chủ, thiết bị di động, hoặc các thiết bị IoT.
@@ -65,12 +67,14 @@
 - Ví dụ: 192.168.1.1
 - Khoảng 4.3 tỷ địa chỉ
 
-**Classes:**
+**Phân lớp IPv4 (classful) — kiến thức lịch sử:**
 - Class A: 1.0.0.0 to 126.255.255.255
 - Class B: 128.0.0.0 to 191.255.255.255
 - Class C: 192.0.0.0 to 223.255.255.255
 - Class D: Multicast (224.0.0.0 to 239.255.255.255)
 - Class E: Reserved (240.0.0.0 to 255.255.255.255)
+
+Mạng hiện đại sử dụng **CIDR** thay cho cơ chế classful để biểu diễn prefix mạng và phân bổ địa chỉ linh hoạt hơn.
 
 **Private IP Ranges:**
 - 10.0.0.0 to 10.255.255.255
@@ -100,18 +104,18 @@
 ### 2. UDP (User Datagram Protocol)
 - Connectionless
 - Fast, không đảm bảo delivery
-- No error checking
+- Có checksum để phát hiện lỗi datagram, nhưng không tự truyền lại hoặc phục hồi khi mất gói
 - Sử dụng: DNS, DHCP, Video streaming, Gaming
 
 ### 3. HTTP/HTTPS
 - **HTTP**: Port 80, unencrypted
-- **HTTPS**: Port 443, encrypted với SSL/TLS
+- **HTTPS**: Thường dùng port 443, mã hóa với TLS; SSL đã lỗi thời
 - Methods: GET, POST, PUT, DELETE, PATCH
 
 ### 4. DNS (Domain Name System)
 - Chuyển đổi domain names thành IP addresses
 - Hierarchical structure
-- Port 53
+- Dùng cả UDP và TCP trên port 53 tùy loại truy vấn và kích thước phản hồi
 
 ### 5. DHCP (Dynamic Host Configuration Protocol)
 - Tự động cấp phát IP addresses
@@ -246,14 +250,14 @@
 - **802.11g**: 54 Mbps, 2.4 GHz
 - **802.11n**: 600 Mbps, 2.4/5 GHz
 - **802.11ac**: 1300+ Mbps, 5 GHz (Wi-Fi 5)
-- **802.11ax**: 9.6 Gbps, 2.4/5/6 GHz (Wi-Fi 6)
+- **802.11ax**: Tối đa lý thuyết 9.6 Gbps, 2.4/5 GHz (Wi-Fi 6); Wi-Fi 6E mở rộng sang 6 GHz
 - **802.11be**: 46 Gbps, 2.4/5/6 GHz (Wi-Fi 7)
 
 ### Security:
 - **WEP**: Deprecated, insecure
 - **WPA**: Improved security
 - **WPA2**: Strong encryption (AES)
-- **WPA3**: Latest standard, enhanced security
+- **WPA3**: Chuẩn bảo mật hiện đại với các cải tiến so với WPA2
 
 ## Cloud Networking
 

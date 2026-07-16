@@ -218,6 +218,16 @@ RAG_CITATION_EXCERPT_CHARS = config(
     default=320,
     cast=int,
 )
+RAG_REINFORCEMENT_MAX_OBJECTIVES = config(
+    'RAG_REINFORCEMENT_MAX_OBJECTIVES',
+    default=5,
+    cast=int,
+)
+RAG_REINFORCEMENT_TOP_K = config(
+    'RAG_REINFORCEMENT_TOP_K',
+    default=2,
+    cast=int,
+)
 
 # Groq API Key (Llama)
 GROQ_API_KEY = config('GROQ_API_KEY', default='')

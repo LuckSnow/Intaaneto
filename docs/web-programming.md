@@ -1,5 +1,7 @@
 # Lập Trình Web (Web Programming)
 
+> Bản thảo học liệu Intaaneto · Phiên bản biên tập: 2026-07-16. Nội dung cần được giảng viên duyệt trước khi xuất bản và lập chỉ mục cho AI Tutor.
+
 ## Tổng Quan
 
 **Lập trình web** là quá trình xây dựng các ứng dụng và trang web hoạt động trên Internet hoặc Intranet. Nó bao gồm việc phát triển cả phía client (frontend) và phía server (backend).
@@ -16,7 +18,7 @@ Frontend là phần giao diện người dùng của website, chạy trực ti�
 - **JavaScript**: Ngôn ngữ lập trình tạo tính tương tác
 
 **Frameworks & Libraries phổ biến:**
-- React.js - Thư viện JavaScript do Facebook phát triển
+- React.js - Thư viện JavaScript được Meta và cộng đồng duy trì
 - Vue.js - Framework JavaScript progressive
 - Angular - Framework TypeScript do Google phát triển
 - Svelte - Compiler framework hiện đại
@@ -77,7 +79,7 @@ Mô hình truyền thống với client gửi request và server trả về resp
 
 ### HTTP/HTTPS
 - **HTTP**: HyperText Transfer Protocol
-- **HTTPS**: HTTP Secure với mã hóa SSL/TLS
+- **HTTPS**: HTTP được bảo vệ bằng TLS; SSL đã lỗi thời
 - Status codes: 200 (OK), 404 (Not Found), 500 (Server Error)
 
 ### WebSocket

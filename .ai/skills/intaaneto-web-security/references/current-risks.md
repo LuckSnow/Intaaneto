@@ -92,6 +92,10 @@ exploitation. Re-check code and tests before changing status.
   fields, cross-assessment questions, and mutation after attempts. Legacy coding
   exercises now have an optional lesson link for migration compatibility;
   learner exercise queries and submissions deny unscoped or unenrolled records.
+- Assessment reinforcement resolves an owned failed current-version attempt
+  before embedding, bounds weak-objective retrieval inside the assessment
+  lesson, returns only application-owned citations, redacts provider failures,
+  and cannot mutate score, mastery, completion, or progression.
 
 ## Status discipline
 

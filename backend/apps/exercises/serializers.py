@@ -195,6 +195,10 @@ class AssessmentSubmissionSerializer(serializers.Serializer):
         return value
 
 
+class ReinforcementRequestSerializer(serializers.Serializer):
+    attempt_id = serializers.IntegerField(min_value=1)
+
+
 class AssessmentAttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = AssessmentAttempt

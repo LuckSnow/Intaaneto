@@ -49,6 +49,9 @@ export default function LessonPage() {
   const [assessmentResult, setAssessmentResult] = useState(null)
   const [assessmentError, setAssessmentError] = useState('')
   const [submittingAssessment, setSubmittingAssessment] = useState(false)
+  const [reinforcement, setReinforcement] = useState(null)
+  const [reinforcementLoading, setReinforcementLoading] = useState(false)
+  const [reinforcementError, setReinforcementError] = useState('')
 
   useEffect(() => {
     fetchLesson()
@@ -63,6 +66,8 @@ export default function LessonPage() {
     setAssessmentAnswers({})
     setAssessmentResult(null)
     setAssessmentError('')
+    setReinforcement(null)
+    setReinforcementError('')
   }, [id])
 
   useEffect(() => {
@@ -179,6 +184,8 @@ export default function LessonPage() {
       }))
       const result = await courseService.submitAssessment(assessment.id, answers)
       setAssessmentResult(result)
+      setReinforcement(null)
+      setReinforcementError('')
       if (result.passed) {
         setCompletion({
           is_completed: true,
@@ -198,6 +205,31 @@ export default function LessonPage() {
     } finally {
       setSubmittingAssessment(false)
     }
+  }
+
+  const handleLoadReinforcement = async () => {
+    if (!assessmentResult?.id || reinforcementLoading) return
+    setReinforcementLoading(true)
+    setReinforcementError('')
+    try {
+      const data = await courseService.getAssessmentReinforcement(
+        assessment.id,
+        assessmentResult.id,
+      )
+      setReinforcement(data)
+    } catch (error) {
+      setReinforcementError(
+        error.response?.data?.detail
+          || 'Không thể tải nội dung củng cố. Vui lòng thử lại.',
+      )
+    } finally {
+      setReinforcementLoading(false)
+    }
+  }
+
+  const handleAskAboutObjective = (prompt) => {
+    setChatInput(prompt)
+    setActiveTab('chat')
   }
 
   // AI Chat
@@ -638,8 +670,75 @@ export default function LessonPage() {
                                   <li key={objective}>{objective}</li>
                                 ))}
                               </ul>
+                              <Button
+                                onClick={handleLoadReinforcement}
+                                disabled={reinforcementLoading}
+                                className="mt-4 bg-amber-700 text-white hover:bg-amber-800"
+                              >
+                                {reinforcementLoading
+                                  ? 'Đang tìm học liệu...'
+                                  : reinforcement ? 'Tải lại học liệu củng cố' : 'Ôn theo tài liệu bài học'}
+                              </Button>
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {reinforcementError && (
+                        <div className="rounded-xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-200" role="alert">
+                          {reinforcementError}
+                        </div>
+                      )}
+
+                      {reinforcement && (
+                        <div className="space-y-3" aria-label="Học liệu củng cố">
+                          <div className="rounded-xl border border-white/15 bg-black/10 p-4">
+                            <h3 className="font-semibold text-white">Học liệu củng cố theo mục tiêu</h3>
+                            <p className="mt-1 text-sm text-white/60">
+                              Các đoạn dưới đây được truy xuất trong đúng bài học. Việc ôn tập không tự thay đổi điểm đánh giá.
+                            </p>
+                          </div>
+
+                          {reinforcement.items.map((item) => (
+                            <section
+                              key={item.learning_objective}
+                              className="rounded-xl border border-white/15 p-4"
+                            >
+                              <h4 className="font-medium text-white">{item.learning_objective}</h4>
+                              <p className="mt-1 text-sm text-white/60">{item.message}</p>
+
+                              {item.citations.length > 0 ? (
+                                <ol className="mt-3 space-y-2">
+                                  {item.citations.map((citation) => (
+                                    <li
+                                      key={citation.id}
+                                      className="rounded-lg border border-white/10 bg-black/10 p-3"
+                                    >
+                                      <p className="text-xs font-medium text-orange-200">
+                                        {citation.lesson_title} · Đoạn {citation.ordinal + 1}
+                                      </p>
+                                      <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/70">
+                                        {citation.excerpt}
+                                      </p>
+                                    </li>
+                                  ))}
+                                </ol>
+                              ) : (
+                                <p className="mt-3 text-sm text-amber-200">
+                                  {item.status === 'not_indexed'
+                                    ? 'Bài học chưa được lập chỉ mục RAG.'
+                                    : 'Chưa có đoạn tài liệu đủ liên quan để gợi ý.'}
+                                </p>
+                              )}
+
+                              <Button
+                                onClick={() => handleAskAboutObjective(item.tutor_prompt)}
+                                className="mt-3 border border-white/20 bg-transparent text-white hover:bg-white/10"
+                              >
+                                Hỏi AI Tutor về mục tiêu này
+                              </Button>
+                            </section>
+                          ))}
                         </div>
                       )}
 
