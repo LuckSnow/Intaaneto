@@ -357,10 +357,10 @@ def evaluate_grounded_answers(
             'citation_scope_accuracy': round(citation_matches / case_count, 4),
             'expected_marker_recall': round(
                 expected_marker_hits / answerable_count, 4
-            ),
+            ) if answerable_count else None,
             'refusal_accuracy': round(
                 refusal_matches / unsupported_count, 4
-            ),
+            ) if unsupported_count else None,
             'mean_latency_ms': round(total_latency_ms / case_count, 2),
             'total_tokens_reported': total_tokens,
             'token_measurement_count': token_measurements,

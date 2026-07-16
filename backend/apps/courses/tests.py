@@ -92,6 +92,90 @@ def test_public_course_detail_hides_unpublished_lesson(api_client, course, lesso
     assert 'content' not in response.data['lessons'][0]
 
 
+@pytest.mark.django_db
+def test_teacher_managed_courses_include_only_owned_drafts(
+    api_client, teacher_user
+):
+    owned_draft = Course.objects.create(
+        title='Bản nháp của tôi',
+        slug='ban-nhap-cua-toi',
+        description='Draft',
+        teacher=teacher_user,
+        is_published=False,
+    )
+    other_teacher = User.objects.create_user(
+        email='managed-other@example.com',
+        username='managed-other',
+        full_name='Managed Other',
+        password='Testpass123!',
+        role='teacher',
+        is_verified=True,
+    )
+    Course.objects.create(
+        title='Bản nháp người khác',
+        slug='ban-nhap-nguoi-khac',
+        description='Private',
+        teacher=other_teacher,
+        is_published=False,
+    )
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.get('/api/courses/managed/')
+
+    assert response.status_code == 200
+    results = response.data['results']
+    assert [item['id'] for item in results] == [owned_draft.id]
+
+
+@pytest.mark.django_db
+def test_student_cannot_list_managed_courses(authenticated_client):
+    response = authenticated_client.get('/api/courses/managed/')
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_teacher_lesson_course_filter_cannot_expand_scope(
+    api_client, teacher_user, course, lesson
+):
+    other_teacher = User.objects.create_user(
+        email='lesson-filter-other@example.com',
+        username='lesson-filter-other',
+        full_name='Lesson Filter Other',
+        password='Testpass123!',
+        role='teacher',
+        is_verified=True,
+    )
+    other_course = Course.objects.create(
+        title='Course kín',
+        slug='course-kin-filter',
+        description='Private',
+        teacher=other_teacher,
+        is_published=False,
+    )
+    Lesson.objects.create(
+        course=other_course,
+        title='Lesson kín',
+        slug='lesson-kin-filter',
+        content='Private',
+        is_published=False,
+    )
+    api_client.force_authenticate(teacher_user)
+
+    owned = api_client.get(f'/api/courses/lessons/?course={course.id}')
+    foreign = api_client.get(
+        f'/api/courses/lessons/?course={other_course.id}'
+    )
+    invalid = api_client.get('/api/courses/lessons/?course=not-an-id')
+
+    assert owned.status_code == 200
+    assert [item['id'] for item in owned.data['results']] == [lesson.id]
+    assert foreign.status_code == 200
+    assert foreign.data['results'] == []
+    assert invalid.status_code == 200
+    assert invalid.data['results'] == []
+
+
 def create_ready_source(lesson):
     return KnowledgeSource.objects.create(
         lesson=lesson,

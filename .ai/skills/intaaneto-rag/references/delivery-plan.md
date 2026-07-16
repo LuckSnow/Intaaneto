@@ -80,8 +80,12 @@ Status: In progress. A versioned eight-case Vietnamese retrieval dataset and an
 authorized, generation-free evaluation command were implemented on 2026-07-16.
 The first harness reports status accuracy, expected-source recall, pass rate,
 latency, and retrieval configuration. The first PostgreSQL/FastEmbed run is
-recorded with `0.75` pass rate and `1.00` expected-source recall. Dataset
-expansion and grounded-answer/refusal evaluation remain.
+recorded with `0.75` pass rate and `1.00` expected-source recall. A second,
+authorized full-pipeline command now measures grounded/refusal contract,
+application-owned citation scope, a clearly labeled lexical marker proxy,
+latency, and reported tokens. It requires explicit provider-cost confirmation
+and omits raw questions/answers by default. A live-provider baseline, dataset
+expansion, holdout split, and human semantic/pedagogical review remain.
 
 - Version an evaluation set with answerability and expected sources.
 - Track retrieval recall/precision proxy, citation correctness, groundedness,

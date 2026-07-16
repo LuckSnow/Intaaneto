@@ -662,6 +662,13 @@ kiểm tra job completed, checksum, actor, MP4 trên LessonPage và biên bản
 commit/checkpoint/GPU/thời gian/lip-sync. Nếu chưa có runtime, ghi
 `BLOCKED BY SADTALKER RUNTIME`; fake provider không phải bằng chứng render thật.
 
+### 17.1. Chạy grounded-answer evaluation có kiểm soát
+
+Đọc [RAG_GROUNDED_ANSWER_EVALUATION.md](RAG_GROUNDED_ANSWER_EVALUATION.md).
+Command yêu cầu actor được authorize và cờ `--confirm-provider-cost`; mặc định
+không in raw question/answer. Không đặt API key trên command line hoặc commit raw
+provider output.
+
 ## 18. Ma trận kiểm tra phân quyền tối thiểu
 
 | Ca thử | Kết quả mong đợi |
@@ -696,7 +703,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `151` tests pass.
+- Backend: `155` tests pass.
 - Frontend: lint pass và production build pass.
 - Build còn cảnh báo JavaScript chunk lớn và Browserslist data cũ.
 - Frontend chưa có test runner tự động riêng.

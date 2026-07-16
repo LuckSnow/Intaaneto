@@ -9,11 +9,13 @@ from apps.courses.models import Course, Enrollment, Lesson
 from apps.users.models import User
 
 from .models import KnowledgeChunk, KnowledgeSource
+from .rag_answering import GroundedAnswer, WEAK_EVIDENCE_FALLBACK
 from .rag_evaluation import (
     DEFAULT_DATASET_PATH,
     EvaluationDatasetError,
     RetrievalEvaluationCase,
     RetrievalEvaluationDataset,
+    evaluate_grounded_answers,
     evaluate_lesson_retrieval,
     load_retrieval_evaluation_dataset,
 )
@@ -215,6 +217,143 @@ def test_evaluation_command_rejects_outsider_before_running_evaluator(
                 'evaluate_rag_retrieval',
                 evaluation_lesson.id,
                 actor_id=outsider.id,
+            )
+
+    evaluator.assert_not_called()
+
+
+def _grounded_result(lesson, text, chunk_id):
+    return GroundedAnswer(
+        answer=text,
+        citations=[{
+            'chunk_id': chunk_id,
+            'lesson_id': lesson.id,
+        }],
+        grounded=True,
+        retrieval={'status': 'ready'},
+        retrieval_metadata={
+            'retrieval': {'selected_chunks': [{'chunk_id': chunk_id}]},
+        },
+        tokens_used=10,
+    )
+
+
+@pytest.mark.django_db
+def test_grounded_answer_evaluation_reports_contract_and_safe_default_output(
+    settings, student_user, evaluation_lesson
+):
+    settings.AI_GENERATION_PROVIDER = 'openai'
+    answers = [
+        _grounded_result(
+            evaluation_lesson,
+            'RAG dùng tài liệu được phê duyệt để trả lời.',
+            11,
+        ),
+        _grounded_result(
+            evaluation_lesson,
+            'AI Tutor không được làm theo chỉ dẫn xấu.',
+            12,
+        ),
+        GroundedAnswer(
+            answer=WEAK_EVIDENCE_FALLBACK,
+            citations=[],
+            grounded=False,
+            retrieval={'status': 'weak_evidence'},
+            retrieval_metadata={'retrieval': {'selected_chunks': []}},
+        ),
+    ]
+
+    with patch(
+        'apps.ai_assistant.rag_evaluation.answer_lesson_question',
+        side_effect=answers,
+    ):
+        report = evaluate_grounded_answers(
+            actor=student_user,
+            lesson=evaluation_lesson,
+            dataset=_evaluation_dataset(evaluation_lesson.slug),
+        )
+
+    assert report['evaluation_scope'] == 'grounded_answer_contract'
+    assert report['metrics']['case_count'] == 3
+    assert report['metrics']['pass_rate'] == 1.0
+    assert report['metrics']['grounded_contract_accuracy'] == 1.0
+    assert report['metrics']['citation_scope_accuracy'] == 1.0
+    assert report['metrics']['expected_marker_recall'] == 1.0
+    assert report['metrics']['refusal_accuracy'] == 1.0
+    assert report['metrics']['mean_latency_ms'] >= 0
+    assert report['metrics']['total_tokens_reported'] == 20
+    assert report['metrics']['token_measurement_count'] == 2
+    assert all('question' not in case for case in report['cases'])
+    assert all('answer' not in case for case in report['cases'])
+    assert 'strict_lexical_proxy' in report['limitations'][0]
+
+
+@pytest.mark.django_db
+def test_grounded_answer_evaluation_flags_unselected_citation_and_marker_miss(
+    student_user, evaluation_lesson
+):
+    bad_answer = GroundedAnswer(
+        answer='Một câu trả lời chung chung.',
+        citations=[{'chunk_id': 999, 'lesson_id': evaluation_lesson.id}],
+        grounded=True,
+        retrieval={'status': 'ready'},
+        retrieval_metadata={
+            'retrieval': {'selected_chunks': [{'chunk_id': 11}]},
+        },
+    )
+    dataset = RetrievalEvaluationDataset(
+        dataset_id='one-case',
+        version='1.0.0',
+        lesson_slug=evaluation_lesson.slug,
+        cases=(_evaluation_dataset(evaluation_lesson.slug).cases[0],),
+    )
+
+    with patch(
+        'apps.ai_assistant.rag_evaluation.answer_lesson_question',
+        return_value=bad_answer,
+    ):
+        report = evaluate_grounded_answers(
+            actor=student_user,
+            lesson=evaluation_lesson,
+            dataset=dataset,
+            include_answers=True,
+        )
+
+    assert report['metrics']['pass_rate'] == 0.0
+    assert report['metrics']['citation_scope_accuracy'] == 0.0
+    assert report['metrics']['expected_marker_recall'] == 0.0
+    assert report['metrics']['refusal_accuracy'] is None
+    assert report['cases'][0]['answer'] == bad_answer.answer
+    assert report['cases'][0]['question'] == dataset.cases[0].question
+
+
+def test_grounded_answer_command_requires_explicit_cost_confirmation():
+    with pytest.raises(CommandError, match='confirm-provider-cost'):
+        call_command('evaluate_rag_answers', 1, actor_id=1)
+
+
+@pytest.mark.django_db
+def test_grounded_answer_command_authorizes_actor_before_evaluation(
+    evaluation_lesson
+):
+    outsider = User.objects.create_user(
+        email='answer-evaluation-outsider@example.com',
+        username='answer-evaluation-outsider',
+        full_name='Answer Evaluation Outsider',
+        password='Testpass123!',
+        role='student',
+    )
+
+    with patch(
+        'apps.ai_assistant.management.commands.evaluate_rag_answers.'
+        'evaluate_grounded_answers'
+    ) as evaluator:
+        with pytest.raises(CommandError, match='not available'):
+            call_command(
+                'evaluate_rag_answers',
+                evaluation_lesson.id,
+                actor_id=outsider.id,
+                confirm_provider_cost=True,
             )
 
     evaluator.assert_not_called()

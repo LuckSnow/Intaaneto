@@ -105,7 +105,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and fifty-one backend tests passed on 2026-07-16 in the
+  regression coverage. One hundred and fifty-five backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -232,6 +232,14 @@ relying on it and update it after material implementation changes.
   endpoint tests verify `429` behavior without counting teacher-application GET
   requests as submissions. The current cache is application-level; a shared
   cache and/or gateway limit is still required for multi-instance production.
+- An authorized `evaluate_rag_answers` command now exercises the full grounded
+  answer path over the versioned Vietnamese dataset. It requires explicit
+  provider-cost confirmation, omits raw questions/answers by default, and
+  reports grounded/refusal contract, application-owned citation scope, a
+  labeled lexical-marker proxy, latency, and provider-reported token totals.
+  Four tests cover metrics, unsafe citations/marker misses, cost confirmation,
+  and authorization before evaluation. No live generation baseline has yet been
+  recorded; semantic and pedagogical claims still require human review.
 - Rollback-only PostgreSQL smoke tests persisted and ranked pgvector chunks with
   exact cosine distance. A live FastEmbed smoke ranked the intended RAG and
   Python chunks first (`0.494` and `0.756`) and marked the unsupported weather
@@ -322,10 +330,11 @@ relying on it and update it after material implementation changes.
   confirm citations/fallback in the UI without exposing provider or retrieval
   diagnostics. Free Gemini API usage must not receive sensitive, confidential,
   or personal lesson/student data.
-- Expand the recorded Vietnamese retrieval baseline and add grounded-answer/
-  refusal evaluation before tuning the provisional `0.45` threshold, changing
-  the 384-dimensional model, or adding an ANN index. Exact pgvector search is
-  sufficient for the current small corpus baseline.
+- Run and record the grounded-answer/refusal harness with a configured provider,
+  then expand the Vietnamese dataset and add a holdout plus human review before
+  tuning the provisional `0.45` threshold, changing the 384-dimensional model,
+  or adding an ANN index. Exact pgvector search is sufficient for the current
+  small corpus baseline.
 - The SadTalker adapter boundary is implemented, but a real runtime smoke and
   measured video-quality record require local GPU/checkpoint setup. Next code
   work can proceed on research evaluation/reporting without pretending that

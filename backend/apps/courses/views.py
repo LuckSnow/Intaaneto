@@ -83,6 +83,24 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseDetailSerializer
         return CourseSerializer
 
+    @action(detail=False, methods=['get'], permission_classes=[IsTeacher])
+    def managed(self, request):
+        """Return draft and published courses the teacher may administer."""
+        queryset = (
+            Course.objects.all()
+            if request.user.role == 'admin'
+            else Course.objects.filter(teacher=request.user)
+        ).order_by('order', 'id')
+        page = self.paginate_queryset(queryset)
+        serializer = CourseSerializer(
+            page if page is not None else queryset,
+            many=True,
+            context={'request': request},
+        )
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
+
     def perform_create(self, serializer):
         serializer.save(teacher=self.request.user)
 
@@ -135,7 +153,13 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
-        return accessible_lessons(self.request.user)
+        queryset = accessible_lessons(self.request.user)
+        course_id = self.request.query_params.get('course')
+        if course_id is not None:
+            if not course_id.isdigit():
+                return queryset.none()
+            queryset = queryset.filter(course_id=course_id)
+        return queryset
 
     def get_serializer_class(self):
         if self.action == 'retrieve':

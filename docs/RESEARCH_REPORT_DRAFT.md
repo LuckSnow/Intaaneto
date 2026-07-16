@@ -66,7 +66,7 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 Tại ngày 2026-07-16:
 
-- 151 backend tests pass trong isolated Django test settings.
+- 155 backend tests pass trong isolated Django test settings.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint và production build pass.
 - PostgreSQL migration `courses.0005` đã áp dụng ở development.
@@ -81,8 +81,12 @@ thế evaluation chất lượng mô hình hoặc penetration test production.
 
 ### E1 — Grounded answer evaluation
 
+- Harness full-pipeline đã được implement với authorization, xác nhận provider
+  cost, grounded/refusal contract, citation scope, lexical marker, latency và
+  token metrics. Chưa có live-provider baseline.
 - Mở rộng dataset và tách development/holdout.
-- Chấm answer correctness, groundedness, citation correctness và refusal quality.
+- Chấm thủ công answer correctness, groundedness, citation correctness và
+  refusal quality; lexical marker không thay thế semantic judgment.
 - Ghi model/config/version, latency và cost; không ghi secret/full prompt.
 
 ### E2 — Assessment consistency
