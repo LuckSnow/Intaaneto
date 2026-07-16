@@ -137,6 +137,8 @@ class SadTalkerLocalProvider:
         required_models = (
             root / 'checkpoints' / 'SadTalker_V0.0.2_256.safetensors',
             root / 'checkpoints' / 'mapping_00229-model.pth.tar',
+            root / 'gfpgan' / 'weights' / 'alignment_WFLW_4HG.pth',
+            root / 'gfpgan' / 'weights' / 'detection_Resnet50_Final.pth',
         )
         if (
             not inference_script.is_file()

@@ -262,9 +262,13 @@ def test_local_provider_uses_bounded_reproducible_runtime_environment(
     root = tmp_path / 'SadTalker'
     checkpoints = root / 'checkpoints'
     checkpoints.mkdir(parents=True)
+    face_weights = root / 'gfpgan' / 'weights'
+    face_weights.mkdir(parents=True)
     (root / 'inference.py').write_text('pass', encoding='utf-8')
     (checkpoints / 'SadTalker_V0.0.2_256.safetensors').write_bytes(b'model')
     (checkpoints / 'mapping_00229-model.pth.tar').write_bytes(b'mapping')
+    (face_weights / 'alignment_WFLW_4HG.pth').write_bytes(b'alignment')
+    (face_weights / 'detection_Resnet50_Final.pth').write_bytes(b'detection')
     runtime_bin = tmp_path / 'runtime' / 'bin'
     runtime_bin.mkdir(parents=True)
     python_executable = runtime_bin / 'python'
