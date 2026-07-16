@@ -6,6 +6,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from config.throttling import ActionScopedThrottleMixin
 
 from .models import Course, Lesson, Enrollment, Review, LessonComment
 from .serializers import (
@@ -32,6 +33,28 @@ class IsCourseOwnerOrAdmin(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return request.user.role == 'admin' or obj.teacher_id == request.user.id
+
+
+class IsRecordOwnerOrAdmin(BasePermission):
+    """Restrict learner-created record mutations to its author or an admin."""
+
+    def has_object_permission(self, request, view, obj):
+        return request.user.role == 'admin' or obj.user_id == request.user.id
+
+
+def accessible_lessons(user):
+    if not user.is_authenticated:
+        return Lesson.objects.none()
+    if user.role == 'admin':
+        return Lesson.objects.all()
+    if user.role == 'teacher':
+        return Lesson.objects.filter(
+            Q(course__teacher=user) | Q(course__enrollments__user=user)
+        ).distinct()
+    return Lesson.objects.filter(
+        Q(course__enrollments__user=user)
+        | Q(is_preview=True, is_published=True, course__is_published=True)
+    ).distinct()
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -96,9 +119,13 @@ class CourseViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class LessonViewSet(viewsets.ModelViewSet):
+class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+    throttle_scope_by_action = {
+        'upload': 'lesson_upload',
+        'reprocess': 'lesson_reprocess',
+    }
 
     def get_permissions(self):
         if self.action in ('upload', 'create', 'update', 'partial_update', 'destroy', 'reprocess'):
@@ -108,19 +135,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
-        user = self.request.user
-        if not user.is_authenticated:
-            return Lesson.objects.none()
-        if user.role == 'admin':
-            return Lesson.objects.all()
-        if user.role == 'teacher':
-            return Lesson.objects.filter(
-                Q(course__teacher=user) | Q(course__enrollments__user=user)
-            ).distinct()
-        return Lesson.objects.filter(
-            Q(course__enrollments__user=user)
-            | Q(is_preview=True, is_published=True, course__is_published=True)
-        ).distinct()
+        return accessible_lessons(self.request.user)
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -235,14 +250,27 @@ class LessonCommentViewSet(viewsets.ModelViewSet):
     serializer_class = LessonCommentSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        permissions = [IsAuthenticated]
+        if self.action in ('update', 'partial_update', 'destroy'):
+            permissions.append(IsRecordOwnerOrAdmin)
+        return [permission() for permission in permissions]
+
     def get_queryset(self):
         lesson_id = self.request.query_params.get('lesson')
-        qs = LessonComment.objects.filter(parent__isnull=True)
+        qs = LessonComment.objects.filter(
+            lesson__in=accessible_lessons(self.request.user),
+        )
+        if self.action == 'list':
+            qs = qs.filter(parent__isnull=True)
         if lesson_id:
             qs = qs.filter(lesson_id=lesson_id)
         return qs.select_related('user').prefetch_related('replies__user')
 
     def perform_create(self, serializer):
+        lesson = serializer.validated_data['lesson']
+        if not accessible_lessons(self.request.user).filter(pk=lesson.pk).exists():
+            raise PermissionDenied('Bạn không có quyền bình luận trong bài học này.')
         serializer.save(user=self.request.user)
 
 
@@ -259,12 +287,32 @@ class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        permissions = [IsAuthenticated]
+        if self.action in ('update', 'partial_update', 'destroy'):
+            permissions.append(IsRecordOwnerOrAdmin)
+        return [permission() for permission in permissions]
+
     def get_queryset(self):
+        if self.request.user.role == 'admin':
+            queryset = Review.objects.all()
+        elif self.request.user.role == 'teacher':
+            queryset = Review.objects.filter(
+                Q(course__is_published=True) | Q(course__teacher=self.request.user)
+            )
+        else:
+            queryset = Review.objects.filter(course__is_published=True)
         if self.action == 'list':
             course_id = self.request.query_params.get('course')
             if course_id:
-                return Review.objects.filter(course_id=course_id)
-        return Review.objects.all()
+                queryset = queryset.filter(course_id=course_id)
+        return queryset.select_related('user', 'course')
 
     def perform_create(self, serializer):
+        course = serializer.validated_data['course']
+        if not Enrollment.objects.filter(
+            user=self.request.user,
+            course=course,
+        ).exists():
+            raise PermissionDenied('Bạn phải đăng ký khóa học trước khi đánh giá.')
         serializer.save(user=self.request.user)

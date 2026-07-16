@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.exercises.access import accessible_exercises
+from config.throttling import ActionScopedThrottleMixin
 
 from .access import accessible_lesson_queryset
 from .models import ChatMessage, ChatSession
@@ -25,10 +26,15 @@ from .services import AIProviderError, AIService
 logger = logging.getLogger(__name__)
 
 
-class ChatViewSet(viewsets.ModelViewSet):
+class ChatViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
     serializer_class = ChatSessionSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'delete', 'head', 'options']
+    throttle_scope_by_action = {
+        'send_message': 'ai_chat',
+        'explain_code': 'ai_chat',
+        'get_hint': 'ai_hint',
+    }
 
     def get_queryset(self):
         return ChatSession.objects.filter(user=self.request.user)

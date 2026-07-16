@@ -137,6 +137,30 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'auth_register': config('THROTTLE_AUTH_REGISTER', default='5/hour'),
+        'auth_login': config('THROTTLE_AUTH_LOGIN', default='10/minute'),
+        'auth_verify': config('THROTTLE_AUTH_VERIFY', default='20/hour'),
+        'auth_resend': config('THROTTLE_AUTH_RESEND', default='5/hour'),
+        'teacher_application': config(
+            'THROTTLE_TEACHER_APPLICATION', default='3/day'
+        ),
+        'lesson_upload': config('THROTTLE_LESSON_UPLOAD', default='5/hour'),
+        'lesson_reprocess': config(
+            'THROTTLE_LESSON_REPROCESS', default='10/hour'
+        ),
+        'ai_chat': config('THROTTLE_AI_CHAT', default='30/minute'),
+        'ai_hint': config('THROTTLE_AI_HINT', default='20/minute'),
+        'assessment_submit': config(
+            'THROTTLE_ASSESSMENT_SUBMIT', default='20/hour'
+        ),
+        'assessment_reinforcement': config(
+            'THROTTLE_ASSESSMENT_REINFORCEMENT', default='20/hour'
+        ),
+    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_FILTER_BACKENDS': [

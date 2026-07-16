@@ -9,6 +9,7 @@ from pathlib import Path
 
 from django.conf import settings
 
+from .rag_answering import answer_lesson_question
 from .rag_services import (
     EmbeddingProvider,
     FastEmbedEmbeddingProvider,
@@ -207,5 +208,166 @@ def evaluate_lesson_retrieval(
             ),
             'mean_latency_ms': round(total_latency_ms / case_count, 2),
         },
+        'cases': results,
+    }
+
+
+def evaluate_grounded_answers(
+    *,
+    actor,
+    lesson,
+    dataset: RetrievalEvaluationDataset,
+    embedding_provider: EmbeddingProvider | None = None,
+    generation_provider=None,
+    include_answers: bool = False,
+) -> dict:
+    """Evaluate the full grounded-answer contract on the versioned dataset.
+
+    Expected-text matching is intentionally reported as a strict lexical proxy,
+    not as semantic answer correctness or an educational-quality score.
+    """
+
+    if lesson.slug != dataset.lesson_slug:
+        raise EvaluationDatasetError(
+            'Evaluation dataset does not match the selected lesson'
+        )
+
+    results = []
+    contract_matches = 0
+    citation_matches = 0
+    expected_marker_hits = 0
+    answerable_count = 0
+    refusal_matches = 0
+    unsupported_count = 0
+    passed_count = 0
+    total_latency_ms = 0
+    total_tokens = 0
+    token_measurements = 0
+
+    for case in dataset.cases:
+        started = time.monotonic()
+        answer = answer_lesson_question(
+            actor=actor,
+            lesson=lesson,
+            messages=[{'role': 'user', 'content': case.question}],
+            embedding_provider=embedding_provider,
+            generation_provider=generation_provider,
+        )
+        latency_ms = int((time.monotonic() - started) * 1000)
+        total_latency_ms += latency_ms
+
+        if answer.tokens_used is not None:
+            total_tokens += answer.tokens_used
+            token_measurements += 1
+
+        expected_grounded = case.answerable
+        contract_match = answer.grounded is expected_grounded
+        contract_matches += int(contract_match)
+
+        selected_ids = {
+            item['chunk_id']
+            for item in answer.retrieval_metadata.get('retrieval', {}).get(
+                'selected_chunks', []
+            )
+        }
+        citation_ids = {item.get('chunk_id') for item in answer.citations}
+        citation_match = (
+            bool(answer.citations)
+            and citation_ids.issubset(selected_ids)
+            and all(item.get('lesson_id') == lesson.id for item in answer.citations)
+            if answer.grounded
+            else not answer.citations
+        )
+        citation_matches += int(citation_match)
+
+        expected_marker_hit = None
+        refusal_match = None
+        if case.answerable:
+            answerable_count += 1
+            expected_marker_hit = (
+                case.expected_text.casefold() in answer.answer.casefold()
+            )
+            expected_marker_hits += int(expected_marker_hit)
+        else:
+            unsupported_count += 1
+            refusal_match = (
+                not answer.grounded
+                and not answer.citations
+                and answer.retrieval.get('status') != 'ready'
+            )
+            refusal_matches += int(refusal_match)
+
+        passed = (
+            contract_match
+            and citation_match
+            and (
+                expected_marker_hit
+                if case.answerable
+                else refusal_match
+            )
+        )
+        passed_count += int(passed)
+        result = {
+            'id': case.case_id,
+            'tags': list(case.tags),
+            'expected_grounded': expected_grounded,
+            'actual_grounded': answer.grounded,
+            'retrieval_status': answer.retrieval.get('status'),
+            'contract_match': contract_match,
+            'citation_match': citation_match,
+            'citation_count': len(answer.citations),
+            'expected_marker_hit': expected_marker_hit,
+            'refusal_match': refusal_match,
+            'latency_ms': latency_ms,
+            'tokens_used': answer.tokens_used,
+            'passed': passed,
+        }
+        if include_answers:
+            result['question'] = case.question
+            result['answer'] = answer.answer[:2000]
+        results.append(result)
+
+    case_count = len(dataset.cases)
+    return {
+        'dataset': {
+            'id': dataset.dataset_id,
+            'version': dataset.version,
+            'schema_version': DATASET_SCHEMA_VERSION,
+        },
+        'lesson_id': lesson.id,
+        'source_scope': 'authorized_lesson',
+        'evaluation_scope': 'grounded_answer_contract',
+        'configuration': {
+            'generation_provider': settings.AI_GENERATION_PROVIDER,
+            'generation_model': (
+                settings.GEMINI_GENERATION_MODEL
+                if settings.AI_GENERATION_PROVIDER == 'gemini'
+                else settings.AI_GENERATION_MODEL
+            ),
+            'retrieval_top_k': settings.RAG_RETRIEVAL_TOP_K,
+            'minimum_score': settings.RAG_RETRIEVAL_MIN_SCORE,
+            'answers_included': include_answers,
+        },
+        'metrics': {
+            'case_count': case_count,
+            'pass_rate': round(passed_count / case_count, 4),
+            'grounded_contract_accuracy': round(
+                contract_matches / case_count, 4
+            ),
+            'citation_scope_accuracy': round(citation_matches / case_count, 4),
+            'expected_marker_recall': round(
+                expected_marker_hits / answerable_count, 4
+            ),
+            'refusal_accuracy': round(
+                refusal_matches / unsupported_count, 4
+            ),
+            'mean_latency_ms': round(total_latency_ms / case_count, 2),
+            'total_tokens_reported': total_tokens,
+            'token_measurement_count': token_measurements,
+        },
+        'limitations': [
+            'expected_marker_recall_is_a_strict_lexical_proxy',
+            'human_review_is_required_for_semantic_and_pedagogical_quality',
+        ],
         'cases': results,
     }

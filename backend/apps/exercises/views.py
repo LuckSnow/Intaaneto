@@ -8,6 +8,7 @@ from apps.ai_assistant.rag_services import LessonRetrievalError
 from apps.courses.models import Enrollment
 from apps.courses.serializers import LessonSerializer
 from apps.courses.services import recalculate_enrollment_mastery
+from config.throttling import ActionScopedThrottleMixin
 
 from .access import accessible_exercises
 from .models import Exercise, LessonAssessment, Submission
@@ -74,8 +75,12 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         submission.save()
 
 
-class LessonAssessmentViewSet(viewsets.ModelViewSet):
+class LessonAssessmentViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    throttle_scope_by_action = {
+        'submit': 'assessment_submit',
+        'reinforcement': 'assessment_reinforcement',
+    }
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):

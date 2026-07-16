@@ -10,15 +10,16 @@ exploitation. Re-check code and tests before changing status.
 
 ## P1 — Resolve during the first stabilization/RAG slices
 
-- Forum object-owner permission logic exists but is not applied; authenticated
-  users may be able to update/delete content owned by others.
 - PDF extraction and local embedding run synchronously in the upload request;
   this removes the daemon-thread loss mode but still lacks parser wall-clock
   isolation and a durable background job boundary for production workloads.
 
 ## Operational gaps
 
-- No rate limiting or request throttling is configured.
+- Scoped DRF throttles cover auth/email, teacher applications, PDF processing,
+  AI chat/hints, and assessment submit/reinforcement. The current development
+  cache is process-local, so multi-instance production still requires a shared
+  cache and/or gateway-level enforcement; DRF throttling is not a DDoS control.
 - Mailjet delivery still requires a verified sender and a deliberate local smoke
   test. Automated tests use Django's in-memory email backend and do not prove
   external deliverability.
@@ -106,6 +107,18 @@ exploitation. Re-check code and tests before changing status.
 - AI exercise hints now reuse the same lesson/course owner-enrollment queryset as
   exercise reads/submissions, deny outsiders before generation, and never include
   solution code or hidden tests in the hint prompt.
+- Forum post/comment updates and deletes now enforce author-or-role-admin object
+  permission; privileged status fields have separate actions, public author
+  serialization omits account contact/profile fields, and target/duplicate
+  constraints cover reactions and reports. Negative tests include cross-owner
+  mutation, forged status/targets, teacher pin denial, and public privacy.
+- Named course router entries no longer sit behind the empty-prefix course
+  detail matcher. Lesson-comment reads/creates require lesson access,
+  cross-lesson reply targets are rejected, review creation requires enrollment,
+  and comment/review mutations require author or role-admin.
+- Scoped request throttles have endpoint-level `429` regression tests for login,
+  PDF upload, AI chat, and assessment submission; teacher-application status GET
+  remains outside its POST-only submission scope.
 
 ## Status discipline
 

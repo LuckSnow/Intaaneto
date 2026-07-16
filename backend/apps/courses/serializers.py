@@ -67,6 +67,26 @@ class LessonCommentSerializer(serializers.ModelSerializer):
         fields = ['id', 'lesson', 'user', 'user_name', 'user_avatar', 'parent',
                   'content', 'replies', 'created_at', 'updated_at']
         read_only_fields = ['user', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        lesson = attrs.get('lesson', getattr(self.instance, 'lesson', None))
+        parent = attrs.get('parent', getattr(self.instance, 'parent', None))
+        if parent is not None and (
+            lesson is None or parent.lesson_id != lesson.id
+        ):
+            raise serializers.ValidationError(
+                {'parent': 'Phản hồi phải thuộc cùng một bài học.'}
+            )
+        if self.instance is not None:
+            if 'lesson' in attrs and lesson.pk != self.instance.lesson_id:
+                raise serializers.ValidationError(
+                    {'lesson': 'Không thể chuyển bình luận sang bài học khác.'}
+                )
+            if 'parent' in attrs and getattr(parent, 'pk', None) != self.instance.parent_id:
+                raise serializers.ValidationError(
+                    {'parent': 'Không thể thay đổi bình luận cha.'}
+                )
+        return attrs
     
     def get_user_avatar(self, obj):
         if obj.user.avatar:
@@ -158,5 +178,15 @@ class ReviewSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Review
-        fields = '__all__'
+        fields = [
+            'id', 'user', 'user_name', 'user_avatar', 'course', 'rating',
+            'comment', 'created_at', 'updated_at',
+        ]
         read_only_fields = ['user', 'created_at', 'updated_at']
+
+    def validate_course(self, value):
+        if self.instance is not None and value.pk != self.instance.course_id:
+            raise serializers.ValidationError(
+                'Không thể chuyển đánh giá sang khóa học khác.'
+            )
+        return value

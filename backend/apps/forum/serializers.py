@@ -184,6 +184,13 @@ class ReportCreateSerializer(ReportReasonSerializer):
             raise serializers.ValidationError(
                 'Cần chọn đúng một bài viết hoặc bình luận để báo cáo.'
             )
+        request = self.context.get('request')
+        if request and Report.objects.filter(
+            reporter=request.user,
+            post=attrs.get('post'),
+            comment=attrs.get('comment'),
+        ).exists():
+            raise serializers.ValidationError('Bạn đã báo cáo nội dung này.')
         return attrs
 
     def create(self, validated_data):

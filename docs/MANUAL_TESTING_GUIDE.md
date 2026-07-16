@@ -592,9 +592,10 @@ chưa xuất CSV và chưa có biểu đồ lịch sử theo thời gian.
 - Tạo post, comment, reaction, bookmark/follow/report theo các control đang có.
 - Dùng tài khoản thứ hai thử sửa/xóa post/comment của tài khoản thứ nhất.
 
-Known risk: forum đã từng thiếu áp dụng object-owner permission. Nếu request sửa
-hoặc xóa chéo thành công, đánh dấu mức ưu tiên cao và lưu request/status code đã
-được lược bỏ token.
+Mong đợi backend chặn sửa/xóa post/comment của người khác với 403; owner không
+thể nhét `is_pinned`, `is_closed`, `is_solved` hoặc `is_solution` vào payload
+thông thường. Public author response không chứa email, điện thoại hoặc ngày sinh.
+Teacher không có quyền pin toàn cục; chỉ role-admin có action này.
 
 ### Course review
 
@@ -695,7 +696,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `131` tests pass.
+- Backend: `151` tests pass.
 - Frontend: lint pass và production build pass.
 - Build còn cảnh báo JavaScript chunk lớn và Browserslist data cũ.
 - Frontend chưa có test runner tự động riêng.

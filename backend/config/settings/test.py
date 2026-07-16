@@ -15,3 +15,13 @@ DATABASES = {
 }
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 ANYMAIL = {}
+
+# Throttle behavior has dedicated tests. Keep unrelated tests isolated from the
+# shared cache, whose keys intentionally outlive database transaction rollbacks.
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_THROTTLE_RATES': {
+        scope: '1000000/minute'
+        for scope in REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']
+    },
+}

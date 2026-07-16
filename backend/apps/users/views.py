@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from config.throttling import ActionScopedThrottleMixin
 from .models import User, TeacherApplication
 from .permissions import IsRoleAdmin
 from .role_services import (
@@ -40,10 +41,18 @@ def _hash_verification_token(token):
     return hashlib.sha256(token.encode('utf-8')).hexdigest()
 
 
-class AuthViewSet(viewsets.GenericViewSet):
+class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
     """Authentication ViewSet"""
     
     permission_classes = [AllowAny]
+    throttle_scope_by_action = {
+        'register': 'auth_register',
+        'login': 'auth_login',
+        'teacher_login': 'auth_login',
+        'google': 'auth_login',
+        'verify_email': 'auth_verify',
+        'resend_verification': 'auth_resend',
+    }
 
     def _send_verification_email(self, user):
         """Send email verification link to user"""
@@ -333,11 +342,14 @@ class AuthViewSet(viewsets.GenericViewSet):
         })
 
 
-class UserViewSet(viewsets.GenericViewSet):
+class UserViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
     """User ViewSet"""
     
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+    throttle_scope_by_action = {
+        ('teacher_application', 'post'): 'teacher_application',
+    }
 
     def get_queryset(self):
         """Never expose the global user collection through this API."""

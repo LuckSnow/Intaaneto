@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
@@ -134,11 +135,16 @@ class PostViewSet(viewsets.ModelViewSet):
         post = self.get_object()
         serializer = ReportReasonSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        report = Report.objects.create(
+        report, created = Report.objects.get_or_create(
             reporter=request.user,
             post=post,
-            **serializer.validated_data,
+            defaults=serializer.validated_data,
         )
+        if not created:
+            return Response(
+                {'detail': 'Bạn đã báo cáo nội dung này.'},
+                status=status.HTTP_409_CONFLICT,
+            )
         return Response(ReportSerializer(report).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])
@@ -235,11 +241,16 @@ class CommentViewSet(viewsets.ModelViewSet):
         comment = self.get_object()
         serializer = ReportReasonSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        report = Report.objects.create(
+        report, created = Report.objects.get_or_create(
             reporter=request.user,
             comment=comment,
-            **serializer.validated_data,
+            defaults=serializer.validated_data,
         )
+        if not created:
+            return Response(
+                {'detail': 'Bạn đã báo cáo nội dung này.'},
+                status=status.HTTP_409_CONFLICT,
+            )
         return Response(ReportSerializer(report).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['get'])
@@ -309,3 +320,12 @@ class ReportViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(reporter=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            return super().create(request, *args, **kwargs)
+        except IntegrityError:
+            return Response(
+                {'detail': 'Bạn đã báo cáo nội dung này.'},
+                status=status.HTTP_409_CONFLICT,
+            )

@@ -105,7 +105,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and thirty-one backend tests passed on 2026-07-16 in the
+  regression coverage. One hundred and fifty-one backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -211,6 +211,27 @@ relying on it and update it after material implementation changes.
   note, and review time; rejection leaves the learner role unchanged and permits
   a later reapplication. The profile UI shows pending/rejected states instead of
   promising immediate elevation.
+- Forum write boundaries now use action-specific serializers and backend object
+  permissions: only post/comment authors or role-admin may update/delete, only
+  role-admin may mutate tags or pin, and clients cannot write privileged status
+  or owner fields through ordinary payloads. Public forum identity omits email,
+  phone, birth date, verification and profile data. Reaction, report,
+  reply-parent, and follow targets are validated; database constraints require
+  exactly one reaction/report target and prevent duplicate reports. Ten
+  negative/contract tests pass and migration `forum.0004` is applied in the
+  development PostgreSQL database.
+- Named course APIs are registered before the empty-prefix course detail route,
+  so lesson comments, reviews, and enrollments are no longer shadowed as course
+  primary keys. Lesson comments are scoped to readable lessons, cross-lesson
+  parents are rejected, and comment/review mutations require record author or
+  role-admin; creating a review requires enrollment. Five negative tests cover
+  these boundaries.
+- DRF scoped throttles now bound registration/login/email verification,
+  teacher-application submission, PDF upload/reprocessing, AI chat/hints, and
+  assessment submit/reinforcement. Rates are environment-configurable and five
+  endpoint tests verify `429` behavior without counting teacher-application GET
+  requests as submissions. The current cache is application-level; a shared
+  cache and/or gateway limit is still required for multi-instance production.
 - Rollback-only PostgreSQL smoke tests persisted and ranked pgvector chunks with
   exact cosine distance. A live FastEmbed smoke ranked the intended RAG and
   Python chunks first (`0.494` and `0.756`) and marked the unsupported weather

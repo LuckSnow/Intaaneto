@@ -6,7 +6,14 @@ from apps.users.models import User
 
 from apps.ai_assistant.models import KnowledgeSource
 
-from .models import Course, Enrollment, Lesson, LessonProgress
+from .models import (
+    Course,
+    Enrollment,
+    Lesson,
+    LessonComment,
+    LessonProgress,
+    Review,
+)
 
 
 @pytest.fixture
@@ -177,3 +184,132 @@ def test_preview_completion_does_not_reveal_next_lesson(api_client, course, less
 
     assert response.status_code == 200
     assert response.data['next_lesson'] is None
+
+
+@pytest.mark.django_db
+def test_lesson_comment_requires_lesson_access(api_client, course, lesson):
+    outsider = User.objects.create_user(
+        email='comment-outsider@example.com',
+        username='comment-outsider',
+        full_name='Comment Outsider',
+        password='Testpass123!',
+        is_verified=True,
+    )
+    api_client.force_authenticate(outsider)
+
+    response = api_client.post(
+        '/api/courses/lesson-comments/',
+        {'lesson': lesson.id, 'content': 'Không được phép'},
+        format='json',
+    )
+
+    assert response.status_code == 403
+    assert not LessonComment.objects.exists()
+
+
+@pytest.mark.django_db
+def test_lesson_comment_mutation_requires_author_or_admin(
+    api_client, student_user, course, lesson
+):
+    Enrollment.objects.create(user=student_user, course=course)
+    comment = LessonComment.objects.create(
+        lesson=lesson,
+        user=student_user,
+        content='Bình luận gốc',
+    )
+    other = User.objects.create_user(
+        email='other-commenter@example.com',
+        username='other-commenter',
+        full_name='Other Commenter',
+        password='Testpass123!',
+        is_verified=True,
+    )
+    Enrollment.objects.create(user=other, course=course)
+    api_client.force_authenticate(other)
+
+    update = api_client.patch(
+        f'/api/courses/lesson-comments/{comment.id}/',
+        {'content': 'Chiếm quyền'},
+        format='json',
+    )
+    delete = api_client.delete(
+        f'/api/courses/lesson-comments/{comment.id}/'
+    )
+
+    assert update.status_code == 403
+    assert delete.status_code == 403
+    comment.refresh_from_db()
+    assert comment.content == 'Bình luận gốc'
+
+
+@pytest.mark.django_db
+def test_lesson_comment_rejects_parent_from_another_lesson(
+    authenticated_client, student_user, course, lesson
+):
+    Enrollment.objects.create(user=student_user, course=course)
+    other_lesson = Lesson.objects.create(
+        course=course,
+        title='Bài hai',
+        slug='bai-hai-comment',
+        content='Nội dung',
+        is_published=True,
+    )
+    parent = LessonComment.objects.create(
+        lesson=other_lesson,
+        user=student_user,
+        content='Bình luận bài hai',
+    )
+
+    response = authenticated_client.post(
+        '/api/courses/lesson-comments/',
+        {'lesson': lesson.id, 'parent': parent.id, 'content': 'Sai phạm vi'},
+        format='json',
+    )
+
+    assert response.status_code == 400, response.data
+    assert LessonComment.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_review_requires_enrollment(authenticated_client, course):
+    response = authenticated_client.post(
+        '/api/courses/reviews/',
+        {'course': course.id, 'rating': 5, 'comment': 'Chưa đăng ký'},
+        format='json',
+    )
+
+    assert response.status_code == 403
+    assert not Review.objects.exists()
+
+
+@pytest.mark.django_db
+def test_review_mutation_requires_author_or_admin(
+    api_client, student_user, course
+):
+    Enrollment.objects.create(user=student_user, course=course)
+    review = Review.objects.create(
+        user=student_user,
+        course=course,
+        rating=5,
+        comment='Đánh giá gốc',
+    )
+    other = User.objects.create_user(
+        email='other-reviewer@example.com',
+        username='other-reviewer',
+        full_name='Other Reviewer',
+        password='Testpass123!',
+        is_verified=True,
+    )
+    api_client.force_authenticate(other)
+
+    update = api_client.patch(
+        f'/api/courses/reviews/{review.id}/',
+        {'rating': 1, 'course': course.id},
+        format='json',
+    )
+    delete = api_client.delete(f'/api/courses/reviews/{review.id}/')
+
+    assert update.status_code == 403
+    assert delete.status_code == 403
+    review.refresh_from_db()
+    assert review.rating == 5

@@ -66,7 +66,7 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 Tại ngày 2026-07-16:
 
-- 131 backend tests pass trong isolated Django test settings.
+- 151 backend tests pass trong isolated Django test settings.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint và production build pass.
 - PostgreSQL migration `courses.0005` đã áp dụng ở development.
@@ -113,8 +113,8 @@ thế evaluation chất lượng mô hình hoặc penetration test production.
   lực thực tế hoặc tác động giáo dục.
 - PDF parser và embedding chạy đồng bộ; chưa có durable worker/rate limit đầy đủ.
 - SadTalker mới có adapter tests, chưa có real-render evidence.
-- Token localStorage, forum ownership, frontend dependency vulnerabilities và
-  production settings vẫn cần security hardening.
+- Token localStorage, frontend dependency vulnerabilities và production settings
+  vẫn cần security hardening.
 
 ## 7. Đạo đức, quyền riêng tư và an toàn
 
