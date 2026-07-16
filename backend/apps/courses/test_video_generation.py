@@ -306,6 +306,9 @@ def test_local_provider_uses_bounded_reproducible_runtime_environment(
     assert generated.path.name == 'result.mp4'
     command = captured['command']
     assert command[0] == str(python_executable.resolve())
+    assert command[command.index('--checkpoint_dir') + 1] == str(
+        checkpoints.resolve()
+    )
     assert command[-7:] == [
         '--size', '256', '--batch_size', '1', '--preprocess', 'crop', '--still',
     ]
@@ -314,4 +317,8 @@ def test_local_provider_uses_bounded_reproducible_runtime_environment(
     assert runtime_env['PYTHONNOUSERSITE'] == '1'
     assert 'PYTHONHOME' not in runtime_env
     assert 'PYTHONPATH' not in runtime_env
+    assert captured['kwargs']['cwd'] == generated.cleanup_dir
+    assert (
+        generated.cleanup_dir / 'gfpgan' / 'weights' / 'alignment_WFLW_4HG.pth'
+    ).is_symlink()
     assert captured['kwargs']['start_new_session'] is True

@@ -152,6 +152,7 @@ class SadTalkerLocalProvider:
         work_root = Path(settings.SADTALKER_WORK_ROOT).expanduser().resolve()
         work_root.mkdir(parents=True, exist_ok=True)
         work_dir = Path(tempfile.mkdtemp(prefix='intaaneto-sadtalker-', dir=work_root))
+        face_weights_dir = work_dir / 'gfpgan' / 'weights'
         command = [
             str(python_executable),
             str(inference_script),
@@ -159,6 +160,8 @@ class SadTalkerLocalProvider:
             str(audio_path),
             '--source_image',
             str(portrait_path),
+            '--checkpoint_dir',
+            str(root / 'checkpoints'),
             '--result_dir',
             str(work_dir),
             '--size',
@@ -178,9 +181,12 @@ class SadTalkerLocalProvider:
         runtime_env.pop('PYTHONHOME', None)
         runtime_env.pop('PYTHONPATH', None)
         try:
+            face_weights_dir.mkdir(parents=True)
+            for model in required_models[2:]:
+                (face_weights_dir / model.name).symlink_to(model)
             process = subprocess.Popen(
                 command,
-                cwd=root,
+                cwd=work_dir,
                 env=runtime_env,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
