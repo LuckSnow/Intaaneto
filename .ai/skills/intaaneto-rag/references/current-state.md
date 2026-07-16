@@ -105,7 +105,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. Ninety-two backend tests passed on 2026-07-16 in the
+  regression coverage. One hundred and one backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -134,6 +134,24 @@ relying on it and update it after material implementation changes.
   lessons directly from the course outline. Three API tests cover a ready PDF
   after an unusable upload, final-lesson completion, and preview isolation so an
   unenrolled viewer cannot discover the next enrolled-only lesson.
+- A first deterministic lesson-assessment vertical slice is implemented in the
+  exercises app. One versioned assessment can be attached to a lesson with a
+  configurable pass threshold and teacher-authored multiple-choice questions
+  mapped to learning objectives. Enrolled learners receive no correct-answer or
+  explanation fields; the backend validates a complete answer set, calculates
+  score/pass state, stores immutable attempt and answer snapshots, aggregates
+  best current-version scores into `Enrollment.mastery_percentage`, and
+  completes/advances the lesson only after a passing result. Failed attempts
+  return weak objectives for reinforcement. Assessment, score, pass, mastery,
+  completion, and next-lesson decisions remain server-owned. Assessments with
+  attempts cannot be edited or deleted in this initial slice.
+- The lesson page now renders the learner-safe multiple-choice assessment and
+  server-confirmed pass/reinforcement/next-lesson states. Lessons without a
+  published assessment retain the explicit completion action.
+- Legacy coding exercises now have an optional lesson relationship for migration
+  compatibility, while learner list/detail/submission queries exclude unscoped
+  records and enforce enrollment. The separate AI `get_hint` action still needs
+  an explicit exercise enrollment check.
 - A live retry of the previously failing uploaded PDF completed on 2026-07-16:
   33,683 sanitized characters with zero NUL characters produced one active
   source with 40 chunks. This proves the observed PostgreSQL NUL failure is fixed
@@ -207,6 +225,11 @@ relying on it and update it after material implementation changes.
 - No validated teacher competency test or scoring rubric is implemented. A future
   assessment may provide evidence to the admin review, but must not automatically
   grant a privileged role without an explicitly accepted policy.
+- No AI-dialogue assessment or AI-generated grade is implemented yet. The
+  current lesson assessment is deterministic multiple choice and supplies the
+  trusted score/progression baseline; RAG-grounded reinforcement,
+  conversational rubric evaluation, teacher calibration, and assessment-quality
+  experiments remain.
 
 ## Known integration risks
 

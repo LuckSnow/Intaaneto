@@ -281,6 +281,37 @@ def test_submission_rejects_question_from_another_assessment(
 
 
 @pytest.mark.django_db
+def test_assessment_with_attempts_cannot_be_changed_or_deleted(
+    api_client, authenticated_client, teacher_user, enrollment, assessment
+):
+    questions = list(assessment.questions.all())
+    submitted = authenticated_client.post(
+        f'/api/exercises/assessments/{assessment.id}/submit/',
+        {
+            'answers': [
+                {'question_id': question.id, 'selected_choice': 0}
+                for question in questions
+            ],
+        },
+        format='json',
+    )
+    assert submitted.status_code == 201
+
+    api_client.force_authenticate(teacher_user)
+    changed = api_client.patch(
+        f'/api/exercises/assessments/{assessment.id}/',
+        {'pass_threshold': 90},
+        format='json',
+    )
+    deleted = api_client.delete(f'/api/exercises/assessments/{assessment.id}/')
+
+    assert changed.status_code == 409
+    assert deleted.status_code == 409
+    assessment.refresh_from_db()
+    assert assessment.pass_threshold == 70
+
+
+@pytest.mark.django_db
 def test_student_exercise_response_hides_solution_and_hidden_tests(
     authenticated_client, enrollment, lesson
 ):

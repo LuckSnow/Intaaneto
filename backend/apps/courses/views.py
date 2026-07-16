@@ -7,7 +7,7 @@ from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 
-from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
+from .models import Course, Lesson, Enrollment, Review, LessonComment
 from .serializers import (
     CourseSerializer, CourseDetailSerializer, LessonSerializer,
     LessonUploadSerializer, LessonDetailSerializer, LessonCommentSerializer,

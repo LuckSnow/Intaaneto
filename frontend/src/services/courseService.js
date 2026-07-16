@@ -57,6 +57,21 @@ export const courseService = {
     return response.data
   },
 
+  // Get the learner-safe published assessment for one enrolled lesson.
+  getLessonAssessment: async (lessonId) => {
+    const response = await api.get(`/exercises/assessments/?lesson=${lessonId}`)
+    const assessments = response.data.results || response.data
+    return assessments[0] || null
+  },
+
+  // Submit choices only; score, pass state, mastery, and progression are server-owned.
+  submitAssessment: async (assessmentId, answers) => {
+    const response = await api.post(`/exercises/assessments/${assessmentId}/submit/`, {
+      answers,
+    })
+    return response.data
+  },
+
   // --- Comments ---
   getComments: async (lessonId) => {
     const response = await api.get(`/courses/lesson-comments/?lesson=${lessonId}`)

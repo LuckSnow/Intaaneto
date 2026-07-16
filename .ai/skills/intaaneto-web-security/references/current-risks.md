@@ -5,8 +5,6 @@ exploitation. Re-check code and tests before changing status.
 
 ## P0 — Resolve before exposing the application
 
-- Exercises are not linked to a course or lesson, so exercise/hint authorization
-  cannot yet be constrained by enrollment or teacher ownership.
 - Course/lesson permissions now have an initial owner/enrollment boundary, but
   broader negative coverage is still required before production exposure.
 
@@ -88,6 +86,12 @@ exploitation. Re-check code and tests before changing status.
   the learner role unchanged until admin approval. Negative tests cover direct
   self-elevation attempts, duplicate pending requests, teacher reapplication,
   learner review attempts, and rejection-note validation.
+- Lesson assessments are scoped through their lesson/course, expose no answer
+  key to learners, calculate score/mastery/progression on the backend, and have
+  negative coverage for non-enrollment, other-teacher ownership, forged result
+  fields, cross-assessment questions, and mutation after attempts. Legacy coding
+  exercises now have an optional lesson link for migration compatibility;
+  learner exercise queries and submissions deny unscoped or unenrolled records.
 
 ## Status discipline
 

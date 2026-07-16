@@ -98,7 +98,10 @@ class LessonAssessmentLearnerSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request is None or not request.user.is_authenticated:
             return obj.attempts.none()
-        return obj.attempts.filter(user=request.user)
+        return obj.attempts.filter(
+            user=request.user,
+            assessment_version=obj.version,
+        )
 
     def get_best_score(self, obj):
         attempt = self._attempts(obj).order_by('-score', '-submitted_at').first()
@@ -120,6 +123,14 @@ class LessonAssessmentTeacherSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'version', 'created_at', 'updated_at']
 
     def validate(self, attrs):
+        if (
+            self.instance
+            and 'lesson' in attrs
+            and attrs['lesson'].pk != self.instance.lesson_id
+        ):
+            raise serializers.ValidationError({
+                'lesson': 'Không thể chuyển bài đánh giá sang bài học khác.'
+            })
         questions = attrs.get('questions')
         will_publish = attrs.get(
             'is_published',

@@ -170,3 +170,20 @@ affected files or migration.
   path.
 - Revisit when: the dataset is large enough to split development and holdout
   cases, or grounded-answer evaluation requires a separately versioned rubric.
+
+## RAG-014 — Deterministic assessment before AI grading
+
+- Status: Implemented for the first lesson-assessment slice
+- Date: 2026-07-16
+- Affected: exercises assessment models/API/tests, course progression service,
+  enrollment mastery, and `frontend/src/pages/LessonPage.jsx`
+- Decision: Establish a teacher-authored multiple-choice assessment with a
+  server-calculated configurable threshold, immutable attempt snapshots, and
+  server-owned progression before allowing an AI-generated grade to affect
+  learner state.
+- Reason: The research project needs an explainable baseline for scoring,
+  progression, consistency, and access control before comparing or calibrating
+  conversational AI evaluation.
+- Constraint: Retrieval similarity is evidence availability, not learner
+  mastery. Future AI grades remain recommendations until a versioned rubric and
+  evaluation set show sufficient accuracy and consistency.

@@ -11,7 +11,7 @@ import unicodedata
 import requests
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
-from django.db.models import Max, Q
+from django.db.models import F, Max, Q
 from django.utils import timezone
 
 from apps.ai_assistant.rag_services import LessonIndexingError, index_lesson
@@ -91,7 +91,10 @@ def recalculate_enrollment_mastery(enrollment):
         ).annotate(
             best_score=Max(
                 'attempts__score',
-                filter=Q(attempts__user=enrollment.user),
+                filter=Q(
+                    attempts__user=enrollment.user,
+                    attempts__assessment_version=F('version'),
+                ),
             )
         )
     )
@@ -123,7 +126,11 @@ def complete_lesson(*, user, lesson, require_assessment=True):
         require_assessment
         and assessment is not None
         and assessment.is_published
-        and not assessment.attempts.filter(user=user, passed=True).exists()
+        and not assessment.attempts.filter(
+            user=user,
+            assessment_version=assessment.version,
+            passed=True,
+        ).exists()
     ):
         raise AssessmentRequiredError(assessment.id)
 

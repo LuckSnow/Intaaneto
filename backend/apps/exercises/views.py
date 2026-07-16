@@ -4,7 +4,9 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission, IsAuthenticated
 
+from apps.courses.models import Enrollment
 from apps.courses.serializers import LessonSerializer
+from apps.courses.services import recalculate_enrollment_mastery
 
 from .models import Exercise, LessonAssessment, Submission
 from .serializers import (
@@ -132,7 +134,37 @@ class LessonAssessmentViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         lesson = serializer.validated_data.get('lesson', serializer.instance.lesson)
         self._validate_lesson_owner(lesson)
-        serializer.save()
+        assessment = serializer.save()
+        for enrollment in Enrollment.objects.filter(course=assessment.lesson.course):
+            recalculate_enrollment_mastery(enrollment)
+
+    def update(self, request, *args, **kwargs):
+        assessment = self.get_object()
+        if assessment.attempts.exists():
+            return Response(
+                {
+                    'code': 'assessment_has_attempts',
+                    'detail': 'Không thể sửa bài đánh giá đã có kết quả học tập.',
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        assessment = self.get_object()
+        if assessment.attempts.exists():
+            return Response(
+                {
+                    'code': 'assessment_has_attempts',
+                    'detail': 'Không thể xóa bài đánh giá đã có kết quả học tập.',
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        course = assessment.lesson.course
+        response = super().destroy(request, *args, **kwargs)
+        for enrollment in Enrollment.objects.filter(course=course):
+            recalculate_enrollment_mastery(enrollment)
+        return response
 
     @action(detail=True, methods=['post'])
     def submit(self, request, pk=None):

@@ -89,6 +89,26 @@ expansion and grounded-answer/refusal evaluation remain.
 - Add prompt-injection fixtures embedded inside source documents.
 - Tune chunk/retrieval settings from measured results.
 
+## Assessment loop A — Deterministic progression baseline
+
+Status: Implemented on 2026-07-16 with backend contract/security tests and a
+learner lesson-page flow. This is the control baseline for later AI-dialogue
+assessment, not a claim that AI grading is complete.
+
+- Attach one versioned, teacher-authored multiple-choice assessment to a lesson.
+- Hide answer keys from learners and calculate score/pass state in the backend.
+- Preserve immutable attempt/answer evidence and aggregate current mastery.
+- Block normal lesson progression until the learner passes the published
+  assessment; return weak learning objectives after a failed attempt.
+- Keep an assessment immutable after attempts exist in this initial slice.
+
+Exit: enrolled learners can take a lesson assessment, cannot forge score or
+progression, receive an explainable result, and advance only after a passing
+server-owned decision. Cross-enrollment and teacher-ownership tests pass.
+
+Next: add RAG-grounded reinforcement tied to weak objectives, then design and
+evaluate a bounded conversational rubric against this deterministic baseline.
+
 ## MVP acceptance criteria
 
 - A student can ask in Vietnamese about an authorized lesson.

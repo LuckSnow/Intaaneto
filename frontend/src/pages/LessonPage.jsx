@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore'
 import { courseService } from '../services/courseService'
 import { aiService } from '../services/aiService'
 import toast from 'react-hot-toast'
-import { AlertCircle, ArrowRight, BookOpen, Bot, CheckCircle2, Send } from 'lucide-react'
+import { AlertCircle, ArrowRight, BookOpen, Bot, CheckCircle2, ClipboardCheck, Send } from 'lucide-react'
 
 const STATUS_MAP = {
   pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: '⏳' },
@@ -42,6 +42,14 @@ export default function LessonPage() {
   const [polling, setPolling] = useState(false)
   const [completion, setCompletion] = useState(null)
 
+  // Deterministic lesson assessment
+  const [assessment, setAssessment] = useState(null)
+  const [assessmentLoading, setAssessmentLoading] = useState(false)
+  const [assessmentAnswers, setAssessmentAnswers] = useState({})
+  const [assessmentResult, setAssessmentResult] = useState(null)
+  const [assessmentError, setAssessmentError] = useState('')
+  const [submittingAssessment, setSubmittingAssessment] = useState(false)
+
   useEffect(() => {
     fetchLesson()
   }, [id])
@@ -51,7 +59,34 @@ export default function LessonPage() {
     setChatInput('')
     setChatSessionId(null)
     setCompletion(null)
+    setAssessment(null)
+    setAssessmentAnswers({})
+    setAssessmentResult(null)
+    setAssessmentError('')
   }, [id])
+
+  useEffect(() => {
+    if (user?.role !== 'student') return
+
+    let cancelled = false
+    const fetchAssessment = async () => {
+      setAssessmentLoading(true)
+      try {
+        const data = await courseService.getLessonAssessment(id)
+        if (!cancelled) setAssessment(data)
+      } catch (error) {
+        if (!cancelled && error.response?.status !== 404) {
+          setAssessmentError('Không thể tải bài đánh giá. Vui lòng thử lại.')
+        }
+      } finally {
+        if (!cancelled) setAssessmentLoading(false)
+      }
+    }
+    fetchAssessment()
+    return () => {
+      cancelled = true
+    }
+  }, [id, user?.role])
 
   useEffect(() => {
     if (polling && lesson) {
@@ -123,8 +158,45 @@ export default function LessonPage() {
       const result = await courseService.completeLesson(id)
       setCompletion(result)
       toast.success('Đã hoàn thành bài học!')
-    } catch {
-      toast.error('Không thể đánh dấu hoàn thành')
+    } catch (error) {
+      if (error.response?.data?.code === 'assessment_required') {
+        setActiveTab('assessment')
+        toast.error('Bạn cần đạt bài đánh giá trước khi chuyển bài.')
+      } else {
+        toast.error('Không thể đánh dấu hoàn thành')
+      }
+    }
+  }
+
+  const handleSubmitAssessment = async () => {
+    if (!assessment || submittingAssessment) return
+    setSubmittingAssessment(true)
+    setAssessmentError('')
+    try {
+      const answers = assessment.questions.map((question) => ({
+        question_id: question.id,
+        selected_choice: assessmentAnswers[question.id],
+      }))
+      const result = await courseService.submitAssessment(assessment.id, answers)
+      setAssessmentResult(result)
+      if (result.passed) {
+        setCompletion({
+          is_completed: true,
+          progress_percentage: result.progress_percentage,
+          next_lesson: result.next_lesson,
+        })
+        toast.success('Bạn đã đạt bài đánh giá!')
+      } else {
+        toast.error('Bạn cần củng cố một số mục tiêu trước khi thử lại.')
+      }
+    } catch (error) {
+      setAssessmentError(
+        error.response?.data?.answers?.[0]
+          || error.response?.data?.detail
+          || 'Không thể nộp bài đánh giá. Vui lòng thử lại.'
+      )
+    } finally {
+      setSubmittingAssessment(false)
     }
   }
 
@@ -277,6 +349,7 @@ export default function LessonPage() {
                 { key: 'summary', label: '🤖 Tóm tắt AI' },
                 { key: 'comments', label: '💬 Bình luận' },
                 { key: 'chat', label: '🧠 Hỏi AI' },
+                ...(user?.role === 'student' ? [{ key: 'assessment', label: 'Bài đánh giá' }] : []),
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -479,6 +552,115 @@ export default function LessonPage() {
                   </div>
                 </div>
               )}
+
+              {activeTab === 'assessment' && (
+                <div>
+                  <div className="mb-4 flex items-center gap-2 text-white">
+                    <ClipboardCheck className="h-5 w-5 text-orange-300" aria-hidden="true" />
+                    <h2 className="text-xl font-bold">Kiểm tra mức độ tiếp thu</h2>
+                  </div>
+
+                  {assessmentLoading && (
+                    <p className="text-white/60" role="status">Đang tải bài đánh giá...</p>
+                  )}
+
+                  {!assessmentLoading && !assessment && !assessmentError && (
+                    <p className="text-white/60">
+                      Bài học này chưa có bài đánh giá. Bạn có thể đánh dấu hoàn thành khi đã học xong.
+                    </p>
+                  )}
+
+                  {assessmentError && (
+                    <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-200" role="alert">
+                      {assessmentError}
+                    </div>
+                  )}
+
+                  {assessment && (
+                    <div className="space-y-5">
+                      <div className="rounded-xl border border-white/15 bg-black/10 p-4">
+                        <h3 className="font-semibold text-white">{assessment.title}</h3>
+                        {assessment.instructions && (
+                          <p className="mt-1 text-sm text-white/60">{assessment.instructions}</p>
+                        )}
+                        <p className="mt-2 text-sm text-orange-200">
+                          Ngưỡng đạt: {assessment.pass_threshold}%
+                        </p>
+                      </div>
+
+                      {assessment.questions.map((question, questionIndex) => (
+                        <fieldset key={question.id} className="rounded-xl border border-white/15 p-4">
+                          <legend className="px-1 font-medium text-white">
+                            Câu {questionIndex + 1}: {question.prompt}
+                          </legend>
+                          <div className="mt-3 space-y-2">
+                            {question.choices.map((choice, choiceIndex) => (
+                              <label
+                                key={choiceIndex}
+                                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5"
+                              >
+                                <input
+                                  type="radio"
+                                  name={`question-${question.id}`}
+                                  value={choiceIndex}
+                                  checked={assessmentAnswers[question.id] === choiceIndex}
+                                  onChange={() => setAssessmentAnswers((current) => ({
+                                    ...current,
+                                    [question.id]: choiceIndex,
+                                  }))}
+                                  disabled={submittingAssessment}
+                                  className="h-4 w-4 accent-orange-600"
+                                />
+                                <span>{choice}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </fieldset>
+                      ))}
+
+                      {assessmentResult && (
+                        <div
+                          className={`rounded-xl border p-4 ${
+                            assessmentResult.passed
+                              ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
+                              : 'border-amber-400/40 bg-amber-500/10 text-amber-100'
+                          }`}
+                          role="status"
+                        >
+                          <p className="font-semibold">
+                            {assessmentResult.passed ? 'Đã đạt' : 'Cần củng cố'} · {assessmentResult.score}%
+                          </p>
+                          {!assessmentResult.passed && assessmentResult.weak_objectives?.length > 0 && (
+                            <div className="mt-2 text-sm">
+                              <p>Hãy ôn lại:</p>
+                              <ul className="mt-1 list-disc space-y-1 pl-5">
+                                {assessmentResult.weak_objectives.map((objective) => (
+                                  <li key={objective}>{objective}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {!assessmentResult?.passed && (
+                        <Button
+                          onClick={handleSubmitAssessment}
+                          disabled={
+                            submittingAssessment
+                            || Object.keys(assessmentAnswers).length !== assessment.questions.length
+                          }
+                          className="w-full bg-orange-600 text-white hover:bg-orange-700"
+                        >
+                          {submittingAssessment
+                            ? 'Đang chấm bài...'
+                            : assessmentResult ? 'Làm lại bài đánh giá' : 'Nộp bài đánh giá'}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -511,11 +693,19 @@ export default function LessonPage() {
               {isAuthenticated && (
                 <div className="mt-6 space-y-3">
                   <Button
-                    onClick={handleCompleteLesson}
+                    onClick={
+                      assessment && !assessment.passed
+                        ? () => setActiveTab('assessment')
+                        : handleCompleteLesson
+                    }
                     disabled={completion?.is_completed}
                     className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-green-700/60 text-white font-semibold border-0 transition-colors"
                   >
-                    {completion?.is_completed ? '✓ Đã hoàn thành' : 'Đánh dấu hoàn thành'}
+                    {completion?.is_completed
+                      ? '✓ Đã hoàn thành'
+                      : assessment && !assessment.passed
+                        ? 'Làm bài đánh giá'
+                        : 'Đánh dấu hoàn thành'}
                   </Button>
 
                   {completion?.next_lesson && (
