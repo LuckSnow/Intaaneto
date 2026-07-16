@@ -1,6 +1,5 @@
 import api from './api'
-import { signInWithPopup } from 'firebase/auth'
-import { auth, googleProvider } from '../config/firebase'
+import { getFirebaseAuthContext } from '../config/firebase'
 import {
   clearAuthSession,
   getStoredRefreshToken,
@@ -36,14 +35,18 @@ export const authService = {
 
   // Google Sign-In via Firebase
   googleLogin: async () => {
-    if (!auth || !googleProvider) {
+    const firebaseAuth = await getFirebaseAuthContext()
+    if (!firebaseAuth) {
       const error = new Error('Firebase chưa được cấu hình cho Google Login')
       error.code = 'firebase/not-configured'
       throw error
     }
 
     // 1. Firebase popup → get Google ID token
-    const result = await signInWithPopup(auth, googleProvider)
+    const result = await firebaseAuth.signInWithPopup(
+      firebaseAuth.auth,
+      firebaseAuth.googleProvider,
+    )
     const idToken = await result.user.getIdToken()
 
     // 2. Send ID token to Django backend for verification

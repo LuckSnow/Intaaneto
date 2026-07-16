@@ -1,9 +1,4 @@
 import api from './api'
-import { db } from '../config/firebase'
-import {
-  collection, doc, onSnapshot, setDoc, deleteDoc,
-  query, orderBy, serverTimestamp, updateDoc, increment,
-} from 'firebase/firestore'
 
 // ─── REST API calls (Django backend) ───
 
@@ -62,71 +57,4 @@ export const forumService = {
   checkFollow: (userId) => api.get('/forum/follows/check/', { params: { user_id: userId } }),
   getMyFollowing: () => api.get('/forum/follows/my_following/'),
   getMyFollowers: () => api.get('/forum/follows/my_followers/'),
-}
-
-// ─── Firestore Realtime helpers ───
-
-/**
- * Sync reactions from Firestore in realtime for a specific post.
- * Firestore collection: forum_posts/{postId}/reactions
- */
-export function subscribeToPostReactions(postId, callback) {
-  if (!db) return () => {}
-
-  const ref = collection(db, 'forum_posts', String(postId), 'reactions')
-  const q = query(ref, orderBy('createdAt', 'desc'))
-  return onSnapshot(q, (snapshot) => {
-    const reactions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
-    callback(reactions)
-  })
-}
-
-export function subscribeToComments(postId, callback) {
-  if (!db) return () => {}
-
-  const ref = collection(db, 'forum_posts', String(postId), 'comments')
-  const q = query(ref, orderBy('createdAt', 'asc'))
-  return onSnapshot(q, (snapshot) => {
-    const comments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
-    callback(comments)
-  })
-}
-
-/**
- * Write a lightweight reaction doc to Firestore for realtime sync.
- * The real reaction is also persisted via REST API (Django).
- */
-export async function writeRealtimeReaction(postId, userId, userName, reactionType) {
-  if (!db) return
-
-  const docRef = doc(db, 'forum_posts', String(postId), 'reactions', String(userId))
-  if (!reactionType) {
-    await deleteDoc(docRef)
-    return
-  }
-  await setDoc(docRef, {
-    userId,
-    userName,
-    reactionType,
-    createdAt: serverTimestamp(),
-  })
-}
-
-export async function writeRealtimeComment(postId, commentData) {
-  if (!db) return
-
-  const docRef = doc(
-    db, 'forum_posts', String(postId), 'comments', String(commentData.id)
-  )
-  await setDoc(docRef, {
-    ...commentData,
-    createdAt: serverTimestamp(),
-  })
-}
-
-export async function deleteRealtimeComment(postId, commentId) {
-  if (!db) return
-
-  const docRef = doc(db, 'forum_posts', String(postId), 'comments', String(commentId))
-  await deleteDoc(docRef)
 }

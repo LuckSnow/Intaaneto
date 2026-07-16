@@ -9,7 +9,7 @@ import ReactionButton from '../components/forum/ReactionButton'
 import ReportModal from '../components/forum/ReportModal'
 import UserProfileCard from '../components/forum/UserProfileCard'
 import TagBadge from '../components/forum/TagBadge'
-import { forumService, subscribeToPostReactions, subscribeToComments } from '../services/forumService'
+import { forumService } from '../services/forumService'
 import { useAuthStore } from '../store/authStore'
 
 const CATEGORY_STYLES = {
@@ -57,19 +57,6 @@ export default function ForumPost() {
   }, [id])
 
   useEffect(() => { fetchPost() }, [fetchPost])
-
-  // Firestore realtime subscriptions
-  useEffect(() => {
-    if (!id) return
-    const unsub1 = subscribeToPostReactions(id, () => {
-      // Refresh post to get updated reaction counts from backend
-      fetchPost()
-    })
-    const unsub2 = subscribeToComments(id, () => {
-      fetchPost()
-    })
-    return () => { unsub1(); unsub2() }
-  }, [id, fetchPost])
 
   const handleReact = async (type) => {
     try {
