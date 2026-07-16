@@ -575,11 +575,17 @@ Kiểm tra endpoint course progress hoặc Django Admin:
   progress/mastery.
 - Nhấn `Xem học viên` trả danh sách phân trang của đúng course, không có email,
   answer key hoặc chat.
+- Nhấn `Xuất CSV` tải file của đúng course. Header không có email/chat/answer;
+  progress, mastery và assessment count phải khớp dashboard.
 - Dùng Teacher A gọi report với `course_id` của Teacher B phải nhận 404.
+- Dùng Student A gọi `progress-export` phải nhận 403. Dùng Teacher A xuất course
+  của Teacher B phải nhận 404.
+- Nếu full name/lesson title demo bắt đầu bằng `=`, `+`, `-` hoặc `@`, ô CSV phải
+  được prefix bằng dấu nháy đơn để spreadsheet không thực thi công thức.
 - Attempt assessment version cũ không được tính vào số liệu hiện hành.
 
 Giới hạn cần ghi nhận: báo cáo hiện chưa phân bố điểm theo learning objective,
-chưa xuất CSV và chưa có biểu đồ lịch sử theo thời gian.
+chưa có biểu đồ lịch sử theo thời gian; CSV hiện giới hạn 5.000 học viên/course.
 
 ## 15. Kiểm tra profile, comments, forum và review
 
@@ -716,7 +722,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `168` tests pass, gồm một integration test teacher PDF → assessment
+- Backend: `170` tests pass, gồm một integration test teacher PDF → assessment
   → learner progression không gọi mạng/LLM.
 - Frontend: lint pass, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
 - Bundle chính khoảng 461 kB; Google Auth được tải theo nhu cầu. Build còn cảnh

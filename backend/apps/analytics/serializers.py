@@ -41,3 +41,8 @@ class ProgressReportQuerySerializer(serializers.Serializer):
 
 class ProgressExportQuerySerializer(serializers.Serializer):
     course_id = serializers.IntegerField(min_value=1, required=True)
+
+
+class ObjectiveReportQuerySerializer(serializers.Serializer):
+    course_id = serializers.IntegerField(min_value=1, required=True)
+    limit = serializers.IntegerField(min_value=1, max_value=200, default=100)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, BookOpen, CheckCircle2, Target, Users } from 'lucide-react'
+import { AlertCircle, BookOpen, CheckCircle2, Download, Target, Users } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { analyticsService } from '../services/analyticsService'
@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [selectedCourseReport, setSelectedCourseReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [courseLoading, setCourseLoading] = useState(false)
+  const [exportingCourseId, setExportingCourseId] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -59,6 +60,26 @@ export default function Dashboard() {
       setError('Không thể tải tiến độ học viên của khóa học này.')
     } finally {
       setCourseLoading(false)
+    }
+  }
+
+  const exportCourseProgress = async (course) => {
+    setExportingCourseId(course.course_id)
+    setError('')
+    try {
+      const blob = await analyticsService.exportCourseProgress(course.course_id)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `course-${course.course_id}-progress.csv`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError('Không thể xuất báo cáo CSV của khóa học này.')
+    } finally {
+      setExportingCourseId(null)
     }
   }
 
@@ -172,13 +193,24 @@ export default function Dashboard() {
                         <td className="px-3 py-3 text-slate-700">{formatPercentage(course.average_progress_percentage)}</td>
                         <td className="px-3 py-3 text-slate-700">{formatPercentage(course.average_mastery_percentage)}</td>
                         <td className="px-3 py-3 text-right">
-                          <Button
-                            onClick={() => loadCourseLearners(course.course_id)}
-                            disabled={courseLoading}
-                            className="bg-orange-700 text-white hover:bg-orange-800"
-                          >
-                            Xem học viên
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              onClick={() => exportCourseProgress(course)}
+                              disabled={exportingCourseId !== null}
+                              variant="outline"
+                              aria-label={`Xuất CSV tiến độ khóa ${course.course_title}`}
+                            >
+                              <Download className="mr-1 h-4 w-4" aria-hidden="true" />
+                              {exportingCourseId === course.course_id ? 'Đang xuất...' : 'Xuất CSV'}
+                            </Button>
+                            <Button
+                              onClick={() => loadCourseLearners(course.course_id)}
+                              disabled={courseLoading}
+                              className="bg-orange-700 text-white hover:bg-orange-800"
+                            >
+                              Xem học viên
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}

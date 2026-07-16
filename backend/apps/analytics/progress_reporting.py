@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from django.db.models import Avg, Count, F, Max, Q
+from django.db.models import Avg, Count, F, Max, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404
 
 from apps.courses.models import Course, Enrollment, LessonProgress
 from apps.courses.services import available_lessons
-from apps.exercises.models import AssessmentAttempt, LessonAssessment
+from apps.exercises.models import AssessmentAnswer, AssessmentAttempt, LessonAssessment
 
 
 MAX_LEARNER_COURSES = 100
@@ -118,6 +118,67 @@ def _teaching_courses(actor):
         teacher=actor
     )
     return queryset.order_by('order', '-created_at', 'id')
+
+
+def teaching_objective_report(*, actor, course_id, limit=100):
+    """Aggregate latest current-version answers by teacher-authored objective."""
+
+    course = get_object_or_404(_teaching_courses(actor), pk=course_id)
+    current_attempts = AssessmentAttempt.objects.filter(
+        assessment__lesson__course=course,
+        assessment__is_published=True,
+        assessment__lesson__is_published=True,
+        assessment_version=F('assessment__version'),
+    )
+    latest_attempt_id = current_attempts.filter(
+        user_id=OuterRef('user_id'),
+        assessment_id=OuterRef('assessment_id'),
+    ).order_by('-submitted_at', '-id').values('id')[:1]
+    latest_attempts = current_attempts.annotate(
+        latest_attempt_id=Subquery(latest_attempt_id)
+    ).filter(id=F('latest_attempt_id'))
+    answers = AssessmentAnswer.objects.filter(
+        attempt__in=latest_attempts,
+    ).exclude(learning_objective_snapshot='')
+    grouped = answers.values('learning_objective_snapshot').annotate(
+        answer_count=Count('id'),
+        correct_count=Count('id', filter=Q(is_correct=True)),
+        learner_count=Count('attempt__user_id', distinct=True),
+        learners_needing_review=Count(
+            'attempt__user_id',
+            filter=Q(is_correct=False),
+            distinct=True,
+        ),
+    ).order_by('-learners_needing_review', 'learning_objective_snapshot')
+    total = grouped.count()
+    rows = list(grouped[:limit])
+
+    return {
+        'scope': 'teaching_objectives',
+        'course': {
+            'course_id': course.id,
+            'course_title': course.title,
+        },
+        'objectives': [
+            {
+                'learning_objective': row['learning_objective_snapshot'],
+                'learner_count': row['learner_count'],
+                'learners_needing_review': row['learners_needing_review'],
+                'answer_count': row['answer_count'],
+                'correct_count': row['correct_count'],
+                'correct_rate_percentage': _decimal(
+                    Decimal(row['correct_count'] * 100) / Decimal(row['answer_count'])
+                ),
+            }
+            for row in rows
+        ],
+        'pagination': {
+            'count': total,
+            'limit': limit,
+            'truncated': total > len(rows),
+        },
+        'method': 'latest_current_version_attempt_per_learner_assessment',
+    }
 
 
 def teaching_progress_report(*, actor, course_id=None, limit=50, offset=0):

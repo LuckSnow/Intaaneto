@@ -79,6 +79,10 @@ threshold. Backend lưu immutable answer snapshot của mỗi attempt và tính:
   hiện tại, assessment chưa làm đóng góp 0;
 - `weak_objectives`: mục tiêu gắn với câu trả lời sai.
 
+Dashboard tổng hợp learner progress và teacher roster từ dữ liệu authoritative.
+Teacher/admin có thể xuất CSV cho một course thuộc phạm vi; file không chứa
+email/chat/đáp án, giới hạn 5.000 học viên và chống spreadsheet formula injection.
+
 RAG reinforcement là thao tác riêng sau attempt không đạt. Nó truy xuất học liệu
 cho weak objective và không thay đổi score/mastery/progression. AI dialogue
 grading với rubric/calibration chưa được triển khai và không được coi là kết quả

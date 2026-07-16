@@ -199,6 +199,14 @@ GET /api/analytics/progress_report/
   `offset` để lấy roster bounded.
 - Không trả email, answer key, chat hoặc attempt version cũ.
 
+```http
+GET /api/analytics/progress-export/?course_id={course_id}
+```
+
+Chỉ teacher sở hữu course hoặc admin được tải CSV. Export bị giới hạn 5.000 học
+viên, không chứa email/chat/answer và escape text có thể trở thành spreadsheet
+formula. Learner nhận 403; course ngoài scope nhận 404.
+
 ## Forum, lesson comments và reviews
 
 - `/api/forum/posts/`, `/comments/`, `/tags/`, `/follows/`, `/reports/`.
@@ -214,6 +222,7 @@ Public forum author object không chứa email/phone/profile riêng tư.
 - `403`: đã xác thực nhưng sai role/quyền action.
 - `404`: object ngoài authorized queryset (tránh object discovery).
 - `409`: assessment đã có attempt, course không rỗng, duplicate workflow state.
+- `413`: progress export vượt giới hạn 5.000 học viên.
 - `429`: vượt scoped throttle.
 - `502/503`: generation hoặc knowledge service tạm không khả dụng; response không
   chứa key/provider diagnostics.

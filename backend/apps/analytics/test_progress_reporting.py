@@ -209,7 +209,7 @@ def test_teacher_exports_owned_course_progress_as_safe_csv(
     api_client, teacher_user, student_user, progress_records
 ):
     course, _, _, _, _ = progress_records
-    student_user.full_name = '=HYPERLINK("https://example.invalid","bad")'
+    student_user.full_name = '  =HYPERLINK("https://example.invalid","bad")'
     student_user.save(update_fields=['full_name'])
     api_client.force_authenticate(teacher_user)
 
@@ -226,7 +226,7 @@ def test_teacher_exports_owned_course_progress_as_safe_csv(
     rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8-sig'))))
     assert len(rows) == 1
     assert rows[0]['learner_id'] == str(student_user.id)
-    assert rows[0]['full_name'].startswith("'=")
+    assert rows[0]['full_name'].startswith("'  =")
     assert rows[0]['progress_percentage'] == '50.00'
     assert rows[0]['mastery_percentage'] == '75.00'
     assert rows[0]['assessment_attempts'] == '1'

@@ -5,4 +5,11 @@ export const analyticsService = {
     const response = await api.get('/analytics/progress_report/', { params })
     return response.data
   },
+  exportCourseProgress: async (courseId) => {
+    const response = await api.get('/analytics/progress-export/', {
+      params: { course_id: courseId },
+      responseType: 'blob',
+    })
+    return response.data
+  },
 }

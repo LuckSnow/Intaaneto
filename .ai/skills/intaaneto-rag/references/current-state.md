@@ -107,7 +107,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and sixty-eight backend tests passed on 2026-07-16 in the
+  regression coverage. One hundred and seventy backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -188,8 +188,10 @@ relying on it and update it after material implementation changes.
   completion, assessment counts, and resume lesson. Teachers receive paged
   aggregates for owned courses and may request a bounded learner roster for one
   owned course; email, answer keys, chat, and old-version attempt results are
-  omitted. Admin uses the same explicit administrative scope. The React
-  dashboard renders these states and no longer displays hard-coded zeroes.
+  omitted. Teacher/admin may export one explicitly scoped course as CSV, capped
+  at 5,000 learners with spreadsheet-formula escaping and no contact/chat/answer
+  data. Admin uses the same explicit administrative scope. The React dashboard
+  renders these states and no longer displays hard-coded zeroes.
 - A reviewed Markdown learning-corpus importer now compiles
   `docs/computer-networks.md` and `docs/web-programming.md` into two stable,
   structured courses with fifteen text lessons, explicit learning objectives,

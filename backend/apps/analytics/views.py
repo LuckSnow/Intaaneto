@@ -8,19 +8,25 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Achievement, UserAchievement, LearningAnalytics
 from .serializers import (
     AchievementSerializer, UserAchievementSerializer, LearningAnalyticsSerializer,
-    ProgressExportQuerySerializer, ProgressReportQuerySerializer,
+    ObjectiveReportQuerySerializer, ProgressExportQuerySerializer,
+    ProgressReportQuerySerializer,
 )
-from .progress_reporting import learner_progress_report, teaching_progress_report
+from .progress_reporting import (
+    learner_progress_report,
+    teaching_objective_report,
+    teaching_progress_report,
+)
 
 
 MAX_PROGRESS_EXPORT_LEARNERS = 5000
-CSV_FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
+CSV_FORMULA_PREFIXES = ('=', '+', '-', '@')
 
 
 def _safe_csv_cell(value):
     """Prevent user-controlled text from becoming a spreadsheet formula."""
     text = '' if value is None else str(value)
-    return f"'{text}" if text.startswith(CSV_FORMULA_PREFIXES) else text
+    candidate = text.lstrip(' \t\r\n')
+    return f"'{text}" if candidate.startswith(CSV_FORMULA_PREFIXES) else text
 
 
 class AnalyticsViewSet(viewsets.ViewSet):
@@ -108,6 +114,21 @@ class AnalyticsViewSet(viewsets.ViewSet):
                 learner['latest_assessment_at'] or '',
             ])
         return response
+
+    @action(detail=False, methods=['get'], url_path='objective-report')
+    def objective_report(self, request):
+        """Return aggregate weak-objective evidence for one owned course."""
+        if request.user.role not in ('teacher', 'admin'):
+            return Response(
+                {'detail': 'Chỉ giảng viên hoặc quản trị viên được xem báo cáo.'},
+                status=403,
+            )
+        query = ObjectiveReportQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        return Response(teaching_objective_report(
+            actor=request.user,
+            **query.validated_data,
+        ))
     
     @action(detail=False, methods=['get'])
     def leaderboard(self, request):
