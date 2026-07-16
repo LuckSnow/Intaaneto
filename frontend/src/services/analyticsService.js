@@ -12,4 +12,10 @@ export const analyticsService = {
     })
     return response.data
   },
+  getObjectiveReport: async (courseId) => {
+    const response = await api.get('/analytics/objective-report/', {
+      params: { course_id: courseId },
+    })
+    return response.data
+  },
 }

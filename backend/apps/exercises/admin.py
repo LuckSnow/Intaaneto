@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     AssessmentAttempt,
     AssessmentQuestion,
+    AssessmentReinforcementEvent,
     Exercise,
     LessonAssessment,
     Submission,
@@ -48,6 +49,29 @@ class AssessmentAttemptAdmin(admin.ModelAdmin):
         'assessment', 'user', 'assessment_version', 'threshold_snapshot',
         'score', 'passed', 'total_questions', 'correct_answers',
         'weak_objectives', 'submitted_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(AssessmentReinforcementEvent)
+class AssessmentReinforcementEventAdmin(admin.ModelAdmin):
+    list_display = [
+        'attempt', 'status', 'objective_count', 'ready_objective_count',
+        'evidence_count', 'requested_at',
+    ]
+    list_filter = ['status', 'requested_at']
+    raw_id_fields = ['attempt']
+    readonly_fields = [
+        'attempt', 'status', 'objective_count', 'ready_objective_count',
+        'evidence_count', 'requested_at',
     ]
 
     def has_add_permission(self, request):

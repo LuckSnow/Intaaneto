@@ -8,7 +8,11 @@ from apps.ai_assistant.rag_services import LessonRetrievalError
 from apps.courses.models import Course, Enrollment, Lesson
 from apps.users.models import User
 
-from .models import AssessmentAttempt, LessonAssessment
+from .models import (
+    AssessmentAttempt,
+    AssessmentReinforcementEvent,
+    LessonAssessment,
+)
 from .reinforcement import build_reinforcement_packet
 
 
@@ -219,3 +223,53 @@ def test_api_redacts_retrieval_failure(
 
     assert response.status_code == 503
     assert 'private embedding detail' not in str(response.data)
+    assert not AssessmentReinforcementEvent.objects.exists()
+
+
+@pytest.mark.django_db
+def test_api_records_minimal_reinforcement_event(
+    authenticated_client, reinforcement_context
+):
+    _, _, assessment, attempt, _ = reinforcement_context
+    packet = {
+        'attempt_id': attempt.id,
+        'assessment_id': assessment.id,
+        'lesson_id': assessment.lesson_id,
+        'status': 'partial',
+        'items': [
+            {
+                'learning_objective': 'Objective one',
+                'status': 'ready',
+                'message': 'Ready',
+                'tutor_prompt': 'Prompt is not persisted',
+                'citations': [{'chunk_id': 1}, {'chunk_id': 2}],
+            },
+            {
+                'learning_objective': 'Objective two',
+                'status': 'weak_evidence',
+                'message': 'Weak',
+                'tutor_prompt': 'Another prompt',
+                'citations': [],
+            },
+        ],
+        'truncated_objectives': 0,
+    }
+    with patch(
+        'apps.exercises.views.build_reinforcement_packet',
+        return_value=packet,
+    ):
+        response = authenticated_client.post(
+            f'/api/exercises/assessments/{assessment.id}/reinforcement/',
+            {'attempt_id': attempt.id},
+            format='json',
+        )
+
+    assert response.status_code == 200
+    event = AssessmentReinforcementEvent.objects.get()
+    assert event.attempt == attempt
+    assert event.status == 'partial'
+    assert event.objective_count == 2
+    assert event.ready_objective_count == 1
+    assert event.evidence_count == 2
+    assert not hasattr(event, 'prompt')
+    assert not hasattr(event, 'citations')

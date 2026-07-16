@@ -82,6 +82,8 @@ threshold. Backend lưu immutable answer snapshot của mỗi attempt và tính:
 Dashboard tổng hợp learner progress và teacher roster từ dữ liệu authoritative.
 Teacher/admin có thể xuất CSV cho một course thuộc phạm vi; file không chứa
 email/chat/đáp án, giới hạn 5.000 học viên và chống spreadsheet formula injection.
+Phần objective report dùng lần làm mới nhất trên assessment version hiện hành để
+hiển thị số học viên cần củng cố và correct rate mà không lộ danh tính/đáp án.
 
 RAG reinforcement là thao tác riêng sau attempt không đạt. Nó truy xuất học liệu
 cho weak objective và không thay đổi score/mastery/progression. AI dialogue

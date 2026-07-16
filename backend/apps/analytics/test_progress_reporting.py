@@ -6,7 +6,12 @@ import pytest
 from django.utils import timezone
 
 from apps.courses.models import Course, Enrollment, Lesson, LessonProgress
-from apps.exercises.models import AssessmentAttempt, LessonAssessment
+from apps.exercises.models import (
+    AssessmentAnswer,
+    AssessmentAttempt,
+    AssessmentReinforcementEvent,
+    LessonAssessment,
+)
 from apps.users.models import User
 
 
@@ -263,6 +268,197 @@ def test_progress_export_requires_teacher_role_and_owned_course(
     api_client.force_authenticate(teacher_user)
     other_teacher_response = api_client.get(
         '/api/analytics/progress-export/',
+        {'course_id': private_course.id},
+    )
+    assert other_teacher_response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_objective_report_uses_latest_current_version_attempt_only(
+    api_client, teacher_user, student_user, progress_records
+):
+    course, _, _, _, first_current_attempt = progress_records
+    old_attempt = AssessmentAttempt.objects.get(assessment_version=1)
+    AssessmentAnswer.objects.create(
+        attempt=old_attempt,
+        prompt_snapshot='Old version',
+        choices_snapshot=['A', 'B'],
+        learning_objective_snapshot='Không được tính',
+        selected_choice=0,
+        correct_choice_snapshot=1,
+        is_correct=False,
+    )
+    AssessmentAnswer.objects.create(
+        attempt=first_current_attempt,
+        prompt_snapshot='Current first attempt',
+        choices_snapshot=['A', 'B'],
+        learning_objective_snapshot='Giải thích citation',
+        selected_choice=0,
+        correct_choice_snapshot=1,
+        is_correct=False,
+    )
+    latest_attempt = AssessmentAttempt.objects.create(
+        assessment=first_current_attempt.assessment,
+        user=student_user,
+        assessment_version=first_current_attempt.assessment.version,
+        threshold_snapshot=70,
+        score=Decimal('100.00'),
+        passed=True,
+        total_questions=1,
+        correct_answers=1,
+    )
+    AssessmentAnswer.objects.create(
+        attempt=latest_attempt,
+        prompt_snapshot='Current latest attempt',
+        choices_snapshot=['A', 'B'],
+        learning_objective_snapshot='  Giải thích citation  ',
+        selected_choice=1,
+        correct_choice_snapshot=1,
+        is_correct=True,
+    )
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.get(
+        '/api/analytics/objective-report/',
+        {'course_id': course.id},
+    )
+
+    assert response.status_code == 200
+    assert response.data['method'] == (
+        'latest_current_version_attempt_per_learner_assessment'
+    )
+    assert response.data['objectives'] == [{
+        'learning_objective': 'Giải thích citation',
+        'learner_count': 1,
+        'learners_needing_review': 0,
+        'answer_count': 1,
+        'correct_count': 1,
+        'correct_rate_percentage': Decimal('100.00'),
+    }]
+    assert 'Không được tính' not in str(response.data)
+    assert 'selected_choice' not in str(response.data)
+    assert 'email' not in str(response.data)
+
+
+@pytest.mark.django_db
+def test_objective_report_requires_teacher_role_and_owned_course(
+    api_client, teacher_user, student_user
+):
+    private_teacher = User.objects.create_user(
+        email='objective-owner@example.invalid',
+        username='objective-owner',
+        full_name='Objective Owner',
+        password='LocalTestOnly-123!',
+        role='teacher',
+        is_verified=True,
+    )
+    private_course = Course.objects.create(
+        title='Private objectives',
+        slug='private-objectives',
+        description='Không được đọc',
+        teacher=private_teacher,
+    )
+
+    api_client.force_authenticate(student_user)
+    learner_response = api_client.get(
+        '/api/analytics/objective-report/',
+        {'course_id': private_course.id},
+    )
+    assert learner_response.status_code == 403
+
+    api_client.force_authenticate(teacher_user)
+    other_teacher_response = api_client.get(
+        '/api/analytics/objective-report/',
+        {'course_id': private_course.id},
+    )
+    assert other_teacher_response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_reinforcement_outcome_report_pairs_first_usable_event_with_followup(
+    api_client, teacher_user, student_user, progress_records
+):
+    course, _, _, _, baseline_attempt = progress_records
+    AssessmentReinforcementEvent.objects.create(
+        attempt=baseline_attempt,
+        status='ready',
+        objective_count=1,
+        ready_objective_count=1,
+        evidence_count=2,
+    )
+    followup = AssessmentAttempt.objects.create(
+        assessment=baseline_attempt.assessment,
+        user=student_user,
+        assessment_version=baseline_attempt.assessment_version,
+        threshold_snapshot=baseline_attempt.threshold_snapshot,
+        score=Decimal('100.00'),
+        passed=True,
+        total_questions=2,
+        correct_answers=2,
+    )
+    AssessmentReinforcementEvent.objects.create(
+        attempt=baseline_attempt,
+        status='ready',
+        objective_count=1,
+        ready_objective_count=1,
+        evidence_count=2,
+    )
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.get(
+        '/api/analytics/reinforcement-outcomes/',
+        {'course_id': course.id},
+    )
+
+    assert response.status_code == 200
+    assert response.data['summary'] == {
+        'total_usable_exposures': 1,
+        'included_exposures': 1,
+        'paired_attempts': 1,
+        'pending_followup': 0,
+        'average_before_score': Decimal('50.00'),
+        'average_after_score': followup.score,
+        'average_score_change': Decimal('50.00'),
+        'improved_count': 1,
+        'unchanged_count': 0,
+        'decreased_count': 0,
+        'pass_conversion_count': 1,
+    }
+    assert response.data['truncated'] is False
+    assert 'observational_association_not_causal_effect' in response.data['limitations']
+    assert 'user_id' not in str(response.data)
+    assert 'attempt_id' not in str(response.data)
+
+
+@pytest.mark.django_db
+def test_reinforcement_outcomes_require_teacher_role_and_owned_course(
+    api_client, teacher_user, student_user
+):
+    private_teacher = User.objects.create_user(
+        email='outcome-owner@example.invalid',
+        username='outcome-owner',
+        full_name='Outcome Owner',
+        password='LocalTestOnly-123!',
+        role='teacher',
+        is_verified=True,
+    )
+    private_course = Course.objects.create(
+        title='Private outcomes',
+        slug='private-outcomes',
+        description='Không được đọc',
+        teacher=private_teacher,
+    )
+
+    api_client.force_authenticate(student_user)
+    learner_response = api_client.get(
+        '/api/analytics/reinforcement-outcomes/',
+        {'course_id': private_course.id},
+    )
+    assert learner_response.status_code == 403
+
+    api_client.force_authenticate(teacher_user)
+    other_teacher_response = api_client.get(
+        '/api/analytics/reinforcement-outcomes/',
         {'course_id': private_course.id},
     )
     assert other_teacher_response.status_code == 404

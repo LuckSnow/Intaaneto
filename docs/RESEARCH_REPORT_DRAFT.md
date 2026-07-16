@@ -68,9 +68,9 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 ### 4.2. Bằng chứng kiểm thử phần mềm
 
-Tại ngày 2026-07-16:
+Tại ngày 2026-07-17:
 
-- 170 backend tests pass trong isolated Django test settings, gồm một hành trình
+- 172 backend tests pass trong isolated Django test settings, gồm một hành trình
   tích hợp course draft → PDF/RAG index → assessment → enroll → progression.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
@@ -82,6 +82,11 @@ Các test bao phủ indexing atomic/idempotent, retrieval authorization, grounde
 citations/fallback, PDF ingestion, auth/role, assessment/progression,
 reinforcement, reports, corpus import và SadTalker adapter. Test pass không thay
 thế evaluation chất lượng mô hình hoặc penetration test production.
+
+Teacher report hiện tổng hợp objective từ attempt mới nhất của mỗi learner trên
+mỗi assessment version hiện hành, cho biết số learner cần củng cố và tỷ lệ trả
+lời đúng mà không trả danh tính/đáp án. Đây là mô tả dữ liệu quan sát được, không
+phải bằng chứng về tác động học tập.
 
 ## 5. Thí nghiệm còn phải thực hiện
 

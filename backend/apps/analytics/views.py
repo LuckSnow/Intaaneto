@@ -9,12 +9,13 @@ from .models import Achievement, UserAchievement, LearningAnalytics
 from .serializers import (
     AchievementSerializer, UserAchievementSerializer, LearningAnalyticsSerializer,
     ObjectiveReportQuerySerializer, ProgressExportQuerySerializer,
-    ProgressReportQuerySerializer,
+    ProgressReportQuerySerializer, ReinforcementOutcomeQuerySerializer,
 )
 from .progress_reporting import (
     learner_progress_report,
     teaching_objective_report,
     teaching_progress_report,
+    teaching_reinforcement_outcome_report,
 )
 
 
@@ -126,6 +127,21 @@ class AnalyticsViewSet(viewsets.ViewSet):
         query = ObjectiveReportQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
         return Response(teaching_objective_report(
+            actor=request.user,
+            **query.validated_data,
+        ))
+
+    @action(detail=False, methods=['get'], url_path='reinforcement-outcomes')
+    def reinforcement_outcomes(self, request):
+        """Return bounded observational before/after reinforcement metrics."""
+        if request.user.role not in ('teacher', 'admin'):
+            return Response(
+                {'detail': 'Chỉ giảng viên hoặc quản trị viên được xem báo cáo.'},
+                status=403,
+            )
+        query = ReinforcementOutcomeQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        return Response(teaching_reinforcement_outcome_report(
             actor=request.user,
             **query.validated_data,
         ))

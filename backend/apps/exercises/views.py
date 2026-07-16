@@ -11,7 +11,12 @@ from apps.courses.services import recalculate_enrollment_mastery
 from config.throttling import ActionScopedThrottleMixin
 
 from .access import accessible_exercises
-from .models import Exercise, LessonAssessment, Submission
+from .models import (
+    AssessmentReinforcementEvent,
+    Exercise,
+    LessonAssessment,
+    Submission,
+)
 from .serializers import (
     AssessmentAttemptSerializer,
     AssessmentSubmissionSerializer,
@@ -222,4 +227,15 @@ class LessonAssessmentViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
                 },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
+        AssessmentReinforcementEvent.objects.create(
+            attempt=attempt,
+            status=packet['status'],
+            objective_count=len(packet['items']),
+            ready_objective_count=sum(
+                item['status'] == 'ready' for item in packet['items']
+            ),
+            evidence_count=sum(
+                len(item['citations']) for item in packet['items']
+            ),
+        )
         return Response(packet)

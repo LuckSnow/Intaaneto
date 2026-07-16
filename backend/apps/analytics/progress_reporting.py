@@ -5,11 +5,17 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db.models import Avg, Count, F, Max, OuterRef, Q, Subquery
+from django.db.models.functions import Trim
 from django.shortcuts import get_object_or_404
 
 from apps.courses.models import Course, Enrollment, LessonProgress
 from apps.courses.services import available_lessons
-from apps.exercises.models import AssessmentAnswer, AssessmentAttempt, LessonAssessment
+from apps.exercises.models import (
+    AssessmentAnswer,
+    AssessmentAttempt,
+    AssessmentReinforcementEvent,
+    LessonAssessment,
+)
 
 
 MAX_LEARNER_COURSES = 100
@@ -139,8 +145,10 @@ def teaching_objective_report(*, actor, course_id, limit=100):
     ).filter(id=F('latest_attempt_id'))
     answers = AssessmentAnswer.objects.filter(
         attempt__in=latest_attempts,
-    ).exclude(learning_objective_snapshot='')
-    grouped = answers.values('learning_objective_snapshot').annotate(
+    ).annotate(
+        normalized_objective=Trim('learning_objective_snapshot'),
+    ).exclude(normalized_objective='')
+    grouped = answers.values('normalized_objective').annotate(
         answer_count=Count('id'),
         correct_count=Count('id', filter=Q(is_correct=True)),
         learner_count=Count('attempt__user_id', distinct=True),
@@ -149,7 +157,7 @@ def teaching_objective_report(*, actor, course_id, limit=100):
             filter=Q(is_correct=False),
             distinct=True,
         ),
-    ).order_by('-learners_needing_review', 'learning_objective_snapshot')
+    ).order_by('-learners_needing_review', 'normalized_objective')
     total = grouped.count()
     rows = list(grouped[:limit])
 
@@ -161,7 +169,7 @@ def teaching_objective_report(*, actor, course_id, limit=100):
         },
         'objectives': [
             {
-                'learning_objective': row['learning_objective_snapshot'],
+                'learning_objective': row['normalized_objective'],
                 'learner_count': row['learner_count'],
                 'learners_needing_review': row['learners_needing_review'],
                 'answer_count': row['answer_count'],
@@ -178,6 +186,90 @@ def teaching_objective_report(*, actor, course_id, limit=100):
             'truncated': total > len(rows),
         },
         'method': 'latest_current_version_attempt_per_learner_assessment',
+    }
+
+
+def teaching_reinforcement_outcome_report(*, actor, course_id, limit=1000):
+    """Compare failed baselines with the first attempt after usable review evidence."""
+
+    course = get_object_or_404(_teaching_courses(actor), pk=course_id)
+    usable_events = AssessmentReinforcementEvent.objects.filter(
+        attempt__assessment__lesson__course=course,
+        attempt__assessment__is_published=True,
+        attempt__assessment__lesson__is_published=True,
+        attempt__assessment_version=F('attempt__assessment__version'),
+        attempt__passed=False,
+        status__in=('ready', 'partial'),
+        ready_objective_count__gt=0,
+    )
+    first_event_id = usable_events.filter(
+        attempt_id=OuterRef('attempt_id'),
+    ).order_by('requested_at', 'id').values('id')[:1]
+    first_events = usable_events.annotate(
+        first_event_id=Subquery(first_event_id),
+    ).filter(id=F('first_event_id')).order_by('requested_at', 'id')
+    total_exposures = first_events.count()
+
+    followup_attempt = AssessmentAttempt.objects.filter(
+        assessment_id=OuterRef('attempt__assessment_id'),
+        user_id=OuterRef('attempt__user_id'),
+        assessment_version=OuterRef('attempt__assessment_version'),
+        submitted_at__gt=OuterRef('requested_at'),
+    ).order_by('submitted_at', 'id')
+    rows = list(
+        first_events.annotate(
+            followup_score=Subquery(followup_attempt.values('score')[:1]),
+            followup_passed=Subquery(followup_attempt.values('passed')[:1]),
+        ).values(
+            'attempt__score',
+            'followup_score',
+            'followup_passed',
+        )[:limit]
+    )
+    paired = [row for row in rows if row['followup_score'] is not None]
+    changes = [
+        row['followup_score'] - row['attempt__score']
+        for row in paired
+    ]
+
+    def _average(values):
+        return _decimal(sum(values, Decimal('0.00')) / Decimal(len(values))) if values else None
+
+    return {
+        'scope': 'teaching_reinforcement_outcomes',
+        'course': {
+            'course_id': course.id,
+            'course_title': course.title,
+        },
+        'summary': {
+            'total_usable_exposures': total_exposures,
+            'included_exposures': len(rows),
+            'paired_attempts': len(paired),
+            'pending_followup': len(rows) - len(paired),
+            'average_before_score': _average([
+                row['attempt__score'] for row in paired
+            ]),
+            'average_after_score': _average([
+                row['followup_score'] for row in paired
+            ]),
+            'average_score_change': _average(changes),
+            'improved_count': sum(change > 0 for change in changes),
+            'unchanged_count': sum(change == 0 for change in changes),
+            'decreased_count': sum(change < 0 for change in changes),
+            'pass_conversion_count': sum(
+                row['followup_passed'] is True for row in paired
+            ),
+        },
+        'truncated': total_exposures > len(rows),
+        'method': (
+            'first_usable_reinforcement_event_per_failed_attempt_then_'
+            'first_same_version_followup_attempt'
+        ),
+        'limitations': [
+            'observational_association_not_causal_effect',
+            'learners_without_followup_are_reported_as_pending',
+            'truncated_results_are_not_a_complete_course_baseline',
+        ],
     }
 
 

@@ -25,6 +25,7 @@ export default function Dashboard() {
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin'
   const [report, setReport] = useState(null)
   const [selectedCourseReport, setSelectedCourseReport] = useState(null)
+  const [objectiveReport, setObjectiveReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [courseLoading, setCourseLoading] = useState(false)
   const [exportingCourseId, setExportingCourseId] = useState(null)
@@ -53,9 +54,15 @@ export default function Dashboard() {
   const loadCourseLearners = async (courseId) => {
     setCourseLoading(true)
     setError('')
+    setSelectedCourseReport(null)
+    setObjectiveReport(null)
     try {
-      const data = await analyticsService.getProgressReport({ course_id: courseId })
-      setSelectedCourseReport(data)
+      const [courseData, objectiveData] = await Promise.all([
+        analyticsService.getProgressReport({ course_id: courseId }),
+        analyticsService.getObjectiveReport(courseId),
+      ])
+      setSelectedCourseReport(courseData)
+      setObjectiveReport(objectiveData)
     } catch {
       setError('Không thể tải tiến độ học viên của khóa học này.')
     } finally {
@@ -226,7 +233,14 @@ export default function Dashboard() {
                 <h2 id="learner-list-title" className="text-xl font-semibold text-slate-950">
                   Học viên · {selectedCourseReport.course.course_title}
                 </h2>
-                <button type="button" onClick={() => setSelectedCourseReport(null)} className="text-sm text-slate-600 hover:text-slate-950">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCourseReport(null)
+                    setObjectiveReport(null)
+                  }}
+                  className="text-sm text-slate-600 hover:text-slate-950"
+                >
                   Đóng
                 </button>
               </div>
@@ -246,6 +260,39 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
+
+              <div className="mt-6 border-t border-slate-200 pt-5">
+                <h3 className="font-semibold text-slate-950">Mục tiêu cần củng cố</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Tổng hợp từ lần làm mới nhất của mỗi học viên trên phiên bản assessment hiện hành.
+                </p>
+                {objectiveReport?.objectives.length ? (
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    {objectiveReport.objectives.map((objective) => (
+                      <article
+                        key={objective.learning_objective}
+                        className="rounded-lg border border-slate-200 p-4"
+                      >
+                        <h4 className="font-medium text-slate-950">
+                          {objective.learning_objective}
+                        </h4>
+                        <p className="mt-2 text-sm text-slate-600">
+                          {objective.learners_needing_review}/{objective.learner_count} học viên cần ôn · Đúng {formatPercentage(objective.correct_rate_percentage)} trên {objective.answer_count} câu trả lời
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-600">
+                    Chưa có câu trả lời assessment hiện hành để tổng hợp theo mục tiêu.
+                  </p>
+                )}
+                {objectiveReport?.pagination.truncated && (
+                  <p className="mt-3 text-sm text-amber-800">
+                    Danh sách đang hiển thị {objectiveReport.pagination.limit}/{objectiveReport.pagination.count} mục tiêu.
+                  </p>
+                )}
+              </div>
             </section>
           )}
         </>

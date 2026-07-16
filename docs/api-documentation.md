@@ -207,6 +207,15 @@ Chỉ teacher sở hữu course hoặc admin được tải CSV. Export bị gi�
 viên, không chứa email/chat/answer và escape text có thể trở thành spreadsheet
 formula. Learner nhận 403; course ngoài scope nhận 404.
 
+```http
+GET /api/analytics/objective-report/?course_id={course_id}&limit=100
+```
+
+Teacher sở hữu course hoặc admin nhận aggregate theo `learning_objective` từ lần
+làm mới nhất của mỗi learner trên mỗi assessment phiên bản hiện hành. Response
+gồm learner count, số learner cần ôn, answer count, correct count/rate; không trả
+danh tính, lựa chọn hay đáp án. `limit` từ 1–200, mặc định 100.
+
 ## Forum, lesson comments và reviews
 
 - `/api/forum/posts/`, `/comments/`, `/tags/`, `/follows/`, `/reports/`.

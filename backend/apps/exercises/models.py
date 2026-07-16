@@ -229,3 +229,38 @@ class AssessmentAnswer(models.Model):
                 name='unique_attempt_question_answer',
             ),
         ]
+
+
+class AssessmentReinforcementEvent(models.Model):
+    """Minimal audit evidence that a learner requested a review packet."""
+
+    STATUS_CHOICES = [
+        ('ready', 'Ready'),
+        ('partial', 'Partial'),
+        ('weak_evidence', 'Weak evidence'),
+        ('not_indexed', 'Not indexed'),
+    ]
+
+    attempt = models.ForeignKey(
+        AssessmentAttempt,
+        on_delete=models.CASCADE,
+        related_name='reinforcement_events',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    objective_count = models.PositiveSmallIntegerField()
+    ready_objective_count = models.PositiveSmallIntegerField(default=0)
+    evidence_count = models.PositiveIntegerField(default=0)
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['requested_at', 'id']
+        indexes = [
+            models.Index(fields=['attempt', 'requested_at']),
+            models.Index(fields=['status', 'requested_at']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(ready_objective_count__lte=models.F('objective_count')),
+                name='reinforcement_ready_objectives_lte_total',
+            ),
+        ]
