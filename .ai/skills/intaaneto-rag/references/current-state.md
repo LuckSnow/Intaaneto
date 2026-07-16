@@ -340,13 +340,18 @@ relying on it and update it after material implementation changes.
   and validates an approved script, PCM WAV, JPEG/PNG portrait, timeout, and MP4
   output, invokes `inference.py` without a shell, and records a read-only-admin audit
   job with input checksums and safe failure code. A successful job attaches a
-  server-named MP4 to `Lesson.video_file`, which the lesson UI can play. Eight
+  server-named MP4 to `Lesson.video_file`, which the lesson UI can play. Nine
   tests cover fake-provider success, ownership, consent, invalid input, safe
-  provider failure, and command ordering. Migration `courses.0005` is applied
+  provider failure, and command/runtime ordering. The provider preflights four
+  required model files, supplies an isolated environment and absolute checkpoint
+  directory, and uses a writable per-run cwd while the checkout remains mounted
+  read-only. Migration `courses.0005` is applied
   in development PostgreSQL.
-- A real SadTalker render is not yet proven. Self-hosted SadTalker requires a
-  separately reviewed Python/PyTorch/FFmpeg/checkpoint runtime and suitable
-  compute, plus consented/licensed portrait and audio. It needs no API key; TTS
+- A pinned separate SadTalker runtime produced a technical 1.48-second H.264/AAC
+  MP4 on the NVIDIA T1200 GPU in 53 seconds on 2026-07-17. The test used an
+  upstream demo asset only to prove execution and is not attached/published.
+  A consented/licensed Vietnamese portrait/audio render, peak-resource measure,
+  and qualitative review are still not proven. SadTalker needs no API key; TTS
   is a separate input.
 
 ## Known integration risks
@@ -377,8 +382,8 @@ relying on it and update it after material implementation changes.
   tuning the provisional `0.45` threshold, changing the 384-dimensional model,
   or adding an ANN index. Exact pgvector search is sufficient for the current
   small corpus baseline.
-- The SadTalker adapter boundary is implemented, but a real runtime smoke and
-  measured video-quality record require local GPU/checkpoint setup. Next code
+- The SadTalker adapter boundary and technical GPU runtime smoke are implemented,
+  but a consented Vietnamese render and measured video-quality record remain. Next code
   work can proceed on research evaluation/reporting without pretending that
   live render, automatic TTS, conversational grading, or production background
   execution is complete.

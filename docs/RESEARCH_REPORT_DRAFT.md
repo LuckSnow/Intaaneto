@@ -70,7 +70,7 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 Tại ngày 2026-07-17:
 
-- 175 backend tests pass trong isolated Django test settings, gồm một hành trình
+- 176 backend tests pass trong isolated Django test settings, gồm một hành trình
   tích hợp course draft → PDF/RAG index → assessment → enroll → progression.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
@@ -125,6 +125,12 @@ phải bằng chứng về tác động học tập.
 - Rà soát lip-sync, facial stability, artifacts và intelligibility tiếng Việt.
 - Chỉ dùng portrait/audio có quyền và thông báo đây là video tổng hợp.
 
+Technical smoke ngày 2026-07-17 đã tạo MP4 H.264/AAC 256×256 dài 1,48 giây,
+40.522 byte trong 53 giây trên NVIDIA T1200. Ca này dùng asset demo upstream và
+chỉ chứng minh pipeline/runtime, không được dùng làm bằng chứng quyền nội dung,
+chất lượng tiếng Việt hay chất lượng sư phạm. E4 chỉ hoàn tất sau một render bằng
+asset đã được duyệt, đo tài nguyên và review định tính theo rubric trên.
+
 ## 6. Giới hạn và đe dọa tới tính hợp lệ
 
 - Dataset retrieval hiện quá nhỏ và cùng miền với demo content.
@@ -134,7 +140,8 @@ phải bằng chứng về tác động học tập.
 - Progress/mastery phản ánh quy tắc sản phẩm, không tự động đồng nghĩa với năng
   lực thực tế hoặc tác động giáo dục.
 - PDF parser và embedding chạy đồng bộ; chưa có durable worker/rate limit đầy đủ.
-- SadTalker mới có adapter tests, chưa có real-render evidence.
+- SadTalker đã có adapter tests và technical GPU render; chưa có render học liệu
+  bằng portrait/audio đã duyệt hoặc đánh giá chất lượng tiếng Việt.
 - Token localStorage và production settings vẫn cần security hardening; dependency
   audit sạch chỉ là bằng chứng tại một thời điểm và cần được chạy định kỳ.
 

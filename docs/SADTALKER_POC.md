@@ -1,8 +1,9 @@
 # PoC giảng viên video ảo với SadTalker
 
-Trạng thái: adapter local và audit job đã được triển khai, nhưng chưa có bằng
-chứng render thật trên GPU của máy triển khai. Không coi video SadTalker là hoàn
-thành cho tới khi chạy manual smoke và lưu kết quả đánh giá.
+Trạng thái: adapter local, audit job, runtime GPU cô lập và technical smoke đã
+được triển khai. Technical smoke đã tạo MP4 thật nhưng dùng asset demo upstream;
+không coi video học liệu là hoàn thành cho tới khi render portrait/audio đã được
+duyệt và lưu kết quả đánh giá chất lượng.
 
 ## SadTalker làm gì và không làm gì
 
@@ -62,6 +63,34 @@ Python 3.8 riêng, cài PyTorch phù hợp GPU, FFmpeg, requirements và tải m
 script chính thức. Trước khi nối Intaaneto, chạy trực tiếp CLI upstream với một
 ảnh/audio phi nhạy cảm để xác nhận môi trường tạo đúng một MP4.
 
+### Runtime đã kiểm chứng trên máy development
+
+Biên bản ngày 2026-07-17:
+
+- SadTalker commit `cd4c0465ae0b54a6f85af57f5c65fec9fe23e7f8` (checkout
+  detached từ upstream chính thức), Python 3.8.20.
+- Miniforge 26.3.2-3, PyTorch 1.12.1+cu113, torchvision 0.13.1+cu113,
+  torchaudio 0.12.1+cu113 và FFmpeg 4.4.2.
+- NVIDIA T1200 Laptop GPU 4 GiB; CUDA được PyTorch nhận trong container.
+- Runtime host nằm ngoài repository và được mount read-only. Conda `glib` là
+  dependency cần thiết để OpenCV chạy trong backend image.
+- Cờ executable-stack của `libtorch_cpu.so` trong chính runtime cô lập phải được
+  xóa bằng `patchelf --clear-execstack`; không nới seccomp/quyền container.
+
+Các model tối thiểu mà adapter kiểm tra trước khi chạy:
+
+| File | SHA-256 local |
+| --- | --- |
+| `SadTalker_V0.0.2_256.safetensors` | `c211f5d6de003516bf1bbda9f47049a4c9c99133b1ab565c6961e5af16477bff` |
+| `mapping_00229-model.pth.tar` | `62a1e06006cc963220f6477438518ed86e9788226c62ae382ddc42fbcefb83f1` |
+| `alignment_WFLW_4HG.pth` | `bbfd137307a4c7debd5c283b9b0ce539466cee417ac0a155e184d857f9f2899c` |
+| `detection_Resnet50_Final.pth` | `6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d` |
+
+Hai model cuối vẫn cần cho face alignment/detection dù không bật enhancer.
+Digest là checksum file đã tải từ URL trong script upstream; GitHub release
+không công bố checksum để đối chiếu độc lập, nên đây là giới hạn provenance cần
+ghi trong báo cáo.
+
 Runtime chạy management command phải nhìn thấy:
 
 - checkout SadTalker tại `SADTALKER_ROOT`;
@@ -79,6 +108,22 @@ SADTALKER_PYTHON_EXECUTABLE=/opt/sadtalker-venv/bin/python
 SADTALKER_WORK_ROOT=/var/lib/intaaneto/sadtalker-work
 SADTALKER_TIMEOUT_SECONDS=900
 ```
+
+Repository có `docker-compose.sadtalker.yml` để mount runtime read-only và cấp
+GPU. Dùng đường dẫn tuyệt đối của runtime trên máy local:
+
+```bash
+SADTALKER_HOST_RUNTIME=/absolute/path/to/intaaneto-sadtalker \
+  docker compose -f docker-compose.yml -f docker-compose.sadtalker.yml config --quiet
+
+SADTALKER_HOST_RUNTIME=/absolute/path/to/intaaneto-sadtalker \
+  docker compose -f docker-compose.yml -f docker-compose.sadtalker.yml up -d backend
+```
+
+Adapter chạy upstream trong một work directory ghi được, truyền checkpoint bằng
+đường dẫn tuyệt đối và chỉ symlink hai face-preprocessing weights vào work dir.
+Điều này giữ checkout/model read-only dù upstream tạo MP4 tạm trong current
+working directory.
 
 ## Chạy một render đã duyệt
 
@@ -104,6 +149,28 @@ cloud ở slice sau, key TTS mới cần được đặt server-side; PoC hiện
 đã chuẩn bị sẵn để tách đánh giá lip-sync khỏi chất lượng TTS.
 
 ## Biên bản manual smoke
+
+### Technical smoke đã chạy
+
+Ngày 2026-07-17, asset demo đi kèm checkout upstream được dùng cho một phép thử
+nội bộ, không attach vào lesson và không phát hành:
+
+| Chỉ số | Kết quả |
+| --- | --- |
+| Audio input | 1,5 giây, mono PCM 16 kHz |
+| GPU | NVIDIA T1200 Laptop GPU 4 GiB |
+| Cấu hình | 256 px, batch 1, `crop`, `still`, không enhancer |
+| Thời gian wall-clock | 53 giây |
+| Output | H.264 + AAC, 256×256, 25 fps, 1,48 giây |
+| Kích thước | 40.522 byte |
+| SHA-256 output | `aa11ad32b249f747ac761a510a268d8c3f363c39a2a158d0ff243f55413d8673` |
+
+Phép thử này chứng minh CUDA, model loading, face preprocessing, rendering và
+FFmpeg mux hoạt động qua container read-only. Nó chưa đo peak GPU memory, chưa
+đánh giá tiếng Việt/lip-sync và không chứng minh quyền tái sử dụng asset demo.
+Output nằm trong development media volume, không được xem là artifact sản phẩm.
+
+### Smoke bằng nội dung đã duyệt còn phải chạy
 
 Ghi ít nhất các bằng chứng sau cho báo cáo nghiên cứu:
 

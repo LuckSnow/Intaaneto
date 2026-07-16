@@ -125,13 +125,15 @@ failed attempt with the first same-version follow-up, omits identities, and
 labels the result observational rather than causal. A real usage baseline,
 time-series exports, and a bounded conversational rubric remain later work.
 
-Next: prepare the separate runtime and record the first real SadTalker smoke;
-adapter completion alone is not video-quality evidence.
+Next: run a consented/approved Vietnamese-input SadTalker render and record the
+quality/resource rubric; the technical upstream-asset smoke is not
+video-quality or content-rights evidence.
 
 ## Virtual lecturer A — Local SadTalker adapter
 
-Status: Adapter implemented on 2026-07-16 with eight tests; real GPU render is
-environment-dependent and remains unverified.
+Status: Adapter implemented on 2026-07-16 and hardened on 2026-07-17 with nine
+focused tests. A pinned local runtime produced a technical GPU MP4, while the
+consented Vietnamese-content quality experiment remains unverified.
 
 - Authorize teacher ownership before reading inputs.
 - Require explicit approval/rights confirmation and record input checksums.
@@ -143,6 +145,10 @@ environment-dependent and remains unverified.
 
 Exit for adapter: fake-provider success/failure and negative security tests pass,
 job lifecycle is auditable, and the frontend can play the attached file.
+
+Technical runtime exit met on 2026-07-17: the read-only mounted runtime generated
+one 1.48-second H.264/AAC MP4 in 53 seconds on an NVIDIA T1200. This used an
+upstream demo asset and is evidence of execution only.
 
 Exit for real PoC (not yet met): record one consented-input render with pinned
 SadTalker commit/checkpoints, environment, latency/resource data, and qualitative

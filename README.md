@@ -16,7 +16,7 @@ truy cập, citation, điểm và progression đều do backend kiểm soát.
 | Đánh giá | Teacher biên soạn trắc nghiệm, backend chấm deterministic, immutable attempt, weak objectives và RAG reinforcement có audit event tối thiểu |
 | Tiến độ | Lesson completion, mastery/progress, roster/CSV, objective distribution và paired reinforcement outcome theo course sở hữu |
 | Cộng đồng | Forum, lesson comments và reviews với ownership/role boundary |
-| Video ảo | Adapter SadTalker local được kiểm thử bằng fake runtime; chỉ chạy management command có consent/bounds/timeout/audit |
+| Video ảo | Adapter SadTalker local có consent/bounds/timeout/audit; technical GPU smoke đã tạo MP4, còn thiếu render học liệu với asset được duyệt và đánh giá chất lượng |
 
 Luồng tích hợp chính đã có regression test:
 
@@ -36,7 +36,8 @@ Teacher tạo course draft
 - AI dialogue grading ảnh hưởng điểm hoặc progression. Baseline hiện tại là
   trắc nghiệm teacher-authored, chấm deterministic.
 - Tự động tạo/tóm tắt assessment từ PDF.
-- TTS tự động và bằng chứng SadTalker render thật trên GPU mục tiêu.
+- TTS tự động và bằng chứng chất lượng SadTalker bằng portrait/audio học liệu đã
+  được duyệt. Technical smoke trên GPU đã pass nhưng không thay thế bước này.
 - Celery/Redis durable ingestion, parser process isolation, malware scanning và
   object storage production.
 - Kết luận về độ chính xác/chất lượng sư phạm của RAG. Retrieval mới có baseline
@@ -138,7 +139,7 @@ docker compose exec frontend npm run lint
 docker compose exec frontend npm run build
 ```
 
-Baseline ngày 2026-07-17: 175 backend tests pass; Django check và migration drift
+Baseline ngày 2026-07-17: 176 backend tests pass; Django check và migration drift
 check pass; frontend lint/build pass; `npm audit` báo 0 lỗ hổng đã biết. Bundle
 JavaScript chính còn khoảng 461 kB và Google Auth được tách thành các chunk tải
 khi cần. Build vẫn cảnh báo Browserslist data cũ. Frontend chưa có test runner

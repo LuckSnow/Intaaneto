@@ -121,8 +121,19 @@ lập chỉ mục và hiển thị làm nguồn trích dẫn.
 
 SadTalker local không cần API key và không được cài chung vào backend mặc định.
 Adapter thủ công, giới hạn input, audit job, cấu hình runtime tách biệt và mẫu
-biên bản smoke được mô tả tại [SADTALKER_POC.md](SADTALKER_POC.md). Chưa có bằng
-chứng render GPU thật thì không được ghi nhận video tutor là đã hoàn thành.
+biên bản smoke được mô tả tại [SADTALKER_POC.md](SADTALKER_POC.md). Runtime local
+đã pass technical GPU smoke; chưa có render bằng portrait/audio học liệu đã được
+duyệt thì không được ghi nhận video tutor là hoàn thành về nội dung/chất lượng.
+
+Runtime tách biệt hiện tại có thể được nối vào backend bằng Compose override:
+
+```bash
+SADTALKER_HOST_RUNTIME=/absolute/path/to/intaaneto-sadtalker \
+  docker compose -f docker-compose.yml -f docker-compose.sadtalker.yml up -d backend
+```
+
+Không ghi đường dẫn này vào `VITE_*`. Override mount runtime read-only và chỉ cấp
+GPU cho backend; file tạm/output nằm trong media volume ghi được.
 
 ## Email xác thực và Mailjet
 
