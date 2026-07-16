@@ -120,7 +120,7 @@ adapter completion alone is not video-quality evidence.
 
 ## Virtual lecturer A — Local SadTalker adapter
 
-Status: Adapter implemented on 2026-07-16 with seven tests; real GPU render is
+Status: Adapter implemented on 2026-07-16 with eight tests; real GPU render is
 environment-dependent and remains unverified.
 
 - Authorize teacher ownership before reading inputs.

@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.exercises.models import Exercise
+from apps.exercises.access import accessible_exercises
 
 from .access import accessible_lesson_queryset
 from .models import ChatMessage, ChatSession
@@ -135,7 +135,7 @@ class ChatViewSet(viewsets.ModelViewSet):
         serializer = HintRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         exercise = get_object_or_404(
-            Exercise.objects.filter(is_published=True),
+            accessible_exercises(request.user),
             pk=serializer.validated_data['exercise_id'],
         )
         try:

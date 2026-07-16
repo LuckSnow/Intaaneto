@@ -3,6 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from apps.courses.models import Course, Enrollment, Lesson
+from apps.exercises.models import Exercise
 from apps.users.models import User
 
 from .models import ChatMessage, ChatSession
@@ -219,3 +220,63 @@ def test_existing_session_cannot_change_lesson_scope(
 
     assert response.status_code == 400
     mock_answer.assert_not_called()
+
+
+@pytest.mark.django_db
+@patch('apps.ai_assistant.views.AIService.give_hint')
+def test_enrolled_learner_can_request_scoped_exercise_hint(
+    mock_hint, authenticated_client, authorized_lesson
+):
+    exercise = Exercise.objects.create(
+        lesson=authorized_lesson,
+        title='Tạo heading',
+        description='Dùng HTML tạo một heading.',
+        instructions='Không xem đáp án.',
+        solution_code='<h1>Đáp án bí mật</h1>',
+        test_cases=[{'hidden': True}],
+    )
+    mock_hint.return_value = 'Hãy nhớ lại thẻ heading cấp một.'
+
+    response = authenticated_client.post(
+        '/api/ai/chat/get_hint/',
+        {'exercise_id': exercise.id, 'student_code': '<body></body>'},
+        format='json',
+    )
+
+    assert response.status_code == 200
+    assert response.data['hint'] == mock_hint.return_value
+    sent_description = mock_hint.call_args.kwargs['exercise_description']
+    assert exercise.title in sent_description
+    assert exercise.description in sent_description
+    assert exercise.solution_code not in sent_description
+    assert 'hidden' not in sent_description
+
+
+@pytest.mark.django_db
+@patch('apps.ai_assistant.views.AIService.give_hint')
+def test_non_enrolled_learner_is_denied_hint_before_provider(
+    mock_hint, api_client, authorized_lesson
+):
+    exercise = Exercise.objects.create(
+        lesson=authorized_lesson,
+        title='Bài riêng',
+        description='Không được lộ cho outsider.',
+        instructions='Thực hiện bài.',
+    )
+    outsider = User.objects.create_user(
+        email='hint-outsider@example.invalid',
+        username='hint-outsider',
+        full_name='Hint Outsider',
+        password='LocalTestOnly-123!',
+        is_verified=True,
+    )
+    api_client.force_authenticate(outsider)
+
+    response = api_client.post(
+        '/api/ai/chat/get_hint/',
+        {'exercise_id': exercise.id},
+        format='json',
+    )
+
+    assert response.status_code == 404
+    mock_hint.assert_not_called()

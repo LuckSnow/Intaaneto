@@ -105,7 +105,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and twenty-eight backend tests passed on 2026-07-16 in the
+  regression coverage. One hundred and thirty-one backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -177,9 +177,10 @@ relying on it and update it after material implementation changes.
   teacher operation. Docker mounts the authoring documents read-only, and a
   database-free dry run validates the real corpus.
 - Legacy coding exercises now have an optional lesson relationship for migration
-  compatibility, while learner list/detail/submission queries exclude unscoped
-  records and enforce enrollment. The separate AI `get_hint` action still needs
-  an explicit exercise enrollment check.
+  compatibility, while learner list/detail/submission and AI `get_hint` queries
+  share the same published, lesson-scoped owner/enrollment boundary. Hint prompts
+  contain title/description and optional learner code, never solution code or
+  hidden tests; outsiders are denied before the generation provider.
 - Course migration `0004` and exercises migration `0002` are applied in the
   development PostgreSQL database. The exercises migration conditionally reuses
   the complete `lesson_id` column/FK/index left by the removed legacy
@@ -269,7 +270,7 @@ relying on it and update it after material implementation changes.
   output, invokes `inference.py` without a shell, and records a read-only-admin audit
   job with input checksums and safe failure code. A successful job attaches a
   server-named MP4 to `Lesson.video_file`, which the lesson UI can play. Seven
-  tests cover fake-provider success, ownership, consent, invalid input, safe
+  Eight tests cover fake-provider success, ownership, consent, invalid input, safe
   provider failure, and command ordering. Migration `courses.0005` is applied
   in development PostgreSQL.
 - A real SadTalker render is not yet proven. Self-hosted SadTalker requires a
@@ -279,7 +280,6 @@ relying on it and update it after material implementation changes.
 
 ## Known integration risks
 
-- `get_hint` fetches an exercise without an explicit enrollment/access check.
 - PDF type/content/page/text bounds are enforced at the upload and extraction
   seams, but parser wall-clock isolation, malware scanning, and durable job
   recovery remain deployment work.

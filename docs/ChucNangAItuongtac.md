@@ -1,58 +1,99 @@
-# ĐẶC TẢ HỆ THỐNG: MULTIMEDIA AI ORCHESTRATION PIPELINE (MAOP)
-## 1. GIỚI THIỆU TỔNG QUAN (INTRODUCTION)
-Hệ thống nghiên cứu một quy trình tự động hóa (Pipeline) nhằm chuyển đổi dữ liệu phi cấu trúc (Unstructured Data) từ các tài liệu học thuật thành các thực thể đa phương tiện (Multimedia Entities). Mục tiêu cốt lõi là tối ưu hóa trải nghiệm người dùng thông qua mô hình tương tác giữa người và máy (Human-Computer Interaction - HCI) dựa trên trí tuệ nhân tạo.
+# Đặc tả chức năng AI tương tác của Intaaneto
 
-## 2. KIẾN TRÚC HỆ THỐNG (SYSTEM ARCHITECTURE)
-Hệ thống được thiết kế theo mô hình Sequential & Event-driven Orchestration, chia làm 4 phân lớp xử lý dữ liệu:
+Cập nhật: 2026-07-16. Tài liệu này phân biệt rõ phần đã có bằng chứng triển khai,
+adapter PoC và phần mới là hướng nghiên cứu.
 
-### 2.1. Tầng Trích xuất Tri thức (Knowledge Extraction Layer)
-Lý thuyết: Sử dụng cơ chế In-context Learning của các mô hình ngôn ngữ lớn (LLM).
+## 1. Luồng đã triển khai
 
-Thực thi: Tiếp nhận input PDF. Hệ thống thực hiện chuẩn hóa văn bản, sau đó sử dụng mô hình AI để phân tích cấu trúc.
+```text
+PDF do teacher-owner tải lên
+  -> kiểm tra PDF và giới hạn tài nguyên
+  -> trích xuất, chuẩn hóa văn bản
+  -> chunk + embedding local
+  -> PostgreSQL/pgvector, source version active
 
-Sản phẩm đầu ra: Một cấu trúc Semantically Structured JSON bao gồm: Key concepts, Script cho giảng viên ảo và kịch bản phân cảnh (Storyboarding).
+Learner đã được phép
+  -> câu hỏi theo lesson
+  -> retrieval trong đúng active source
+  -> fallback nếu bằng chứng yếu
+  -> generation có căn cứ
+  -> citation do ứng dụng tạo
 
-### 2.2. Tầng Tổng hợp Thị giác (Visual Synthesis Layer)
-Lý thuyết: Áp dụng nguyên lý thiết kế đồ họa tự động (Automated Graphic Design).
+Assessment trắc nghiệm do teacher soạn
+  -> backend chấm deterministic
+  -> attempt snapshot + weak objectives
+  -> mastery/progression do backend quyết định
+  -> RAG reinforcement theo weak objectives
+  -> báo cáo learner/teacher
+```
 
-Thực thi: Sử dụng thư viện Pillow (PIL) để tạo tài nguyên hình ảnh khi cần.
+Các boundary đã có test:
 
-Cơ chế: Map các "Key concepts" từ JSON vào các Template slide có sẵn. Tính toán bố cục (Layouting) và phối màu tự động dựa trên chủ đề của tài liệu đầu vào.
+- Teacher ownership được kiểm tra trước khi đọc/xử lý upload.
+- Retrieval lọc lesson/course được phép trước embedding và ranking.
+- Answer key không có trong learner API hoặc RAG index.
+- Citation chỉ được xây từ chunk thực sự retrieved.
+- Assessment score, mastery, completion và next lesson không do client/LLM ghi.
+- Báo cáo learner chỉ có dữ liệu bản thân; teacher chỉ có khóa sở hữu.
 
-### 2.3. Tầng Sản xuất Video Đa hình thái (Multimodal Video Production)
-Lý thuyết: Sử dụng công nghệ Lip-sync Synthesis và Neural Text-to-Speech (TTS).
+## 2. Kho học liệu
 
-Thực thi:
+Hệ thống dùng PostgreSQL và pgvector làm kho dữ liệu học tập và tri thức; không
+cần một database riêng chỉ vì có RAG. Hai tài liệu Markdown mẫu được compile
+deterministic thành 2 course/15 lesson dạng nháp. Việc publish và index là hai
+thao tác phê duyệt riêng.
 
-Audio: Chuyển đổi kịch bản thuyết trình thành giọng nói tự nhiên với cảm xúc phù hợp.
+PDF là định dạng upload duy nhất. DOCX, PPT và PPTX không thuộc phạm vi ingestion
+hiện tại. Extraction/indexing vẫn chạy đồng bộ trong request và chưa có parser
+process isolation hoặc durable background retry.
 
-Video: Sử dụng các model như SadTalker hoặc Wav2Lip (được host trên Hugging Face) để điều khiển một Avatar AI thuyết trình dựa trên file Audio đã tạo.
+## 3. AI Tutor
 
-### 2.4. Tầng Tương tác Thông minh (Orchestration & Agentic Layer)
-Lý thuyết: Đây là lớp Orchestration, đóng vai trò "Nhạc trưởng" điều phối các Agent chuyên biệt.
+AI Tutor nhận `lesson_id` do backend kiểm tra, truy xuất exact cosine trong active
+source tương thích, chọn các chunk vượt threshold rồi mới gọi OpenAI hoặc Gemini.
+Nếu lesson chưa index hoặc bằng chứng yếu, hệ thống không gọi generation và trả
+fallback. Retrieved document text được coi là dữ liệu không tin cậy, không phải
+system instruction.
 
-Tính năng:
+Chat hiện chưa khôi phục lịch sử/citation excerpt đầy đủ sau khi reload. Bộ đánh
+giá v1 mới đo retrieval trên 8 case; chưa đủ để kết luận chất lượng câu trả lời
+tổng quát.
 
-RAG (Retrieval-Augmented Generation): Khi người dùng đặt câu hỏi qua Mic/Chat, Agent sẽ truy vấn lại nội dung file gốc để trả lời chính xác, tránh hiện tượng "ảo giác" (Hallucination) của AI.
+## 4. Đánh giá và tiến trình học
 
-Context Management: Duy trì trạng thái hội thoại (State management) để đảm bảo AI hiểu các câu hỏi tiếp nối của người dùng.
+Baseline hiện tại là multiple-choice do teacher soạn, có version và pass
+threshold. Backend lưu immutable answer snapshot của mỗi attempt và tính:
 
-## 3. CƠ SỞ KỸ THUẬT (TECHNICAL STACK)
-Hệ thống được xây dựng trên nền tảng Python tập trung vào khả năng xử lý bất đồng bộ (Asynchronous):
+- `progress_percentage`: phần lesson usable đã hoàn thành;
+- `mastery_percentage`: trung bình best score của assessment published phiên bản
+  hiện tại, assessment chưa làm đóng góp 0;
+- `weak_objectives`: mục tiêu gắn với câu trả lời sai.
 
-Backend Core: Django Framework - Đảm bảo tính bảo mật và khả năng quản lý User/Media chuyên nghiệp cho NCKH.
+RAG reinforcement là thao tác riêng sau attempt không đạt. Nó truy xuất học liệu
+cho weak objective và không thay đổi score/mastery/progression. AI dialogue
+grading với rubric/calibration chưa được triển khai và không được coi là kết quả
+đã có.
 
-Task Queue: Celery & Redis - Xử lý các tác vụ nặng (tạo video, render slide) ở chế độ chạy ngầm (Background tasks), tránh block request của người dùng.
+## 5. Giảng viên video ảo
 
-AI Engine: GitHub Models (GPT-4o), Hugging Face Diffusers (Video/Image Generation).
+Adapter SadTalker local đã có dưới dạng management command thủ công. Nó nhận
+kịch bản đã duyệt, PCM WAV và JPEG/PNG có xác nhận quyền sử dụng, chạy
+`inference.py` không qua shell, có timeout, validate MP4 và lưu audit job. Không
+có HTTP trigger và không có automatic TTS.
 
-Frontend: React hoặc Vue.js để tạo giao diện tương tác thời gian thực thông qua WebSockets.
+SadTalker là image + audio -> talking-head video, không tự sinh lời thoại hoặc
+giọng nói và không cần API key khi self-host. Test fake provider chứng minh
+contract adapter, chưa chứng minh render thật hoặc chất lượng lip-sync. Xem
+[SADTALKER_POC.md](SADTALKER_POC.md).
 
-## 4. QUY TRÌNH VẬN HÀNH (WORKFLOW)
-Upload: User tải tài liệu lên hệ thống Django.
+## 6. Thành phần chưa triển khai
 
-Analysis: Django trigger một Celery task để chạy LLM Pipeline.
+- Celery/Redis durable job queue và worker video/ingestion production.
+- Automatic TTS, storyboard, slide/image generation và ghép cảnh.
+- WebSocket/realtime processing progress.
+- AI dialogue assessment ảnh hưởng điểm hoặc progression.
+- Comprehensive grounded-answer, refusal, cost và assessment evaluation.
+- Production object storage, media retention/deletion và malware scanning.
 
-Generation: Hệ thống song song tạo Slide và Video giảng viên ảo.
-
-Deployment: Kết quả được lưu trữ vào Media Server và hiển thị lên giao diện tương tác.
+Các thành phần này chỉ là roadmap; không được dùng trong demo hoặc báo cáo như
+chức năng đã hoàn thành.

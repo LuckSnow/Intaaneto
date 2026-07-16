@@ -1,23 +1,44 @@
-from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import Count, Q
-from .models import Post, Comment, Reaction, Report, Follow, Tag
+from django.shortcuts import get_object_or_404
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
+from rest_framework.response import Response
+
+from apps.users.models import User
+
+from .models import Comment, Follow, Post, Reaction, Report, Tag
 from .serializers import (
-    PostListSerializer, PostDetailSerializer, PostCreateSerializer,
-    CommentSerializer, CommentWithRepliesSerializer,
-    ReactionSerializer, ReportSerializer, FollowSerializer, TagSerializer,
+    CommentCreateSerializer,
+    CommentSerializer,
+    CommentUpdateSerializer,
+    FollowSerializer,
+    FollowTargetSerializer,
+    PostDetailSerializer,
+    PostListSerializer,
+    PostWriteSerializer,
+    ReactionInputSerializer,
+    ReactionSerializer,
+    ReportCreateSerializer,
+    ReportReasonSerializer,
+    ReportSerializer,
+    TagSerializer,
 )
 
 
-class IsAuthorOrReadOnly:
-    """Owner can edit/delete, others readonly"""
+class IsAuthorOrAdmin(BasePermission):
     def has_object_permission(self, request, view, obj):
-        if request.method in ('GET', 'HEAD', 'OPTIONS'):
-            return True
-        return obj.author == request.user or request.user.role == 'admin'
+        return obj.author_id == request.user.id or request.user.role == 'admin'
+
+
+class IsRoleAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and request.user.is_active
+            and request.user.role == 'admin'
+        )
 
 
 class TagViewSet(viewsets.ModelViewSet):
@@ -26,48 +47,50 @@ class TagViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsRoleAdmin()]
 
 
 class PostViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
-        qs = Post.objects.select_related('author').prefetch_related(
+        queryset = Post.objects.select_related('author').prefetch_related(
             'tags', 'reactions'
         ).annotate(comments_count_field=Count('comments'))
-
-        # Filters
         category = self.request.query_params.get('category')
         if category:
-            qs = qs.filter(category=category)
-
+            queryset = queryset.filter(category=category)
         tag = self.request.query_params.get('tag')
         if tag:
-            qs = qs.filter(tags__slug=tag)
-
+            queryset = queryset.filter(tags__slug=tag)
         author = self.request.query_params.get('author')
         if author:
-            qs = qs.filter(author_id=author)
-
+            queryset = queryset.filter(author_id=author)
         search = self.request.query_params.get('search')
         if search:
-            qs = qs.filter(Q(title__icontains=search) | Q(content__icontains=search))
-
-        return qs
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(content__icontains=search)
+            )
+        return queryset.distinct()
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return PostDetailSerializer
-        if self.action == 'create':
-            return PostCreateSerializer
+        if self.action in ('create', 'update', 'partial_update'):
+            return PostWriteSerializer
         return PostListSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ('list', 'retrieve'):
             return [AllowAny()]
+        if self.action == 'pin':
+            return [IsRoleAdmin()]
+        if self.action in (
+            'update', 'partial_update', 'destroy', 'mark_solved', 'close'
+        ):
+            return [IsAuthenticated(), IsAuthorOrAdmin()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
@@ -77,25 +100,23 @@ class PostViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         instance.views_count += 1
         instance.save(update_fields=['views_count'])
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        return Response(self.get_serializer(instance).data)
 
     @action(detail=True, methods=['post'])
     def react(self, request, pk=None):
-        """Add/change/remove reaction on a post"""
         post = self.get_object()
-        reaction_type = request.data.get('reaction_type')
-
+        serializer = ReactionInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reaction_type = serializer.validated_data.get('reaction_type')
         if not reaction_type:
-            # Remove existing reaction
             Reaction.objects.filter(user=request.user, post=post).delete()
             post.likes_count = post.reactions.count()
             post.save(update_fields=['likes_count'])
             return Response({'message': 'Reaction removed'})
-
-        reaction, created = Reaction.objects.update_or_create(
-            user=request.user, post=post,
-            defaults={'reaction_type': reaction_type}
+        reaction, _ = Reaction.objects.update_or_create(
+            user=request.user,
+            post=post,
+            defaults={'reaction_type': reaction_type},
         )
         post.likes_count = post.reactions.count()
         post.save(update_fields=['likes_count'])
@@ -104,9 +125,6 @@ class PostViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def mark_solved(self, request, pk=None):
         post = self.get_object()
-        if post.author != request.user and request.user.role != 'admin':
-            return Response({'error': 'Chỉ tác giả mới có thể đánh dấu đã giải quyết'},
-                            status=status.HTTP_403_FORBIDDEN)
         post.is_solved = not post.is_solved
         post.save(update_fields=['is_solved'])
         return Response({'is_solved': post.is_solved})
@@ -114,15 +132,17 @@ class PostViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def report(self, request, pk=None):
         post = self.get_object()
-        serializer = ReportSerializer(data=request.data)
+        serializer = ReportReasonSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(reporter=request.user, post=post)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        report = Report.objects.create(
+            reporter=request.user,
+            post=post,
+            **serializer.validated_data,
+        )
+        return Response(ReportSerializer(report).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])
     def pin(self, request, pk=None):
-        if request.user.role not in ['admin', 'teacher']:
-            return Response({'error': 'Không có quyền'}, status=status.HTTP_403_FORBIDDEN)
         post = self.get_object()
         post.is_pinned = not post.is_pinned
         post.save(update_fields=['is_pinned'])
@@ -131,32 +151,39 @@ class PostViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def close(self, request, pk=None):
         post = self.get_object()
-        if post.author != request.user and request.user.role != 'admin':
-            return Response({'error': 'Không có quyền'}, status=status.HTTP_403_FORBIDDEN)
         post.is_closed = not post.is_closed
         post.save(update_fields=['is_closed'])
         return Response({'is_closed': post.is_closed})
 
 
 class CommentViewSet(viewsets.ModelViewSet):
-    serializer_class = CommentSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
-        qs = Comment.objects.select_related('author').prefetch_related('reactions')
+        queryset = Comment.objects.select_related('author', 'post').prefetch_related(
+            'reactions'
+        )
         post_id = self.request.query_params.get('post')
         if post_id:
-            qs = qs.filter(post_id=post_id, parent=None)
-        return qs
+            queryset = queryset.filter(post_id=post_id, parent=None)
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CommentCreateSerializer
+        if self.action in ('update', 'partial_update'):
+            return CommentUpdateSerializer
+        return CommentSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ('list', 'retrieve', 'replies'):
             return [AllowAny()]
+        if self.action in ('update', 'partial_update', 'destroy'):
+            return [IsAuthenticated(), IsAuthorOrAdmin()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
         comment = serializer.save(author=self.request.user)
-        # Update post comments_count
         post = comment.post
         post.comments_count = post.comments.count()
         post.save(update_fields=['comments_count'])
@@ -169,19 +196,19 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def react(self, request, pk=None):
-        """Add/change/remove reaction on a comment"""
         comment = self.get_object()
-        reaction_type = request.data.get('reaction_type')
-
+        serializer = ReactionInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reaction_type = serializer.validated_data.get('reaction_type')
         if not reaction_type:
             Reaction.objects.filter(user=request.user, comment=comment).delete()
             comment.likes_count = comment.reactions.count()
             comment.save(update_fields=['likes_count'])
             return Response({'message': 'Reaction removed'})
-
-        reaction, created = Reaction.objects.update_or_create(
-            user=request.user, comment=comment,
-            defaults={'reaction_type': reaction_type}
+        reaction, _ = Reaction.objects.update_or_create(
+            user=request.user,
+            comment=comment,
+            defaults={'reaction_type': reaction_type},
         )
         comment.likes_count = comment.reactions.count()
         comment.save(update_fields=['likes_count'])
@@ -191,10 +218,11 @@ class CommentViewSet(viewsets.ModelViewSet):
     def mark_solution(self, request, pk=None):
         comment = self.get_object()
         post = comment.post
-        if post.author != request.user and request.user.role != 'admin':
-            return Response({'error': 'Chỉ tác giả bài viết mới có quyền'},
-                            status=status.HTTP_403_FORBIDDEN)
-        # Unmark previous solution
+        if post.author_id != request.user.id and request.user.role != 'admin':
+            return Response(
+                {'error': 'Chỉ tác giả bài viết mới có quyền'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         post.comments.filter(is_solution=True).update(is_solution=False)
         comment.is_solution = True
         comment.save(update_fields=['is_solution'])
@@ -205,17 +233,22 @@ class CommentViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def report(self, request, pk=None):
         comment = self.get_object()
-        serializer = ReportSerializer(data=request.data)
+        serializer = ReportReasonSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(reporter=request.user, comment=comment)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        report = Report.objects.create(
+            reporter=request.user,
+            comment=comment,
+            **serializer.validated_data,
+        )
+        return Response(ReportSerializer(report).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['get'])
     def replies(self, request, pk=None):
         comment = self.get_object()
         replies = comment.replies.select_related('author').all()
-        serializer = CommentSerializer(replies, many=True, context={'request': request})
-        return Response(serializer.data)
+        return Response(CommentSerializer(
+            replies, many=True, context={'request': request}
+        ).data)
 
 
 class FollowViewSet(viewsets.GenericViewSet):
@@ -224,15 +257,18 @@ class FollowViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=['post'])
     def toggle(self, request):
-        """Follow / unfollow a user"""
-        user_id = request.data.get('user_id')
-        if not user_id:
-            return Response({'error': 'user_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-        if int(user_id) == request.user.id:
-            return Response({'error': 'Không thể tự follow'}, status=status.HTTP_400_BAD_REQUEST)
-
+        serializer = FollowTargetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user_id = serializer.validated_data['user_id']
+        if user_id == request.user.id:
+            return Response(
+                {'error': 'Không thể tự follow'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        target = get_object_or_404(User.objects.filter(is_active=True), pk=user_id)
         follow, created = Follow.objects.get_or_create(
-            follower=request.user, following_id=user_id
+            follower=request.user,
+            following=target,
         )
         if not created:
             follow.delete()
@@ -242,33 +278,34 @@ class FollowViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['get'])
     def my_following(self, request):
         follows = Follow.objects.filter(follower=request.user).select_related('following')
-        data = FollowSerializer(follows, many=True).data
-        return Response(data)
+        return Response(FollowSerializer(follows, many=True).data)
 
     @action(detail=False, methods=['get'])
     def my_followers(self, request):
         follows = Follow.objects.filter(following=request.user).select_related('follower')
-        data = FollowSerializer(follows, many=True).data
-        return Response(data)
+        return Response(FollowSerializer(follows, many=True).data)
 
     @action(detail=False, methods=['get'])
     def check(self, request):
-        user_id = request.query_params.get('user_id')
+        serializer = FollowTargetSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
         is_following = Follow.objects.filter(
-            follower=request.user, following_id=user_id
+            follower=request.user,
+            following_id=serializer.validated_data['user_id'],
         ).exists()
         return Response({'following': is_following})
 
 
 class ReportViewSet(viewsets.ModelViewSet):
-    """Reports — only admins can list/manage, anyone auth can create"""
-    queryset = Report.objects.all()
-    serializer_class = ReportSerializer
+    queryset = Report.objects.select_related('reporter')
+
+    def get_serializer_class(self):
+        return ReportCreateSerializer if self.action == 'create' else ReportSerializer
 
     def get_permissions(self):
         if self.action == 'create':
             return [IsAuthenticated()]
-        return [IsAdminUser()]
+        return [IsRoleAdmin()]
 
     def perform_create(self, serializer):
         serializer.save(reporter=self.request.user)

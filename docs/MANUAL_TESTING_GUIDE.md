@@ -625,9 +625,9 @@ Mong đợi:
 `pending` là trạng thái hiện tại vì code runner/test executor chưa triển khai;
 không mong đợi hệ thống tự chấm code.
 
-Known security gap: AI `get_hint` hiện lấy exercise published nhưng chưa kiểm tra
-enrollment rõ ràng. Không coi endpoint này an toàn cho production cho tới khi có
-fix và negative tests.
+AI `get_hint` phải dùng cùng scope với exercise detail/submission. Student chưa
+enroll nhận 404 trước khi provider được gọi; prompt chỉ có title/description và
+code của learner, không có `solution_code` hoặc hidden tests.
 
 ### Analytics cũ
 
@@ -695,7 +695,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `128` tests pass.
+- Backend: `131` tests pass.
 - Frontend: lint pass và production build pass.
 - Build còn cảnh báo JavaScript chunk lớn và Browserslist data cũ.
 - Frontend chưa có test runner tự động riêng.

@@ -131,6 +131,13 @@ class Reaction(models.Model):
         verbose_name = _('reaction')
         verbose_name_plural = _('reactions')
         constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(post__isnull=False, comment__isnull=True)
+                    | models.Q(post__isnull=True, comment__isnull=False)
+                ),
+                name='reaction_has_exactly_one_target',
+            ),
             models.UniqueConstraint(
                 fields=['user', 'post'],
                 condition=models.Q(post__isnull=False),
@@ -180,6 +187,25 @@ class Report(models.Model):
         verbose_name = _('report')
         verbose_name_plural = _('reports')
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(post__isnull=False, comment__isnull=True)
+                    | models.Q(post__isnull=True, comment__isnull=False)
+                ),
+                name='report_has_exactly_one_target',
+            ),
+            models.UniqueConstraint(
+                fields=['reporter', 'post'],
+                condition=models.Q(post__isnull=False),
+                name='unique_reporter_post_report',
+            ),
+            models.UniqueConstraint(
+                fields=['reporter', 'comment'],
+                condition=models.Q(comment__isnull=False),
+                name='unique_reporter_comment_report',
+            ),
+        ]
 
     def __str__(self):
         return f"Report by {self.reporter.username} — {self.reason}"

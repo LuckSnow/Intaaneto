@@ -10,7 +10,6 @@ exploitation. Re-check code and tests before changing status.
 
 ## P1 — Resolve during the first stabilization/RAG slices
 
-- `get_hint` loads exercises without explicit course/enrollment authorization.
 - Forum object-owner permission logic exists but is not applied; authenticated
   users may be able to update/delete content owned by others.
 - PDF extraction and local embedding run synchronously in the upload request;
@@ -104,6 +103,9 @@ exploitation. Re-check code and tests before changing status.
   explicit rights/approval assertion, bounds local media, avoids shell
   invocation, kills timed-out process groups, validates output, and stores only
   checksums plus safe failure codes in its audit record. There is no HTTP trigger.
+- AI exercise hints now reuse the same lesson/course owner-enrollment queryset as
+  exercise reads/submissions, deny outsiders before generation, and never include
+  solution code or hidden tests in the hint prompt.
 
 ## Status discipline
 
