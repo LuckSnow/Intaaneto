@@ -48,7 +48,7 @@ class LessonDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = ['id', 'course', 'title', 'slug', 'description', 'lesson_type', 'content',
-                  'video_url', 'ai_video_url', 'ai_summary', 'processing_status',
+                  'video_url', 'video_file', 'ai_video_url', 'ai_summary', 'processing_status',
                   'duration_minutes', 'order', 'is_preview', 'is_published',
                   'uploaded_file', 'comments_count', 'created_at']
         read_only_fields = ['slug', 'created_at']

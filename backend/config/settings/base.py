@@ -229,6 +229,36 @@ RAG_REINFORCEMENT_TOP_K = config(
     cast=int,
 )
 
+# Optional local SadTalker research adapter (manual management command only)
+SADTALKER_ENABLED = config('SADTALKER_ENABLED', default=False, cast=bool)
+SADTALKER_ROOT = config('SADTALKER_ROOT', default='')
+SADTALKER_PYTHON_EXECUTABLE = config(
+    'SADTALKER_PYTHON_EXECUTABLE',
+    default='python',
+)
+SADTALKER_WORK_ROOT = config(
+    'SADTALKER_WORK_ROOT',
+    default=str(BASE_DIR / 'media' / 'sadtalker-work'),
+)
+SADTALKER_TIMEOUT_SECONDS = config(
+    'SADTALKER_TIMEOUT_SECONDS', default=900, cast=int
+)
+SADTALKER_MAX_AUDIO_BYTES = config(
+    'SADTALKER_MAX_AUDIO_BYTES', default=25 * 1024 * 1024, cast=int
+)
+SADTALKER_MAX_AUDIO_SECONDS = config(
+    'SADTALKER_MAX_AUDIO_SECONDS', default=600, cast=int
+)
+SADTALKER_MAX_PORTRAIT_BYTES = config(
+    'SADTALKER_MAX_PORTRAIT_BYTES', default=10 * 1024 * 1024, cast=int
+)
+SADTALKER_MAX_PORTRAIT_PIXELS = config(
+    'SADTALKER_MAX_PORTRAIT_PIXELS', default=16_000_000, cast=int
+)
+SADTALKER_MAX_OUTPUT_BYTES = config(
+    'SADTALKER_MAX_OUTPUT_BYTES', default=250 * 1024 * 1024, cast=int
+)
+
 # Groq API Key (Llama)
 GROQ_API_KEY = config('GROQ_API_KEY', default='')
 

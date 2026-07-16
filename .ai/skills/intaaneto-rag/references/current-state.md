@@ -105,7 +105,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and sixteen backend tests passed on 2026-07-16 in the
+  regression coverage. One hundred and twenty-eight backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -157,6 +157,15 @@ relying on it and update it after material implementation changes.
   stale, foreign, and non-enrolled attempts are rejected; missing/weak indexes
   return explicit fallback states. The lesson UI shows the review evidence and
   lets the learner prefill—not auto-send—a grounded Tutor question.
+- A read-only role-aware progress report now derives learner and teacher
+  dashboards from authoritative `Enrollment`, `LessonProgress`, and
+  current-version `AssessmentAttempt` records instead of the legacy mutable
+  analytics counters. Learners receive only their course progress/mastery,
+  completion, assessment counts, and resume lesson. Teachers receive paged
+  aggregates for owned courses and may request a bounded learner roster for one
+  owned course; email, answer keys, chat, and old-version attempt results are
+  omitted. Admin uses the same explicit administrative scope. The React
+  dashboard renders these states and no longer displays hard-coded zeroes.
 - A reviewed Markdown learning-corpus importer now compiles
   `docs/computer-networks.md` and `docs/web-programming.md` into two stable,
   structured courses with fifteen text lessons, explicit learning objectives,
@@ -253,11 +262,20 @@ relying on it and update it after material implementation changes.
   current lesson assessment is deterministic multiple choice and supplies the
   trusted score/progression baseline; conversational rubric evaluation, teacher
   calibration, and assessment-quality experiments remain.
-- No SadTalker/video-worker integration is implemented. Self-hosted SadTalker
-  itself does not require an API key, but it requires separately reviewed model
-  checkpoints/dependencies, FFmpeg, suitable compute, a consented or licensed
-  portrait, and a TTS audio input. Video generation must be isolated from the
-  Django request path and should only consume a teacher-approved script.
+- A manually invoked local SadTalker PoC adapter is implemented behind
+  `generate_sadtalker_video`; there is no HTTP trigger. It authorizes ownership
+  before reading files, requires explicit rights/approval confirmation, bounds
+  and validates an approved script, PCM WAV, JPEG/PNG portrait, timeout, and MP4
+  output, invokes `inference.py` without a shell, and records a read-only-admin audit
+  job with input checksums and safe failure code. A successful job attaches a
+  server-named MP4 to `Lesson.video_file`, which the lesson UI can play. Seven
+  tests cover fake-provider success, ownership, consent, invalid input, safe
+  provider failure, and command ordering. Migration `courses.0005` is applied
+  in development PostgreSQL.
+- A real SadTalker render is not yet proven. Self-hosted SadTalker requires a
+  separately reviewed Python/PyTorch/FFmpeg/checkpoint runtime and suitable
+  compute, plus consented/licensed portrait and audio. It needs no API key; TTS
+  is a separate input.
 
 ## Known integration risks
 
@@ -287,10 +305,11 @@ relying on it and update it after material implementation changes.
   refusal evaluation before tuning the provisional `0.45` threshold, changing
   the 384-dimensional model, or adding an ANN index. Exact pgvector search is
   sufficient for the current small corpus baseline.
-- The next product slice should expose learner/teacher progress reports from
-  existing deterministic assessment and enrollment evidence. SadTalker remains
-  a later, isolated PoC after script/TTS/avatar provenance and worker boundaries
-  are defined; do not run it inside an HTTP request.
+- The SadTalker adapter boundary is implemented, but a real runtime smoke and
+  measured video-quality record require local GPU/checkpoint setup. Next code
+  work can proceed on research evaluation/reporting without pretending that
+  live render, automatic TTS, conversational grading, or production background
+  execution is complete.
 - Collaborators should run migrations and `seed_demo_data` locally rather than
   sharing development database volumes or dumps containing accounts and chats.
 - The worktree contains intentional uncommitted changes from stabilization,

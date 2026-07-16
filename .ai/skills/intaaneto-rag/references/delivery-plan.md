@@ -110,9 +110,33 @@ RAG-grounded reinforcement tied to weak objectives was added on 2026-07-16 as a
 separate bounded retrieval action with application-owned citations. It does not
 change the deterministic result or invoke generation during grading.
 
-Next: expose learner and teacher progress reports from the deterministic
-attempt/progression evidence, then design and evaluate a bounded conversational
-rubric against this baseline.
+Learner and owned-course teacher progress reports were implemented on
+2026-07-16 from deterministic attempt/progression evidence with five API and
+authorization tests. Objective distributions, time-series exports, and a
+bounded conversational rubric remain later evaluation work.
+
+Next: prepare the separate runtime and record the first real SadTalker smoke;
+adapter completion alone is not video-quality evidence.
+
+## Virtual lecturer A — Local SadTalker adapter
+
+Status: Adapter implemented on 2026-07-16 with seven tests; real GPU render is
+environment-dependent and remains unverified.
+
+- Authorize teacher ownership before reading inputs.
+- Require explicit approval/rights confirmation and record input checksums.
+- Validate bounded script, PCM WAV, portrait, runtime timeout, and MP4 output.
+- Invoke upstream `inference.py` without a shell from a separately configured
+  runtime; never run it in an HTTP request.
+- Attach a successful server-named video to the lesson while keeping video
+  optional for text/RAG/assessment readiness.
+
+Exit for adapter: fake-provider success/failure and negative security tests pass,
+job lifecycle is auditable, and the frontend can play the attached file.
+
+Exit for real PoC (not yet met): record one consented-input render with pinned
+SadTalker commit/checkpoints, environment, latency/resource data, and qualitative
+lip-sync/artifact review.
 
 ## Learning corpus A — Reviewed Markdown to draft lessons
 
@@ -129,9 +153,9 @@ dry run against the checked-in documents.
 Exit: the checked-in corpus validates reproducibly, imports without duplicates
 or unrelated derived state, and can be reviewed before publication/indexing.
 
-Next: author deterministic assessments for a small subset of these lessons and
-connect weak objectives to authorized RAG reinforcement before expanding the
-corpus or generating video.
+Next: author and teacher-review deterministic assessments for a representative
+subset of these corpus lessons before expanding the corpus. The generic weak-
+objective reinforcement path is already implemented.
 
 ## MVP acceptance criteria
 

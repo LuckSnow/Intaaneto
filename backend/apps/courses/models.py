@@ -243,3 +243,57 @@ class LessonComment(models.Model):
     
     def __str__(self):
         return f"{self.user.username}: {self.content[:50]}"
+
+
+class LessonVideoGenerationJob(models.Model):
+    """Auditable, manually triggered local virtual-lecturer render."""
+
+    STATUS_CHOICES = [
+        ('queued', 'Chờ chạy'),
+        ('running', 'Đang chạy'),
+        ('completed', 'Hoàn thành'),
+        ('failed', 'Thất bại'),
+    ]
+
+    lesson = models.ForeignKey(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='video_generation_jobs',
+    )
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='requested_video_generation_jobs',
+    )
+    provider = models.CharField(max_length=50, default='sadtalker-local')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued')
+    approved_script = models.TextField(max_length=12000)
+    script_checksum = models.CharField(max_length=64)
+    audio_checksum = models.CharField(max_length=64)
+    portrait_checksum = models.CharField(max_length=64)
+    rights_and_approval_confirmed = models.BooleanField(default=False)
+    output_file = models.FileField(
+        upload_to='courses/generated_videos/',
+        null=True,
+        blank=True,
+    )
+    failure_code = models.CharField(max_length=50, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(rights_and_approval_confirmed=True),
+                name='video_job_requires_rights_confirmation',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['lesson', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'SadTalker job {self.pk} for lesson {self.lesson_id}'

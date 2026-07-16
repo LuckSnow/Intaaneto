@@ -543,7 +543,7 @@ Dùng Swagger hoặc DevTools thử:
 - Teacher B không được tạo/sửa assessment của Teacher A.
 - Sửa/xóa assessment qua API sau khi đã có attempt: trả 409.
 
-## 14. Kiểm tra progress và báo cáo hiện có
+## 14. Kiểm tra progress và báo cáo học tập
 
 Kiểm tra endpoint course progress hoặc Django Admin:
 
@@ -553,11 +553,24 @@ Kiểm tra endpoint course progress hoặc Django Admin:
 - `completed_at`: chỉ có khi content progress đạt 100%.
 - `last_accessed_lesson`: bài dùng cho `Tiếp tục học`.
 
-Giới hạn cần ghi nhận:
+Đăng nhập Student A và mở `/dashboard`:
 
-- Dashboard frontend hiện hiển thị các số `0` tĩnh, chưa lấy progress thật.
-- Analytics API mới là bộ đếm tổng quát, chưa phải báo cáo assessment đầy đủ.
-- Chưa có dashboard teacher xem phân bố điểm theo learning objective.
+- Các thẻ tổng hợp lấy dữ liệu thật từ `GET /api/analytics/progress_report/`.
+- Danh sách từng course hiển thị progress, mastery, lesson completed và số
+  assessment đã đạt.
+- `Tiếp tục` mở đúng `last_accessed_lesson` do backend lưu.
+
+Đăng nhập Teacher A và mở `/dashboard`:
+
+- Chỉ thấy các course do Teacher A sở hữu, số học viên và trung bình
+  progress/mastery.
+- Nhấn `Xem học viên` trả danh sách phân trang của đúng course, không có email,
+  answer key hoặc chat.
+- Dùng Teacher A gọi report với `course_id` của Teacher B phải nhận 404.
+- Attempt assessment version cũ không được tính vào số liệu hiện hành.
+
+Giới hạn cần ghi nhận: báo cáo hiện chưa phân bố điểm theo learning objective,
+chưa xuất CSV và chưa có biểu đồ lịch sử theo thời gian.
 
 ## 15. Kiểm tra profile, comments, forum và review
 
@@ -616,7 +629,7 @@ Known security gap: AI `get_hint` hiện lấy exercise published nhưng chưa k
 enrollment rõ ràng. Không coi endpoint này an toàn cho production cho tới khi có
 fix và negative tests.
 
-### Analytics
+### Analytics cũ
 
 Dùng Swagger với JWT test:
 
@@ -625,10 +638,30 @@ Dùng Swagger với JWT test:
 - `GET /api/analytics/leaderboard/`
 - `GET /api/analytics/achievements/`
 
-Xác nhận endpoint yêu cầu authentication. Các counter hiện chưa tự chứng minh
-luồng assessment reporting; so sánh với Django Admin trước khi kết luận.
+Xác nhận endpoint yêu cầu authentication. Các counter legacy này không phải
+nguồn của báo cáo progress mới; report mới được suy ra trực tiếp từ Enrollment,
+LessonProgress và AssessmentAttempt phiên bản hiện hành.
 
-## 17. Ma trận kiểm tra phân quyền tối thiểu
+## 17. Kiểm tra adapter SadTalker PoC
+
+Đọc [SADTALKER_POC.md](SADTALKER_POC.md). Adapter không dùng API key và chỉ chạy
+qua management command, không có nút HTTP/public upload.
+
+Các ca có thể kiểm tra khi chưa cài model/GPU:
+
+- Không có `--confirm-rights-and-approval`: command dừng trước khi đọc input.
+- Dùng Teacher B với lesson Teacher A: command dừng vì ownership trước khi đọc
+  script/audio/portrait.
+- WAV giả hoặc ảnh sai định dạng: không tạo job.
+- `SADTALKER_ENABLED=False`: input hợp lệ tạo audit job `failed` với
+  `provider_disabled`, không lưu lỗi private.
+
+Nếu runtime SadTalker riêng đã được chuẩn bị, chạy đúng command trong tài liệu và
+kiểm tra job completed, checksum, actor, MP4 trên LessonPage và biên bản
+commit/checkpoint/GPU/thời gian/lip-sync. Nếu chưa có runtime, ghi
+`BLOCKED BY SADTALKER RUNTIME`; fake provider không phải bằng chứng render thật.
+
+## 18. Ma trận kiểm tra phân quyền tối thiểu
 
 | Ca thử | Kết quả mong đợi |
 | --- | --- |
@@ -648,7 +681,7 @@ luồng assessment reporting; so sánh với Django Admin trước khi kết lu�
 Với mỗi ca, kiểm tra cả UI lẫn Network response. UI ẩn nút không phải là bằng
 chứng phân quyền nếu backend vẫn chấp nhận request.
 
-## 18. Kiểm tra tự động sau manual test
+## 19. Kiểm tra tự động sau manual test
 
 Manual test không thay thế regression suite:
 
@@ -662,26 +695,26 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `116` tests pass.
+- Backend: `128` tests pass.
 - Frontend: lint pass và production build pass.
 - Build còn cảnh báo JavaScript chunk lớn và Browserslist data cũ.
 - Frontend chưa có test runner tự động riêng.
 
-## 19. Những phần chưa được coi là đã triển khai
+## 20. Những phần chưa được coi là đã triển khai
 
 Không đánh `PASS` cho các mục sau chỉ vì model hoặc UI placeholder tồn tại:
 
 - AI đánh giá kiến thức bằng hội thoại và rubric đã được kiểm chứng.
-- Báo cáo teacher/learner đầy đủ từ assessment.
+- Phân bố learning objective, lịch sử theo thời gian và xuất báo cáo CSV.
 - Code execution và tự chấm coding exercise.
 - Durable Celery/Redis background ingestion.
 - Parser wall-clock isolation và malware scanning.
 - Cloudflare R2/object storage production.
-- TTS, voice, avatar/lip-sync và video generation hoàn chỉnh.
+- TTS tự động và bằng chứng render SadTalker thật trên runtime GPU mục tiêu.
 - Tự động sinh/tóm tắt bài giảng trong luồng PDF hiện tại.
 - Comprehensive grounded-answer/refusal/cost evaluation.
 
-## 20. Mẫu báo lỗi hoặc đề xuất cải thiện
+## 21. Mẫu báo lỗi hoặc đề xuất cải thiện
 
 ```text
 Tiêu đề:

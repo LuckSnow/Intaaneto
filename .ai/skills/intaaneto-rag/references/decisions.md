@@ -223,3 +223,35 @@ affected files or migration.
 - Constraint: Reinforcement never changes score, mastery, completion, or
   progression. Passed, stale, and foreign attempts are not eligible, and a
   generated Tutor question is only prefilled for the learner to send explicitly.
+
+## RAG-017 — Progress reports derive from deterministic learning records
+
+- Status: Implemented for learner and owned-course dashboards
+- Date: 2026-07-16
+- Affected: analytics progress reporting API/tests and frontend dashboard
+- Decision: Calculate current reports from enrollment progress/mastery, lesson
+  completion, and attempts matching the assessment's current version. Do not use
+  the legacy mutable `LearningAnalytics` counters as assessment evidence.
+- Reason: The research report needs reproducible metrics tied to the same
+  server-owned progression baseline used by the product, without presenting
+  stale counters or retrieval similarity as learner mastery.
+- Constraint: Learners receive only their records. Teachers receive aggregates
+  and a paged roster for owned courses; reports omit email, answers, chat, and
+  old-version attempts. Admin scope remains explicit and audited separately.
+
+## RAG-018 — SadTalker PoC is local, manual, bounded, and audited
+
+- Status: Adapter implemented; real GPU render not yet verified
+- Date: 2026-07-16
+- Affected: video job model/migration/admin, local provider/command/tests,
+  lesson video serialization/UI, environment example, and `docs/SADTALKER_POC.md`
+- Decision: Keep SadTalker outside HTTP and invoke its CLI only from a trusted
+  management command after ownership and explicit rights/approval checks.
+  Validate bounded WAV/portrait/script inputs, execute without a shell and with
+  timeout, validate one MP4, and persist checksums plus a safe lifecycle record.
+- Reason: SadTalker's GPU dependency stack must not destabilize Django/RAG, and
+  generated likeness/audio introduces consent, provenance, abuse, resource, and
+  failure concerns that an inline request cannot handle safely.
+- Constraint: SadTalker is not TTS and requires no API key. A fake-provider test
+  proves the adapter contract only; the thesis cannot claim real video quality
+  until a recorded run uses reviewed checkpoints and consented inputs.

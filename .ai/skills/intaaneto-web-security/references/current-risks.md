@@ -96,6 +96,14 @@ exploitation. Re-check code and tests before changing status.
   before embedding, bounds weak-objective retrieval inside the assessment
   lesson, returns only application-owned citations, redacts provider failures,
   and cannot mutate score, mastery, completion, or progression.
+- Progress reporting derives from server-owned learning records: learners see
+  only self data, teachers are filtered to owned courses before aggregation or
+  roster lookup, rosters are bounded, and responses omit email, answer keys,
+  chats, and old-version attempts.
+- The SadTalker command authorizes ownership before input reads, requires an
+  explicit rights/approval assertion, bounds local media, avoids shell
+  invocation, kills timed-out process groups, validates output, and stores only
+  checksums plus safe failure codes in its audit record. There is no HTTP trigger.
 
 ## Status discipline
 

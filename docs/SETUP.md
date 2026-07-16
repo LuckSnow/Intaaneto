@@ -116,6 +116,13 @@ Chạy lại không có `--publish` sẽ giữ nguyên bài đã xuất bản, k
 Không đưa đáp án bài đánh giá vào các file học liệu vì nội dung này sẽ được RAG
 lập chỉ mục và hiển thị làm nguồn trích dẫn.
 
+## PoC video SadTalker
+
+SadTalker local không cần API key và không được cài chung vào backend mặc định.
+Adapter thủ công, giới hạn input, audit job, cấu hình runtime tách biệt và mẫu
+biên bản smoke được mô tả tại [SADTALKER_POC.md](SADTALKER_POC.md). Chưa có bằng
+chứng render GPU thật thì không được ghi nhận video tutor là đã hoàn thành.
+
 ## Email xác thực và Mailjet
 
 Môi trường development mặc định in email xác thực vào console backend. Để gửi

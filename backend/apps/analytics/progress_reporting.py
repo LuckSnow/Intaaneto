@@ -27,10 +27,18 @@ def learner_progress_report(user):
         .select_related('course', 'last_accessed_lesson')
         .order_by('-enrolled_at', '-id')[:MAX_LEARNER_COURSES]
     )
+    enrollment_queryset = Enrollment.objects.filter(user=user)
+    enrollment_aggregate = enrollment_queryset.aggregate(
+        average_progress=Avg('progress_percentage'),
+        average_mastery=Avg('mastery_percentage'),
+    )
+    current_attempts_all = AssessmentAttempt.objects.filter(
+        user=user,
+        assessment__is_published=True,
+        assessment__lesson__is_published=True,
+        assessment_version=F('assessment__version'),
+    )
     courses = []
-    total_lessons_completed = 0
-    total_assessments_attempted = 0
-    total_assessments_passed = 0
     for enrollment in enrollments:
         course = enrollment.course
         available_ids = [lesson.id for lesson in available_lessons(course)]
@@ -53,9 +61,6 @@ def learner_progress_report(user):
         passed = current_attempts.filter(passed=True).values(
             'assessment_id'
         ).distinct().count()
-        total_lessons_completed += completed_lessons
-        total_assessments_attempted += attempted
-        total_assessments_passed += passed
         courses.append({
             'course_id': course.id,
             'course_title': course.title,
@@ -77,29 +82,30 @@ def learner_progress_report(user):
             'completed_at': enrollment.completed_at,
         })
 
-    enrollment_count = Enrollment.objects.filter(user=user).count()
-    divisor = Decimal(len(enrollments)) if enrollments else Decimal('1')
+    enrollment_count = enrollment_queryset.count()
     return {
         'scope': 'learner',
         'summary': {
             'courses_enrolled': enrollment_count,
-            'courses_completed': sum(
-                enrollment.completed_at is not None for enrollment in enrollments
-            ),
-            'lessons_completed': total_lessons_completed,
-            'assessments_attempted': total_assessments_attempted,
-            'assessments_passed': total_assessments_passed,
+            'courses_completed': enrollment_queryset.filter(
+                completed_at__isnull=False
+            ).count(),
+            'lessons_completed': LessonProgress.objects.filter(
+                user=user,
+                is_completed=True,
+                lesson__course__enrollments__user=user,
+            ).distinct().count(),
+            'assessments_attempted': current_attempts_all.values(
+                'assessment_id'
+            ).distinct().count(),
+            'assessments_passed': current_attempts_all.filter(
+                passed=True
+            ).values('assessment_id').distinct().count(),
             'average_progress_percentage': _decimal(
-                sum(
-                    (enrollment.progress_percentage for enrollment in enrollments),
-                    Decimal('0.00'),
-                ) / divisor
+                enrollment_aggregate['average_progress']
             ),
             'average_mastery_percentage': _decimal(
-                sum(
-                    (enrollment.mastery_percentage for enrollment in enrollments),
-                    Decimal('0.00'),
-                ) / divisor
+                enrollment_aggregate['average_mastery']
             ),
         },
         'courses': courses,

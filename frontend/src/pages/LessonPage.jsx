@@ -298,7 +298,7 @@ export default function LessonPage() {
 
   const st = STATUS_MAP[lesson.processing_status] || STATUS_MAP.pending
   const isReady = lesson.processing_status === 'completed'
-  const videoUrl = lesson.ai_video_url || lesson.video_url
+  const videoUrl = lesson.video_file || lesson.ai_video_url || lesson.video_url
 
   return (
     <div className="min-h-screen">

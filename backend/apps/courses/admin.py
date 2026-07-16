@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
+from .models import (
+    Course,
+    Enrollment,
+    Lesson,
+    LessonComment,
+    LessonProgress,
+    LessonVideoGenerationJob,
+    Review,
+)
 
 
 class LessonInline(admin.TabularInline):
@@ -76,3 +84,28 @@ class LessonCommentAdmin(admin.ModelAdmin):
     def short_content(self, obj):
         return obj.content[:60] + '...' if len(obj.content) > 60 else obj.content
     short_content.short_description = 'Content'
+
+
+@admin.register(LessonVideoGenerationJob)
+class LessonVideoGenerationJobAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'lesson', 'requested_by', 'provider', 'status', 'created_at',
+    ]
+    list_filter = ['provider', 'status', 'created_at']
+    search_fields = ['lesson__title', 'requested_by__full_name']
+    raw_id_fields = ['lesson', 'requested_by']
+    readonly_fields = [
+        'lesson', 'requested_by', 'provider', 'status', 'approved_script',
+        'script_checksum', 'audio_checksum', 'portrait_checksum',
+        'rights_and_approval_confirmed', 'output_file', 'failure_code',
+        'created_at', 'started_at', 'completed_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
