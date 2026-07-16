@@ -70,6 +70,12 @@ export default function Login() {
                 đăng ký tài khoản mới
               </Link>
             </p>
+            <p className="mt-3 text-center text-sm text-white/80">
+              Bạn là giáo viên?{' '}
+              <Link to="/teacher/login" className="font-semibold text-orange-300 underline-offset-4 hover:underline">
+                Mở cổng giáo viên
+              </Link>
+            </p>
           </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Verification warning */}

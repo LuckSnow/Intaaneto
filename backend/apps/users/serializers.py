@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 import re
-from .models import Profile
+from .models import Profile, TeacherApplication
 
 User = get_user_model()
 
@@ -89,3 +89,65 @@ class LoginSerializer(serializers.Serializer):
     
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+
+
+class ResendVerificationSerializer(serializers.Serializer):
+    """Validate an email without exposing account existence."""
+
+    email = serializers.EmailField()
+
+
+class TeacherApplicationSerializer(serializers.ModelSerializer):
+    """Learner-owned teacher application contract."""
+
+    class Meta:
+        model = TeacherApplication
+        fields = [
+            'id',
+            'specialization',
+            'years_of_experience',
+            'reason',
+            'status',
+            'review_note',
+            'submitted_at',
+            'reviewed_at',
+        ]
+        read_only_fields = [
+            'id',
+            'status',
+            'review_note',
+            'submitted_at',
+            'reviewed_at',
+        ]
+        extra_kwargs = {
+            'specialization': {'min_length': 2},
+            'reason': {'min_length': 20},
+            'years_of_experience': {'min_value': 0, 'max_value': 80},
+        }
+
+    def validate_specialization(self, value):
+        return value.strip()
+
+    def validate_reason(self, value):
+        return value.strip()
+
+
+class TeacherApplicationReviewSerializer(serializers.Serializer):
+    """Admin-only review decision."""
+
+    application_id = serializers.IntegerField(min_value=1)
+    decision = serializers.ChoiceField(choices=['approved', 'rejected'])
+    review_note = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=1000,
+    )
+
+    def validate(self, attrs):
+        note = attrs.get('review_note', '').strip()
+        if attrs['decision'] == 'rejected' and len(note) < 10:
+            raise serializers.ValidationError({
+                'review_note': 'Cần nêu lý do từ chối rõ ràng.',
+            })
+        attrs['review_note'] = note
+        return attrs

@@ -154,3 +154,19 @@ affected files or migration.
 - Implementation note: Slice 4 replaced the legacy PDF/PPTX upload contract with
   a synchronous PDF-only upload-to-index path. Production job durability remains
   a separate concern recorded in `current-state.md`.
+
+## RAG-013 — Evaluate retrieval before tuning it
+
+- Status: Implemented for the initial Slice 5 harness
+- Date: 2026-07-16
+- Affected: `backend/apps/ai_assistant/rag_evaluation.py`, the bundled Vietnamese
+  evaluation dataset, demo seed content, evaluation command, and tests
+- Decision: Keep a versioned evaluation dataset tied to non-sensitive,
+  reproducible demo lesson material and run it through the same authorized
+  lesson-retrieval service used by chat. Record provider/source configuration and
+  bounded metrics without invoking answer generation or logging raw evidence.
+- Reason: Retrieval quality and threshold changes need repeatable evidence while
+  authorization and observability boundaries remain identical to the product
+  path.
+- Revisit when: the dataset is large enough to split development and holdout
+  cases, or grounded-answer evaluation requires a separately versioned rubric.

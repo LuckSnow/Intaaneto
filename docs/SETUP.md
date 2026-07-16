@@ -27,9 +27,7 @@ docker compose exec backend python manage.py createsuperuser
 
 Nhập email, username, full name và một mật khẩu mạnh riêng trên từng máy. Không
 dùng hoặc ghi một mật khẩu quản trị mặc định trong repository.
-## Tài khoản demo cho giáo viên
-Email: demo.teacher@example.invalid
-Password: Teacher123!
+
 ## Tạo dữ liệu mẫu dùng chung
 
 Không copy Docker volume hoặc dump toàn bộ database development sang máy khác vì
@@ -70,6 +68,61 @@ Tài khoản demo:
 Cuối output của `seed_demo_data` có lệnh `index_lesson` với ID đúng trên database
 của từng máy. Chỉ chạy lệnh đó khi muốn kiểm tra RAG vì lần đầu có thể phải tải
 embedding model local.
+
+Sau khi seed và index lesson demo, có thể chạy bộ đánh giá retrieval tiếng Việt
+đã version hóa bằng ID lesson và ID teacher mà command seed vừa in ra:
+
+```bash
+LESSON_ID=123 TEACHER_ID=45
+docker compose exec backend python manage.py evaluate_rag_retrieval "$LESSON_ID" --actor-id "$TEACHER_ID"
+```
+
+Thay `123` và `45` bằng các ID tương ứng trong output của `seed_demo_data`.
+
+Command chỉ đánh giá retrieval trong lesson mà actor được phép đọc; nó không gọi
+mô hình sinh câu trả lời. Báo cáo JSON ghi dataset/config version, accuracy,
+expected-source recall, latency và kết quả theo ID ca kiểm thử, không in raw chunk,
+embedding hay provider diagnostics. Nếu nội dung demo vừa được cập nhật, chạy lại
+`index_lesson` trước khi đánh giá để tạo source version hiện hành.
+
+## Email xác thực và Mailjet
+
+Môi trường development mặc định in email xác thực vào console backend. Để gửi
+qua Mailjet, đặt ba giá trị sau trong `backend/.env` rồi recreate backend; không
+đặt các key này trong biến `VITE_*` hoặc commit file `.env`:
+
+```env
+EMAIL_BACKEND=anymail.backends.mailjet.EmailBackend
+MAILJET_API_KEY=your-local-mailjet-api-key
+MAILJET_SECRET_KEY=your-local-mailjet-secret-key
+```
+
+Địa chỉ `DEFAULT_FROM_EMAIL` phải là sender/domain đã được xác minh trong tài
+khoản Mailjet. Link xác thực mặc định hết hạn sau 24 giờ; có thể cấu hình bằng
+`EMAIL_VERIFICATION_TOKEN_TTL_HOURS`. Sau khi đổi cấu hình:
+
+```bash
+docker compose up -d --force-recreate backend
+```
+
+Không dùng API key thật trong frontend hoặc ảnh chụp/log chia sẻ. Cổng giáo viên
+ở `http://localhost:5173/teacher/login`; endpoint backend chỉ cấp JWT nếu tài
+khoản đã được xác thực và role do server lưu là `teacher` hoặc `admin`.
+
+### Duyệt hồ sơ giáo viên
+
+Học viên đã xác thực có thể gửi hồ sơ tại trang Profile. Việc gửi hồ sơ không tự
+đổi role. Các admin active/verified nhận một email ngắn chứa ID hồ sơ; nếu Mailjet
+chưa sẵn sàng, hồ sơ vẫn được lưu trong database để không mất yêu cầu.
+
+Admin đăng nhập Django admin tại `http://localhost:8000/admin/`, mở
+`Users > Teacher applications`, chọn các hồ sơ `pending`, rồi dùng action duyệt
+hoặc từ chối. Khi duyệt, backend đổi role và cập nhật specialization/experience
+trong cùng transaction, đồng thời lưu reviewer và thời gian xử lý. Người nộp nhận
+email kết quả nếu email backend hoạt động.
+
+Hiện chưa có bài test năng lực giáo viên đã được kiểm chứng. Nếu bổ sung sau,
+điểm test chỉ nên là dữ liệu hỗ trợ admin; không nên tự động cấp role đặc quyền.
 
 ### Đăng nhập trên web
 

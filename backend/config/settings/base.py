@@ -252,6 +252,11 @@ ANYMAIL = {
 }
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@intaaneto.com')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
+EMAIL_VERIFICATION_TOKEN_TTL_HOURS = config(
+    'EMAIL_VERIFICATION_TOKEN_TTL_HOURS',
+    default=24,
+    cast=int,
+)
 
 # Frontend URL for email links
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')

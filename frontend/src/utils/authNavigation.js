@@ -11,6 +11,7 @@ export const getPostLoginPath = (user, requestedPath) => {
     && requestedPath.startsWith('/')
     && !requestedPath.startsWith('//')
     && requestedPath !== '/login'
+    && requestedPath !== '/teacher/login'
     && requestedPath !== '/register'
   )
   return isSafeInternalPath ? requestedPath : getDefaultAuthenticatedPath(user)

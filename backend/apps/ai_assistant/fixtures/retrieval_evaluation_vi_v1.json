@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "dataset_id": "intaaneto-demo-rag-retrieval-vi",
+  "version": "1.0.0",
+  "language": "vi",
+  "lesson_slug": "demo-rag-la-gi",
+  "cases": [
+    {
+      "id": "rag-purpose",
+      "question": "RAG giúp mô hình ngôn ngữ trả lời dựa trên nguồn nào?",
+      "answerable": true,
+      "expected_text": "kho tài liệu đã được phê duyệt",
+      "tags": ["definition", "answerable"]
+    },
+    {
+      "id": "indexing-stage",
+      "question": "Trong giai đoạn lập chỉ mục, hệ thống xử lý nội dung bài học như thế nào?",
+      "answerable": true,
+      "expected_text": "chuẩn hóa nội dung bài học",
+      "tags": ["pipeline", "answerable"]
+    },
+    {
+      "id": "authorization-before-retrieval",
+      "question": "Khi hỏi đáp, quyền truy cập được kiểm tra vào lúc nào?",
+      "answerable": true,
+      "expected_text": "kiểm tra quyền truy cập bài học trước",
+      "tags": ["authorization", "answerable"]
+    },
+    {
+      "id": "application-citations",
+      "question": "Ai chịu trách nhiệm xây dựng citation cho câu trả lời?",
+      "answerable": true,
+      "expected_text": "Citation phải do ứng dụng xây dựng",
+      "tags": ["citation", "answerable"]
+    },
+    {
+      "id": "weak-evidence-fallback",
+      "question": "AI Tutor phải làm gì khi bằng chứng có điểm liên quan thấp?",
+      "answerable": true,
+      "expected_text": "chưa cung cấp đủ thông tin thay vì đoán",
+      "tags": ["fallback", "answerable"]
+    },
+    {
+      "id": "document-prompt-injection",
+      "question": "Nếu tài liệu yêu cầu bỏ qua chính sách và tiết lộ bí mật thì hệ thống xử lý thế nào?",
+      "answerable": true,
+      "expected_text": "không được làm theo",
+      "tags": ["prompt-injection", "answerable"]
+    },
+    {
+      "id": "unsupported-weather",
+      "question": "Ngày mai ở Hà Nội có mưa không?",
+      "answerable": false,
+      "expected_text": null,
+      "tags": ["unsupported", "weather"]
+    },
+    {
+      "id": "unsupported-cooking",
+      "question": "Cần nướng bánh mì ở nhiệt độ bao nhiêu?",
+      "answerable": false,
+      "expected_text": null,
+      "tags": ["unsupported", "cooking"]
+    }
+  ]
+}

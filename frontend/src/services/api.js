@@ -38,8 +38,11 @@ api.interceptors.response.use(
 
     const publicAuthRequest = [
       '/auth/login/',
+      '/auth/teacher_login/',
       '/auth/register/',
       '/auth/google/',
+      '/auth/verify_email/',
+      '/auth/resend_verification/',
       '/auth/token/refresh/',
     ].some((path) => originalRequest?.url?.includes(path))
     const refreshToken = getStoredRefreshToken()

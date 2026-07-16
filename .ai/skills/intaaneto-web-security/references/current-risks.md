@@ -1,6 +1,6 @@
 # Current security risks
 
-Last repository audit: 2026-07-15. These are observed risks, not proof of
+Last repository audit: 2026-07-16. These are observed risks, not proof of
 exploitation. Re-check code and tests before changing status.
 
 ## P0 — Resolve before exposing the application
@@ -22,6 +22,9 @@ exploitation. Re-check code and tests before changing status.
 ## Operational gaps
 
 - No rate limiting or request throttling is configured.
+- Mailjet delivery still requires a verified sender and a deliberate local smoke
+  test. Automated tests use Django's in-memory email backend and do not prove
+  external deliverability.
 - Security regression coverage now includes initial role, lesson ownership,
   enrollment, hidden-answer, chat-scope, indexing-owner, lesson-scoped vector
   retrieval boundaries, and initial PDF spoofing/type/size/owner failure paths.
@@ -39,7 +42,9 @@ exploitation. Re-check code and tests before changing status.
 ## Resolved with regression tests through 2026-07-15
 
 - User API no longer exposes global CRUD; role and active status are read-only,
-  registration always creates a learner, and self-upgrade is admin-gated.
+  registration always creates a learner, and direct self-upgrade has been
+  removed. Verified learners submit a pending teacher application; only an
+  active verified admin can approve it and trigger the transactional role change.
 - Anonymous course mutation is denied; lesson access is filtered by enrollment,
   preview state, teacher ownership, or admin role.
 - Student exercise responses omit `solution_code` and hidden `test_cases`, and
@@ -62,8 +67,8 @@ exploitation. Re-check code and tests before changing status.
   and gates frontend startup on backend health.
 - Collaborative demo data is recreated without copying development users, chats,
   uploads, or vectors. Demo accounts have unusable passwords unless each machine
-  supplies ignored environment values, and the legacy fixed seed password has
-  been removed.
+  supplies ignored environment values. The legacy fixed seed password and its
+  stale setup-documentation entry have been removed.
 - Lesson upload now accepts PDF only, validates its signature and bounded parser
   inputs, rejects the removed document formats, authorizes ownership before
   extraction/embedding, and never activates partial chunks after an indexing
@@ -72,6 +77,17 @@ exploitation. Re-check code and tests before changing status.
   blacklist app and covered by API tests. The frontend stores a rotated refresh
   token, validates the current user during app startup, and does not attempt a
   refresh when login or registration itself returns 401.
+- Teacher-portal login checks the server-owned role and verified/active state
+  before issuing JWTs; learner credentials receive no tokens. Verification links
+  now have a persisted configurable expiry, SHA-256-at-rest token digest, and
+  single-use behavior. Resend uses the same successful response for missing,
+  verified, and unverified accounts, while sending only for an existing
+  unverified account.
+- Teacher applications enforce one pending request per learner, ignore
+  client-controlled status/reviewer fields, record reviewer/time/note, and keep
+  the learner role unchanged until admin approval. Negative tests cover direct
+  self-elevation attempts, duplicate pending requests, teacher reapplication,
+  learner review attempts, and rejection-note validation.
 
 ## Status discipline
 

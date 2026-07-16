@@ -76,6 +76,13 @@ duplicate data, and malformed/encrypted/empty files fail safely.
 
 ## Slice 5 — Evaluate and harden
 
+Status: In progress. A versioned eight-case Vietnamese retrieval dataset and an
+authorized, generation-free evaluation command were implemented on 2026-07-16.
+The first harness reports status accuracy, expected-source recall, pass rate,
+latency, and retrieval configuration. The first PostgreSQL/FastEmbed run is
+recorded with `0.75` pass rate and `1.00` expected-source recall. Dataset
+expansion and grounded-answer/refusal evaluation remain.
+
 - Version an evaluation set with answerability and expected sources.
 - Track retrieval recall/precision proxy, citation correctness, groundedness,
   refusal quality, latency, and cost.

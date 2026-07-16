@@ -24,6 +24,16 @@ export const authService = {
     return response.data
   },
 
+  // Login through the server-enforced teacher/admin portal
+  teacherLogin: async (credentials) => {
+    const response = await api.post('/auth/teacher_login/', credentials)
+    const { user, tokens } = response.data
+
+    storeAuthSession({ user, tokens })
+
+    return response.data
+  },
+
   // Google Sign-In via Firebase
   googleLogin: async () => {
     if (!auth || !googleProvider) {
@@ -72,6 +82,19 @@ export const authService = {
   // Update profile
   updateProfile: async (userData) => {
     const response = await api.put('/auth/users/update_profile/', userData)
+    return response.data
+  },
+
+  getTeacherApplication: async () => {
+    const response = await api.get('/auth/users/teacher_application/')
+    return response.data
+  },
+
+  submitTeacherApplication: async (applicationData) => {
+    const response = await api.post(
+      '/auth/users/teacher_application/',
+      applicationData,
+    )
     return response.data
   },
 }

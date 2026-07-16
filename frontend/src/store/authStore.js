@@ -69,6 +69,25 @@ export const useAuthStore = create((set) => ({
     }
   },
 
+  teacherLogin: async (credentials) => {
+    set({ isLoading: true, error: null })
+    try {
+      const data = await authService.teacherLogin(credentials)
+      set({
+        user: data.user,
+        isAuthenticated: true,
+        isLoading: false,
+      })
+      return data
+    } catch (error) {
+      set({
+        error: error.response?.data?.error || 'Teacher login failed',
+        isLoading: false,
+      })
+      throw error
+    }
+  },
+
   register: async (userData) => {
     set({ isLoading: true, error: null })
     try {

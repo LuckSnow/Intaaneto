@@ -10,6 +10,7 @@ import DashboardLayout from './components/layouts/DashboardLayout'
 // Pages
 import Landing from './pages/Landing'
 import Login from './pages/Login'
+import TeacherLogin from './pages/TeacherLogin'
 import Register from './pages/Register'
 import VerifyEmail from './pages/VerifyEmail'
 import Dashboard from './pages/Dashboard'
@@ -62,6 +63,10 @@ function App() {
 
   return (
     <Routes>
+      <Route
+        path="/teacher/login"
+        element={<GuestRoute><TeacherLogin /></GuestRoute>}
+      />
       {/* Public Routes */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<Landing />} />

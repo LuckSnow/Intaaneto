@@ -75,6 +75,15 @@ relying on it and update it after material implementation changes.
   vector dimension, and a provisional minimum cosine similarity of `0.45`.
   A small checked-in Vietnamese fixture covers RAG, Python, and an unsupported
   weather question. The threshold remains subject to broader evaluation.
+- Slice 5 now has an initial versioned Vietnamese retrieval-evaluation dataset
+  tied to the deterministic demo RAG lesson. It contains six answerable cases,
+  two unsupported cases, expected source-text markers, and a prompt-injection
+  case embedded in the non-sensitive demo material. The
+  `evaluate_rag_retrieval` management command reuses authorized lesson retrieval
+  without calling a generation provider and emits dataset/config versions,
+  status accuracy, expected-source recall, pass rate, latency, and bounded
+  per-case metadata without questions, raw chunks, embeddings, or provider
+  diagnostics.
 - Lesson chat now sends a server-authorized `lesson_id` and returns a stable
   `answer`, `citations`, `grounded`, and retrieval-status contract. Slice 3 now
   calls authorized lesson retrieval, skips OpenAI for weak/missing evidence,
@@ -87,8 +96,16 @@ relying on it and update it after material implementation changes.
 - The lesson chat UI keeps the server-owned session ID while the page is open and
   displays grounded/fallback status plus expandable source excerpts. React text
   rendering is used for excerpts; no raw HTML is injected.
+- The first live run of the versioned eight-case Vietnamese retrieval dataset
+  completed against PostgreSQL exact cosine and active demo source v1 on
+  2026-07-16. Pass/status accuracy was `0.75`, expected-source recall was `1.00`,
+  and mean latency including cold model initialization was `225.12 ms`. The
+  authorization and prompt-injection questions were present in top-k but fell
+  below the provisional `0.45` threshold (`0.275` and `0.442`); both unsupported
+  cases correctly returned weak evidence. The measured result is recorded in
+  `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. Seventy-two backend tests passed on 2026-07-16 in the
+  regression coverage. Ninety-two backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -126,6 +143,22 @@ relying on it and update it after material implementation changes.
   PDF upload surface and learners to their dashboard, hides login/register from
   authenticated users, and keeps public registration learner-only. SimpleJWT
   refresh rotation/logout blacklisting is installed and covered by API tests.
+- A dedicated `/teacher/login` frontend and `teacher_login` API now issue JWTs
+  only to active, email-verified teacher/admin accounts; learner credentials are
+  rejected without tokens. Verification tokens record issuance time, expire
+  after a configurable 24-hour default, are stored as SHA-256 digests, are
+  single-use, and resend responses do not disclose whether an account exists or
+  is already verified. Mailjet remains server-side through Anymail; live delivery
+  depends on local sender/key setup.
+- Self-service teacher elevation has been replaced by an auditable application
+  workflow. A verified learner can submit one pending specialization/experience/
+  reason application without changing role. Active verified admins receive a
+  bounded email notice and can approve or reject through an admin-only API or
+  Django admin actions. Approval transactionally changes the applicant to
+  teacher, copies specialization/experience to the profile, and records reviewer,
+  note, and review time; rejection leaves the learner role unchanged and permits
+  a later reapplication. The profile UI shows pending/rejected states instead of
+  promising immediate elevation.
 - Rollback-only PostgreSQL smoke tests persisted and ranked pgvector chunks with
   exact cosine distance. A live FastEmbed smoke ranked the intended RAG and
   Python chunks first (`0.494` and `0.756`) and marked the unsupported weather
@@ -154,10 +187,12 @@ relying on it and update it after material implementation changes.
 
 ## Not implemented as of the inspection
 
-- No reranking or comprehensive RAG evaluation set. Citation objects are returned
-  and shown for the current response, while only safe retrieval identifiers and
-  scores are persisted; restoring citation excerpts after a page reload is not
-  implemented.
+- No reranking or comprehensive answer-generation RAG evaluation yet. The
+  initial versioned dataset measures lesson retrieval only; groundedness,
+  answer correctness, refusal quality, generation latency, and cost still need
+  a repeatable evaluation harness. Citation objects are returned and shown for
+  the current response, while only safe retrieval identifiers and scores are
+  persisted; restoring citation excerpts after a page reload is not implemented.
 - No ANN vector index is created yet. The pgvector column intentionally accepts
   configurable dimensions until embedding quality is evaluated; retrieval
   queries only vectors matching the active source's model/revision/dimension.
@@ -169,6 +204,9 @@ relying on it and update it after material implementation changes.
   per-chunk page fields, and orphan-file cleanup are not implemented yet.
 - Chat history restoration in the lesson UI is not implemented; the current page
   keeps one server-owned session until navigation or reload.
+- No validated teacher competency test or scoring rubric is implemented. A future
+  assessment may provide evidence to the admin review, but must not automatically
+  grant a privileged role without an explicitly accepted policy.
 
 ## Known integration risks
 
@@ -194,9 +232,10 @@ relying on it and update it after material implementation changes.
   confirm citations/fallback in the UI without exposing provider or retrieval
   diagnostics. Free Gemini API usage must not receive sensitive, confidential,
   or personal lesson/student data.
-- Expand the Vietnamese evaluation set before tuning the provisional `0.45`
-  threshold, changing the 384-dimensional model, or adding an ANN index. Exact
-  pgvector search is sufficient for the current small corpus baseline.
+- Expand the recorded Vietnamese retrieval baseline and add grounded-answer/
+  refusal evaluation before tuning the provisional `0.45` threshold, changing
+  the 384-dimensional model, or adding an ANN index. Exact pgvector search is
+  sufficient for the current small corpus baseline.
 - Do not add R2, Google Drive, Celery, Redis, avatar, voice, or video work to this
   slice. Original lesson fields are sufficient for the first indexing path.
 - Collaborators should run migrations and `seed_demo_data` locally rather than

@@ -108,11 +108,13 @@ Phiên bản nghiên cứu đầu tiên cần chứng minh được một vòng 
 
 ### Đang nghiên cứu và chưa hoàn thiện
 
-- Pipeline trích xuất và chuẩn hóa học liệu.
-- Chunking, embedding, pgvector và truy xuất theo phạm vi bài học.
-- Grounded answer và citation.
-- Bộ dữ liệu đánh giá chất lượng RAG.
-- Kiểm tra kiến thức bằng hội thoại và progression rule.
+- Durable background processing và parser isolation cho pipeline PDF hiện đang
+  chạy đồng bộ.
+- Mở rộng/tuning retrieval baseline hiện có bằng số liệu thay vì trực giác.
+- Đánh giá có hệ thống grounded answer, citation và refusal quality.
+- Mở rộng bộ dữ liệu retrieval tiếng Việt đã version hóa và ghi nhận live
+  baseline.
+- Kiểm tra kiến thức bằng hội thoại; lesson completion/progression cơ bản đã có.
 - Background processing với Celery/Redis.
 - Lưu trữ object trên Cloudflare R2.
 - TTS, avatar/lip-sync và tạo video giảng viên ảo.
