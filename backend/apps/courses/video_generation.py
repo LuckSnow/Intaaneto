@@ -131,16 +131,27 @@ class SadTalkerLocalProvider:
             raise VideoGenerationError('provider_disabled', 'SadTalker chưa được bật.')
         root = Path(settings.SADTALKER_ROOT).expanduser().resolve()
         inference_script = root / 'inference.py'
-        if not inference_script.is_file():
+        python_executable = Path(
+            settings.SADTALKER_PYTHON_EXECUTABLE
+        ).expanduser().resolve()
+        required_models = (
+            root / 'checkpoints' / 'SadTalker_V0.0.2_256.safetensors',
+            root / 'checkpoints' / 'mapping_00229-model.pth.tar',
+        )
+        if (
+            not inference_script.is_file()
+            or not python_executable.is_file()
+            or any(not model.is_file() or model.stat().st_size == 0 for model in required_models)
+        ):
             raise VideoGenerationError(
                 'provider_not_installed',
-                'Chưa tìm thấy bản cài SadTalker.',
+                'SadTalker runtime hoặc checkpoint chưa đầy đủ.',
             )
         work_root = Path(settings.SADTALKER_WORK_ROOT).expanduser().resolve()
         work_root.mkdir(parents=True, exist_ok=True)
         work_dir = Path(tempfile.mkdtemp(prefix='intaaneto-sadtalker-', dir=work_root))
         command = [
-            settings.SADTALKER_PYTHON_EXECUTABLE,
+            str(python_executable),
             str(inference_script),
             '--driven_audio',
             str(audio_path),
@@ -148,15 +159,38 @@ class SadTalkerLocalProvider:
             str(portrait_path),
             '--result_dir',
             str(work_dir),
+            '--size',
+            '256',
+            '--batch_size',
+            '1',
+            '--preprocess',
+            'crop',
+            '--still',
         ]
-        process = subprocess.Popen(
-            command,
-            cwd=root,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
+        runtime_env = os.environ.copy()
+        runtime_env['PATH'] = os.pathsep.join(filter(None, (
+            str(python_executable.parent),
+            runtime_env.get('PATH', ''),
+        )))
+        runtime_env['PYTHONNOUSERSITE'] = '1'
+        runtime_env.pop('PYTHONHOME', None)
+        runtime_env.pop('PYTHONPATH', None)
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=root,
+                env=runtime_env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            shutil.rmtree(work_dir, ignore_errors=True)
+            raise VideoGenerationError(
+                'provider_failed',
+                'Không thể khởi động SadTalker.',
+            ) from exc
         try:
             return_code = process.wait(timeout=settings.SADTALKER_TIMEOUT_SECONDS)
         except subprocess.TimeoutExpired as exc:

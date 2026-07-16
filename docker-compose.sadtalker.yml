@@ -1,0 +1,14 @@
+services:
+  backend:
+    gpus: all
+    volumes:
+      - type: bind
+        source: ${SADTALKER_HOST_RUNTIME:?Set SADTALKER_HOST_RUNTIME to the isolated runtime directory}
+        target: /opt/intaaneto-sadtalker
+        read_only: true
+    environment:
+      SADTALKER_ENABLED: "True"
+      SADTALKER_ROOT: /opt/intaaneto-sadtalker/SadTalker
+      SADTALKER_PYTHON_EXECUTABLE: /opt/intaaneto-sadtalker/env/bin/python
+      SADTALKER_WORK_ROOT: /app/media/sadtalker-work
+      SADTALKER_TIMEOUT_SECONDS: ${SADTALKER_TIMEOUT_SECONDS:-1800}

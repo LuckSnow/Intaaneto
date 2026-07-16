@@ -1,4 +1,5 @@
 from io import StringIO
+import os
 from pathlib import Path
 import wave
 
@@ -14,6 +15,7 @@ from apps.users.models import User
 from .models import Course, Lesson, LessonVideoGenerationJob
 from .video_generation import (
     GeneratedVideo,
+    SadTalkerLocalProvider,
     VideoGenerationError,
     generate_lesson_video,
 )
@@ -252,3 +254,60 @@ def test_database_rejects_unconfirmed_video_job(teacher_user, video_lesson):
             portrait_checksum='c' * 64,
             rights_and_approval_confirmed=False,
         )
+
+
+def test_local_provider_uses_bounded_reproducible_runtime_environment(
+    monkeypatch, settings, tmp_path
+):
+    root = tmp_path / 'SadTalker'
+    checkpoints = root / 'checkpoints'
+    checkpoints.mkdir(parents=True)
+    (root / 'inference.py').write_text('pass', encoding='utf-8')
+    (checkpoints / 'SadTalker_V0.0.2_256.safetensors').write_bytes(b'model')
+    (checkpoints / 'mapping_00229-model.pth.tar').write_bytes(b'mapping')
+    runtime_bin = tmp_path / 'runtime' / 'bin'
+    runtime_bin.mkdir(parents=True)
+    python_executable = runtime_bin / 'python'
+    python_executable.write_bytes(b'python')
+    work_root = tmp_path / 'work'
+    settings.SADTALKER_ENABLED = True
+    settings.SADTALKER_ROOT = str(root)
+    settings.SADTALKER_PYTHON_EXECUTABLE = str(python_executable)
+    settings.SADTALKER_WORK_ROOT = str(work_root)
+    monkeypatch.setenv('PYTHONHOME', '/private/python-home')
+    monkeypatch.setenv('PYTHONPATH', '/private/python-path')
+    captured = {}
+
+    class SuccessfulProcess:
+        pid = 12345
+
+        def wait(self, timeout=None):
+            captured['timeout'] = timeout
+            return 0
+
+    def fake_popen(command, **kwargs):
+        captured['command'] = command
+        captured['kwargs'] = kwargs
+        result_dir = Path(command[command.index('--result_dir') + 1])
+        (result_dir / 'result.mp4').write_bytes(b'video')
+        return SuccessfulProcess()
+
+    monkeypatch.setattr('apps.courses.video_generation.subprocess.Popen', fake_popen)
+
+    generated = SadTalkerLocalProvider().generate(
+        audio_path=tmp_path / 'audio.wav',
+        portrait_path=tmp_path / 'portrait.png',
+    )
+
+    assert generated.path.name == 'result.mp4'
+    command = captured['command']
+    assert command[0] == str(python_executable.resolve())
+    assert command[-7:] == [
+        '--size', '256', '--batch_size', '1', '--preprocess', 'crop', '--still',
+    ]
+    runtime_env = captured['kwargs']['env']
+    assert runtime_env['PATH'].split(os.pathsep)[0] == str(runtime_bin.resolve())
+    assert runtime_env['PYTHONNOUSERSITE'] == '1'
+    assert 'PYTHONHOME' not in runtime_env
+    assert 'PYTHONPATH' not in runtime_env
+    assert captured['kwargs']['start_new_session'] is True
