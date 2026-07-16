@@ -73,9 +73,10 @@ Tại ngày 2026-07-16:
 - 168 backend tests pass trong isolated Django test settings, gồm một hành trình
   tích hợp course draft → PDF/RAG index → assessment → enroll → progression.
 - Django system check pass; migration drift check pass.
-- Frontend ESLint và production build pass.
+- Frontend ESLint, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
 - PostgreSQL migration `courses.0005` đã áp dụng ở development.
-- Build còn cảnh báo JS chunk trên 500 kB và Browserslist data cũ.
+- Bundle chính đã giảm từ khoảng 997 kB xuống 461 kB nhờ tách Google Auth; build
+  còn cảnh báo Browserslist data cũ.
 
 Các test bao phủ indexing atomic/idempotent, retrieval authorization, grounded
 citations/fallback, PDF ingestion, auth/role, assessment/progression,
@@ -96,6 +97,9 @@ thế evaluation chất lượng mô hình hoặc penetration test production.
 
 ### E2 — Assessment consistency
 
+- Protocol thực nghiệm, mẫu dữ liệu, quy trình hai người chấm và chỉ số agreement
+  đã được định nghĩa tại `docs/ASSESSMENT_EVALUATION_PROTOCOL.md`; thí nghiệm
+  thực tế chưa được chạy.
 - Teacher tạo bộ câu hỏi/rubric theo learning objective cho lesson đại diện.
 - So sánh deterministic score với đánh giá hội thoại chỉ ở chế độ recommendation.
 - Có ít nhất hai người chấm và đo agreement trước khi AI grade ảnh hưởng learner.
@@ -122,8 +126,8 @@ thế evaluation chất lượng mô hình hoặc penetration test production.
   lực thực tế hoặc tác động giáo dục.
 - PDF parser và embedding chạy đồng bộ; chưa có durable worker/rate limit đầy đủ.
 - SadTalker mới có adapter tests, chưa có real-render evidence.
-- Token localStorage, frontend dependency vulnerabilities và production settings
-  vẫn cần security hardening.
+- Token localStorage và production settings vẫn cần security hardening; dependency
+  audit sạch chỉ là bằng chứng tại một thời điểm và cần được chạy định kỳ.
 
 ## 7. Đạo đức, quyền riêng tư và an toàn
 

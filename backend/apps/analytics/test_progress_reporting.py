@@ -1,3 +1,5 @@
+import csv
+import io
 from decimal import Decimal
 
 import pytest
@@ -200,3 +202,67 @@ def test_progress_report_requires_authentication(api_client):
     response = api_client.get('/api/analytics/progress_report/')
 
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_teacher_exports_owned_course_progress_as_safe_csv(
+    api_client, teacher_user, student_user, progress_records
+):
+    course, _, _, _, _ = progress_records
+    student_user.full_name = '=HYPERLINK("https://example.invalid","bad")'
+    student_user.save(update_fields=['full_name'])
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.get(
+        '/api/analytics/progress-export/',
+        {'course_id': course.id},
+    )
+
+    assert response.status_code == 200
+    assert response['Content-Type'].startswith('text/csv')
+    assert response['Content-Disposition'] == (
+        f'attachment; filename="course-{course.id}-progress.csv"'
+    )
+    rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8-sig'))))
+    assert len(rows) == 1
+    assert rows[0]['learner_id'] == str(student_user.id)
+    assert rows[0]['full_name'].startswith("'=")
+    assert rows[0]['progress_percentage'] == '50.00'
+    assert rows[0]['mastery_percentage'] == '75.00'
+    assert rows[0]['assessment_attempts'] == '1'
+    assert rows[0]['assessments_passed'] == '0'
+    assert 'email' not in response.content.decode('utf-8-sig').lower()
+
+
+@pytest.mark.django_db
+def test_progress_export_requires_teacher_role_and_owned_course(
+    api_client, teacher_user, student_user
+):
+    private_teacher = User.objects.create_user(
+        email='export-owner@example.invalid',
+        username='export-owner',
+        full_name='Export Owner',
+        password='LocalTestOnly-123!',
+        role='teacher',
+        is_verified=True,
+    )
+    private_course = Course.objects.create(
+        title='Private export',
+        slug='private-export',
+        description='Không được xuất',
+        teacher=private_teacher,
+    )
+
+    api_client.force_authenticate(student_user)
+    learner_response = api_client.get(
+        '/api/analytics/progress-export/',
+        {'course_id': private_course.id},
+    )
+    assert learner_response.status_code == 403
+
+    api_client.force_authenticate(teacher_user)
+    other_teacher_response = api_client.get(
+        '/api/analytics/progress-export/',
+        {'course_id': private_course.id},
+    )
+    assert other_teacher_response.status_code == 404

@@ -718,8 +718,9 @@ Kết quả baseline tại thời điểm viết tài liệu:
 
 - Backend: `168` tests pass, gồm một integration test teacher PDF → assessment
   → learner progression không gọi mạng/LLM.
-- Frontend: lint pass và production build pass.
-- Build còn cảnh báo JavaScript chunk lớn và Browserslist data cũ.
+- Frontend: lint pass, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
+- Bundle chính khoảng 461 kB; Google Auth được tải theo nhu cầu. Build còn cảnh
+  báo Browserslist data cũ.
 - Frontend chưa có test runner tự động riêng.
 
 ## 20. Những phần chưa được coi là đã triển khai

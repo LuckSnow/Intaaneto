@@ -283,19 +283,24 @@ relying on it and update it after material implementation changes.
   integrations. Real `.env` files are Git-ignored; no provider key is required
   merely to render and browse the local web application.
 - Firebase initialization is optional in local frontend development. Missing
-  Firebase values no longer crash React during module import; Google login and
-  Firestore realtime helpers remain inactive until configured, while the normal
-  REST-backed application can render.
+  Firebase values no longer crash React during module import. Google Auth is
+  dynamically loaded only when a user starts Google login; forum data has one
+  authoritative source through the authenticated Django REST API and no longer
+  imports or subscribes to Firestore.
 - Frontend lint and a production build passed after the lesson-progression UI
-  update on 2026-07-16. The build still warns about a JavaScript
-  chunk above 500 kB and stale Browserslist data.
+  update and dependency hardening on 2026-07-16. `npm audit` reports zero known
+  vulnerabilities. The main JavaScript chunk fell from about 997 kB to 461 kB;
+  the build still warns about stale Browserslist data.
+- The E2 assessment-consistency protocol now defines sampling, two independent
+  human raters, agreement metrics, privacy boundaries, and a recommendation-only
+  boundary for any future dialogue grader. No human study has been run yet.
 
 ## Not implemented as of the inspection
 
-- No reranking or comprehensive answer-generation RAG evaluation yet. The
-  initial versioned dataset measures lesson retrieval only; groundedness,
-  answer correctness, refusal quality, generation latency, and cost still need
-  a repeatable evaluation harness. Citation objects are returned and shown for
+- No reranking or recorded comprehensive answer-generation RAG baseline yet.
+  The full-pipeline evaluation harness exists, but still needs a deliberate live
+  provider run, expanded dataset and human semantic/pedagogical review. Citation
+  objects are returned and shown for
   the current response, while only safe retrieval identifiers and scores are
   persisted; restoring citation excerpts after a page reload is not implemented.
 - No ANN vector index is created yet. The pgvector column intentionally accepts
@@ -322,8 +327,8 @@ relying on it and update it after material implementation changes.
   and validates an approved script, PCM WAV, JPEG/PNG portrait, timeout, and MP4
   output, invokes `inference.py` without a shell, and records a read-only-admin audit
   job with input checksums and safe failure code. A successful job attaches a
-  server-named MP4 to `Lesson.video_file`, which the lesson UI can play. Seven
-  Eight tests cover fake-provider success, ownership, consent, invalid input, safe
+  server-named MP4 to `Lesson.video_file`, which the lesson UI can play. Eight
+  tests cover fake-provider success, ownership, consent, invalid input, safe
   provider failure, and command ordering. Migration `courses.0005` is applied
   in development PostgreSQL.
 - A real SadTalker render is not yet proven. Self-hosted SadTalker requires a
@@ -340,9 +345,9 @@ relying on it and update it after material implementation changes.
   `insufficient_quota`. Gemini support is implemented but still needs a real
   AI Studio key and a deliberate grounded-chat smoke; automated generation
   tests use mocks and make no billable request.
-- `npm ci` reports 18 known frontend dependency vulnerabilities (including one
-  critical). No automatic `npm audit fix` has been applied because upgrades need
-  review and regression testing.
+- Frontend dependency audit is clean after reviewed direct dependency upgrades
+  and a non-forced `npm audit fix`; periodic audit and upgrade review are still
+  required because this is a point-in-time result, not a production guarantee.
 
 ## Session handoff — start here
 

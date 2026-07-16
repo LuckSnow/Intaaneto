@@ -139,8 +139,10 @@ docker compose exec frontend npm run build
 ```
 
 Baseline ngày 2026-07-16: 168 backend tests pass; Django check và migration drift
-check pass; frontend lint/build pass. Build còn cảnh báo bundle JavaScript lớn và
-Browserslist data cũ. Frontend chưa có test runner tự động riêng.
+check pass; frontend lint/build pass; `npm audit` báo 0 lỗ hổng đã biết. Bundle
+JavaScript chính còn khoảng 461 kB và Google Auth được tách thành các chunk tải
+khi cần. Build vẫn cảnh báo Browserslist data cũ. Frontend chưa có test runner
+tự động riêng.
 
 ## Tài liệu chính
 
@@ -148,6 +150,7 @@ Browserslist data cũ. Frontend chưa có test runner tự động riêng.
 - [API core](docs/api-documentation.md)
 - [Database schema](docs/database-schema.md)
 - [Grounded-answer evaluation](docs/RAG_GROUNDED_ANSWER_EVALUATION.md)
+- [Protocol đánh giá assessment/progression](docs/ASSESSMENT_EVALUATION_PROTOCOL.md)
 - [Retrieval baseline v1](docs/RAG_RETRIEVAL_BASELINE_V1.md)
 - [SadTalker PoC](docs/SADTALKER_POC.md)
 - [Bản thảo báo cáo nghiên cứu](docs/RESEARCH_REPORT_DRAFT.md)

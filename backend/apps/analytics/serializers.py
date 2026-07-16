@@ -37,3 +37,7 @@ class ProgressReportQuerySerializer(serializers.Serializer):
     course_id = serializers.IntegerField(min_value=1, required=False)
     limit = serializers.IntegerField(min_value=1, max_value=100, default=50)
     offset = serializers.IntegerField(min_value=0, default=0)
+
+
+class ProgressExportQuerySerializer(serializers.Serializer):
+    course_id = serializers.IntegerField(min_value=1, required=True)
