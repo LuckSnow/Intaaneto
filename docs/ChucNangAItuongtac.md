@@ -27,6 +27,11 @@ Assessment trắc nghiệm do teacher soạn
   -> báo cáo learner/teacher
 ```
 
+Teacher/admin có trang `/teacher/assessments` để chọn course và lesson thuộc
+quyền quản lý, tạo/sửa/xóa assessment chưa có attempt, đặt ngưỡng đạt, khai báo
+learning objective và xuất bản. Backend giới hạn tối đa 50 câu, không tin đáp án
+hoặc score từ learner.
+
 Các boundary đã có test:
 
 - Teacher ownership được kiểm tra trước khi đọc/xử lý upload.

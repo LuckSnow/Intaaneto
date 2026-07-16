@@ -29,6 +29,12 @@ export default function DashboardLayout() {
     ...((user?.role === 'teacher' || user?.role === 'admin')
       ? [{ href: '/teacher/upload', label: 'Tải PDF' }]
       : []),
+    ...(user?.role === 'teacher'
+      ? [{ href: '/teacher/courses', label: 'Quản lý khóa' }]
+      : []),
+    ...((user?.role === 'teacher' || user?.role === 'admin')
+      ? [{ href: '/teacher/assessments', label: 'Bài đánh giá' }]
+      : []),
     { href: '/courses', label: 'Khóa học' },
     { href: '/forum', label: 'Diễn đàn' },
   ]

@@ -162,6 +162,65 @@ def test_owner_teacher_can_create_assessment_with_hidden_answers(
 
 
 @pytest.mark.django_db
+def test_teacher_assessment_question_requires_learning_objective(
+    api_client, teacher_user, lesson
+):
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.post(
+        '/api/exercises/assessments/',
+        {
+            'lesson': lesson.id,
+            'title': 'Thiếu mục tiêu',
+            'is_published': True,
+            'questions': [
+                {
+                    'prompt': 'RAG là gì?',
+                    'choices': ['Retrieval augmented generation', 'Renderer'],
+                    'correct_choice': 0,
+                    'learning_objective': '   ',
+                    'order': 1,
+                }
+            ],
+        },
+        format='json',
+    )
+
+    assert response.status_code == 400
+    assert not LessonAssessment.objects.exists()
+
+
+@pytest.mark.django_db
+def test_teacher_assessment_rejects_unbounded_question_count(
+    api_client, teacher_user, lesson
+):
+    api_client.force_authenticate(teacher_user)
+    question = {
+        'prompt': 'Câu hỏi?',
+        'choices': ['Đúng', 'Sai'],
+        'correct_choice': 0,
+        'learning_objective': 'Mục tiêu',
+    }
+
+    response = api_client.post(
+        '/api/exercises/assessments/',
+        {
+            'lesson': lesson.id,
+            'title': 'Quá nhiều câu',
+            'is_published': False,
+            'questions': [
+                {**question, 'order': index + 1}
+                for index in range(51)
+            ],
+        },
+        format='json',
+    )
+
+    assert response.status_code == 400
+    assert not LessonAssessment.objects.exists()
+
+
+@pytest.mark.django_db
 def test_other_teacher_cannot_create_assessment_for_course(api_client, lesson):
     other_teacher = User.objects.create_user(
         email='other-assessment-teacher@example.com',

@@ -50,6 +50,140 @@ def test_anonymous_user_cannot_create_course(api_client, teacher_user):
 
 
 @pytest.mark.django_db
+def test_teacher_creates_owned_course_without_featured_escalation(
+    api_client, teacher_user
+):
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.post(
+        '/api/courses/',
+        {
+            'title': 'Khóa do giáo viên tạo',
+            'description': 'Nội dung khóa học',
+            'difficulty': 'beginner',
+            'is_published': False,
+            'is_featured': True,
+        },
+        format='json',
+    )
+
+    assert response.status_code == 201
+    course = Course.objects.get(pk=response.data['id'])
+    assert course.teacher == teacher_user
+    assert course.is_featured is False
+
+
+@pytest.mark.django_db
+def test_teacher_must_create_draft_before_course_publication(
+    api_client, teacher_user
+):
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.post(
+        '/api/courses/',
+        {
+            'title': 'Course chưa có lesson',
+            'description': 'Không được publish ngay',
+            'is_published': True,
+        },
+        format='json',
+    )
+
+    assert response.status_code == 400
+    assert not Course.objects.exists()
+
+
+@pytest.mark.django_db
+def test_teacher_can_publish_course_after_usable_lesson(
+    api_client, teacher_user
+):
+    course = Course.objects.create(
+        title='Course sẵn sàng',
+        slug='course-san-sang',
+        description='Draft',
+        teacher=teacher_user,
+        is_published=False,
+    )
+    Lesson.objects.create(
+        course=course,
+        title='Bài có nội dung',
+        slug='bai-co-noi-dung',
+        content='Nội dung đã được giáo viên phê duyệt.',
+        is_published=True,
+    )
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.patch(
+        f'/api/courses/{course.id}/',
+        {'is_published': True},
+        format='json',
+    )
+
+    assert response.status_code == 200
+    course.refresh_from_db()
+    assert course.is_published is True
+
+
+@pytest.mark.django_db
+def test_course_create_rejects_duplicate_generated_slug(
+    api_client, teacher_user
+):
+    Course.objects.create(
+        title='Mạng máy tính',
+        slug='mang-may-tinh',
+        description='Existing',
+        teacher=teacher_user,
+    )
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.post(
+        '/api/courses/',
+        {'title': 'Mạng máy tính', 'description': 'Duplicate'},
+        format='json',
+    )
+
+    assert response.status_code == 400
+    assert Course.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_other_teacher_cannot_mutate_course(api_client, teacher_user, course):
+    other_teacher = User.objects.create_user(
+        email='course-owner-other@example.com',
+        username='course-owner-other',
+        full_name='Course Owner Other',
+        password='Testpass123!',
+        role='teacher',
+        is_verified=True,
+    )
+    api_client.force_authenticate(other_teacher)
+
+    updated = api_client.patch(
+        f'/api/courses/{course.id}/',
+        {'title': 'Chiếm quyền'},
+        format='json',
+    )
+    deleted = api_client.delete(f'/api/courses/{course.id}/')
+
+    assert updated.status_code == 404
+    assert deleted.status_code == 404
+    course.refresh_from_db()
+    assert course.title == 'Lập trình web'
+
+
+@pytest.mark.django_db
+def test_course_with_lesson_cannot_be_deleted(api_client, teacher_user, course, lesson):
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.delete(f'/api/courses/{course.id}/')
+
+    assert response.status_code == 409
+    assert response.data['code'] == 'course_not_empty'
+    assert Course.objects.filter(pk=course.id).exists()
+    assert Lesson.objects.filter(pk=lesson.id).exists()
+
+
+@pytest.mark.django_db
 def test_enrolled_student_can_read_lesson(authenticated_client, student_user, course, lesson):
     Enrollment.objects.create(user=student_user, course=course)
 

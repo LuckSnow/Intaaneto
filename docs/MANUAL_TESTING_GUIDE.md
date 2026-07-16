@@ -186,7 +186,7 @@ khoản dùng để đăng nhập:
 Không tự nâng student thành teacher qua request frontend. Luồng đúng là teacher
 application và admin duyệt.
 
-## 6. Chuẩn bị course, lesson và assessment trong Django Admin
+## 6. Chuẩn bị course/lesson và biên soạn assessment
 
 ### 6.1 Course
 
@@ -214,15 +214,19 @@ Vào `Courses > Lessons > Add`:
 
 Tạo thêm lesson thứ hai với content và order `2` để kiểm tra chuyển bài.
 
-### 6.3 Assessment
+### 6.3 Assessment trên trang giáo viên
 
-Vào `Exercises > Lesson assessments > Add` trước khi student làm bài:
+Đăng nhập Teacher A và mở
+http://localhost:5173/teacher/assessments trước khi student làm bài:
 
-- Lesson: lesson order `1`
-- Title: ví dụ `Kiểm tra bài 1`
-- Pass threshold: ví dụ `70`
-- `is_published = true`
-- Tạo ít nhất 3 câu hỏi inline
+1. Chọn course và lesson order `1`. Danh sách course phải gồm cả draft thuộc
+   Teacher A, không có course riêng của Teacher B.
+2. Nhập title `Kiểm tra bài 1`, hướng dẫn và pass threshold `70`.
+3. Tạo ít nhất 3 câu hỏi, chọn một đáp án đúng và ghi learning objective cho
+   từng câu.
+4. Lưu bản nháp, tải lại trang và xác nhận nội dung/đáp án vẫn đúng.
+5. Bật `Cho phép học viên làm bài`, lưu lại và xác nhận trạng thái
+   `Đã xuất bản` cùng version mới.
 
 Mỗi câu hỏi:
 
@@ -237,6 +241,8 @@ order: 1
 
 `correct_choice` là chỉ số bắt đầu từ `0`; các `order` trong cùng assessment
 không được trùng nhau. Ghi riêng đáp án test, không đưa vào nội dung lesson/RAG.
+Mỗi assessment và lượt nộp bị giới hạn tối đa 50 câu. Có thể dùng Django Admin
+để kiểm tra dữ liệu, nhưng đây không còn là luồng authoring chính.
 
 Sau khi đã có attempt:
 
@@ -680,6 +686,8 @@ provider output.
 | Student nhận answer key/hidden tests | Không bao giờ |
 | Teacher B upload vào course Teacher A | 403/deny trước xử lý |
 | Teacher B quản lý assessment Teacher A | 403/404 |
+| Student mở `/teacher/assessments` hoặc `/courses/managed/` | Redirect/403 |
+| Teacher query lesson bằng course ID của Teacher B | Danh sách rỗng |
 | Student dùng teacher login | 403 và không có JWT |
 | Student tự đổi role qua profile payload | Bị bỏ qua/từ chối |
 | Preview viewer lấy next enrolled-only lesson | Không được trả |
@@ -703,7 +711,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `155` tests pass.
+- Backend: `160` tests pass.
 - Frontend: lint pass và production build pass.
 - Build còn cảnh báo JavaScript chunk lớn và Browserslist data cũ.
 - Frontend chưa có test runner tự động riêng.

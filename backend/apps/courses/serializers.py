@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.conf import settings
+from django.db.models import Q
+from django.utils.text import slugify
 
 from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
 
@@ -117,9 +119,53 @@ class CourseSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = [
-            'slug', 'teacher', 'total_students', 'average_rating', 'created_at',
-            'updated_at',
+            'slug', 'teacher', 'is_featured', 'total_students',
+            'average_rating', 'created_at', 'updated_at',
         ]
+
+    def validate_title(self, value):
+        if self.instance is None:
+            generated_slug = slugify(value)
+            if not generated_slug:
+                raise serializers.ValidationError(
+                    'Tiêu đề phải tạo được đường dẫn hợp lệ.'
+                )
+            if Course.objects.filter(slug=generated_slug).exists():
+                raise serializers.ValidationError(
+                    'Đã có khóa học với tiêu đề hoặc đường dẫn này.'
+                )
+        return value
+
+    def validate(self, attrs):
+        will_publish = attrs.get(
+            'is_published',
+            getattr(self.instance, 'is_published', False),
+        )
+        if will_publish:
+            if self.instance is None:
+                raise serializers.ValidationError({
+                    'is_published': (
+                        'Hãy tạo khóa học ở trạng thái nháp và thêm bài học '
+                        'sẵn sàng trước khi xuất bản.'
+                    )
+                })
+            has_usable_lesson = self.instance.lessons.filter(
+                is_published=True,
+            ).filter(
+                Q(content__gt='')
+                | Q(
+                    knowledge_sources__is_active=True,
+                    knowledge_sources__status='ready',
+                )
+            ).exists()
+            if not has_usable_lesson:
+                raise serializers.ValidationError({
+                    'is_published': (
+                        'Khóa học cần ít nhất một bài học đã xuất bản có nội '
+                        'dung hoặc chỉ mục RAG sẵn sàng.'
+                    )
+                })
+        return attrs
     
     def get_lessons_count(self, obj):
         return obj.lessons.count()

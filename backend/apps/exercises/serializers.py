@@ -10,6 +10,9 @@ from .models import (
 )
 
 
+ASSESSMENT_MAX_QUESTIONS = 50
+
+
 class ExerciseSerializer(serializers.ModelSerializer):
     
     class Meta:
@@ -50,6 +53,11 @@ class AssessmentQuestionTeacherSerializer(serializers.ModelSerializer):
         child=serializers.CharField(max_length=500, trim_whitespace=True),
         min_length=2,
         max_length=6,
+    )
+    learning_objective = serializers.CharField(
+        max_length=255,
+        allow_blank=False,
+        trim_whitespace=True,
     )
 
     class Meta:
@@ -146,6 +154,13 @@ class LessonAssessmentTeacherSerializer(serializers.ModelSerializer):
                 'questions': 'Bài đánh giá đã xuất bản phải có ít nhất một câu hỏi.'
             })
         if questions is not None:
+            if len(questions) > ASSESSMENT_MAX_QUESTIONS:
+                raise serializers.ValidationError({
+                    'questions': (
+                        f'Mỗi bài đánh giá có tối đa '
+                        f'{ASSESSMENT_MAX_QUESTIONS} câu hỏi.'
+                    )
+                })
             orders = [question['order'] for question in questions]
             if len(orders) != len(set(orders)):
                 raise serializers.ValidationError({
@@ -189,6 +204,10 @@ class AssessmentSubmissionSerializer(serializers.Serializer):
     answers = AssessmentSubmissionAnswerSerializer(many=True, allow_empty=False)
 
     def validate_answers(self, value):
+        if len(value) > ASSESSMENT_MAX_QUESTIONS:
+            raise serializers.ValidationError(
+                f'Mỗi lượt nộp có tối đa {ASSESSMENT_MAX_QUESTIONS} câu trả lời.'
+            )
         question_ids = [answer['question_id'] for answer in value]
         if len(question_ids) != len(set(question_ids)):
             raise serializers.ValidationError('Mỗi câu hỏi chỉ được trả lời một lần.')

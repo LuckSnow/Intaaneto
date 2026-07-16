@@ -7,6 +7,26 @@ export const courseService = {
     return response.data.results || response.data
   },
 
+  // Teacher: include owned draft and published courses.
+  getManagedCourses: async () => {
+    const response = await api.get('/courses/managed/')
+    return response.data.results || response.data
+  },
+
+  createCourse: async (payload) => {
+    const response = await api.post('/courses/', payload)
+    return response.data
+  },
+
+  updateCourse: async (courseId, payload) => {
+    const response = await api.patch(`/courses/${courseId}/`, payload)
+    return response.data
+  },
+
+  deleteCourse: async (courseId) => {
+    await api.delete(`/courses/${courseId}/`)
+  },
+
   // Get single course
   getCourse: async (id) => {
     const response = await api.get(`/courses/${id}/`)

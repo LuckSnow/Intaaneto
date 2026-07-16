@@ -105,7 +105,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and fifty-five backend tests passed on 2026-07-16 in the
+  regression coverage. One hundred and sixty backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -148,6 +148,14 @@ relying on it and update it after material implementation changes.
 - The lesson page now renders the learner-safe multiple-choice assessment and
   server-confirmed pass/reinforcement/next-lesson states. Lessons without a
   published assessment retain the explicit completion action.
+- Teachers/admins now have a role-gated `/teacher/assessments` authoring page.
+  It loads draft and published managed courses through a dedicated paginated
+  endpoint, filters lessons without expanding the backend ownership scope, and
+  creates/updates/deletes draftable assessments with choices, correct answers,
+  explanations, learning objectives, threshold, and publish state. Objectives
+  are mandatory and authoring/submission are bounded to 50 questions. Five
+  backend tests cover managed-course isolation, lesson-filter non-expansion,
+  role denial, required objectives, and the bound; frontend lint/build pass.
 - Failed current-version assessment attempts now expose an explicit,
   learner-triggered RAG reinforcement action. The backend resolves the attempt
   as owned by the authenticated learner, uses only its server-recorded weak

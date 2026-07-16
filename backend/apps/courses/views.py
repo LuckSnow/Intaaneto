@@ -102,7 +102,26 @@ class CourseViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def perform_create(self, serializer):
+        if self.request.user.role != 'teacher':
+            raise PermissionDenied(
+                'Quản trị viên cần chọn giảng viên trong Django Admin.'
+            )
         serializer.save(teacher=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        course = self.get_object()
+        if course.lessons.exists() or course.enrollments.exists():
+            return Response(
+                {
+                    'code': 'course_not_empty',
+                    'detail': (
+                        'Chỉ có thể xóa khóa học chưa có bài học hoặc học viên. '
+                        'Hãy chuyển khóa học về bản nháp để lưu trữ.'
+                    ),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def enroll(self, request, pk=None):

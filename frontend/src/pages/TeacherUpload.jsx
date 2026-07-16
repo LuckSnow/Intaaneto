@@ -35,7 +35,7 @@ export default function TeacherUpload() {
 
   const fetchCourses = async () => {
     try {
-      const data = await courseService.getCourses()
+      const data = await courseService.getManagedCourses()
       setCourses(data)
       if (data.length > 0) setSelectedCourse(data[0].id)
     } catch (error) {
