@@ -3,13 +3,16 @@ AI Processing Services for Lessons
 Legacy multimedia helpers plus the PDF-only RAG ingestion service.
 """
 
+from decimal import Decimal
 import io
 import time
 import logging
 import unicodedata
 import requests
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
+from django.db.models import Max, Q
+from django.utils import timezone
 
 from apps.ai_assistant.rag_services import LessonIndexingError, index_lesson
 
@@ -18,6 +21,151 @@ logger = logging.getLogger(__name__)
 
 class PDFIngestionError(Exception):
     """Safe, user-facing failure from the bounded PDF ingestion pipeline."""
+
+
+class AssessmentRequiredError(Exception):
+    """The learner has not passed the lesson's published assessment."""
+
+    def __init__(self, assessment_id):
+        self.assessment_id = assessment_id
+        super().__init__('Bạn cần đạt bài đánh giá trước khi chuyển bài.')
+
+
+def available_lessons(course):
+    """Return published lessons that have readable text or an active RAG index."""
+
+    from .models import Lesson
+
+    return list(
+        Lesson.objects.filter(course=course, is_published=True)
+        .filter(
+            ~Q(content='')
+            | Q(
+                knowledge_sources__is_active=True,
+                knowledge_sources__status='ready',
+            )
+        )
+        .distinct()
+        .order_by('order', 'created_at', 'id')
+    )
+
+
+def next_available_lesson(*, user, lesson):
+    """Resolve the next usable lesson without leaking enrolled-only content."""
+
+    from .models import Enrollment, Lesson
+
+    if user.role == 'student' and not Enrollment.objects.filter(
+        user=user,
+        course=lesson.course,
+    ).exists():
+        return None
+
+    published_ids = list(
+        Lesson.objects.filter(course=lesson.course, is_published=True)
+        .order_by('order', 'created_at', 'id')
+        .values_list('id', flat=True)
+    )
+    try:
+        current_position = published_ids.index(lesson.id)
+    except ValueError:
+        return None
+
+    available_by_id = {item.id: item for item in available_lessons(lesson.course)}
+    for lesson_id in published_ids[current_position + 1:]:
+        if lesson_id in available_by_id:
+            return available_by_id[lesson_id]
+    return None
+
+
+def recalculate_enrollment_mastery(enrollment):
+    """Average each published lesson assessment's best score, including zeroes."""
+
+    from apps.exercises.models import LessonAssessment
+
+    assessments = list(
+        LessonAssessment.objects.filter(
+            lesson__course=enrollment.course,
+            lesson__is_published=True,
+            is_published=True,
+        ).annotate(
+            best_score=Max(
+                'attempts__score',
+                filter=Q(attempts__user=enrollment.user),
+            )
+        )
+    )
+    if assessments:
+        total = sum(
+            (item.best_score or Decimal('0.00') for item in assessments),
+            Decimal('0.00'),
+        )
+        mastery = (total / Decimal(len(assessments))).quantize(Decimal('0.01'))
+    else:
+        mastery = Decimal('0.00')
+
+    enrollment.mastery_percentage = mastery
+    enrollment.save(update_fields=['mastery_percentage'])
+    return mastery
+
+
+def complete_lesson(*, user, lesson, require_assessment=True):
+    """Record completion and return server-owned progression state."""
+
+    from .models import Enrollment, LessonProgress
+
+    try:
+        assessment = lesson.assessment
+    except ObjectDoesNotExist:
+        assessment = None
+
+    if (
+        require_assessment
+        and assessment is not None
+        and assessment.is_published
+        and not assessment.attempts.filter(user=user, passed=True).exists()
+    ):
+        raise AssessmentRequiredError(assessment.id)
+
+    progress, _ = LessonProgress.objects.get_or_create(user=user, lesson=lesson)
+    progress.is_completed = True
+    if progress.completed_at is None:
+        progress.completed_at = timezone.now()
+    progress.save(update_fields=['is_completed', 'completed_at', 'updated_at'])
+
+    next_lesson = next_available_lesson(user=user, lesson=lesson)
+    enrollment = Enrollment.objects.filter(user=user, course=lesson.course).first()
+    progress_percentage = None
+    if enrollment is not None:
+        available_ids = [item.id for item in available_lessons(lesson.course)]
+        completed_count = LessonProgress.objects.filter(
+            user=user,
+            lesson_id__in=available_ids,
+            is_completed=True,
+        ).count()
+        if available_ids:
+            progress_percentage = (
+                Decimal(completed_count * 100) / Decimal(len(available_ids))
+            ).quantize(Decimal('0.01'))
+        else:
+            progress_percentage = Decimal('0.00')
+
+        enrollment.progress_percentage = progress_percentage
+        enrollment.last_accessed_lesson = next_lesson or lesson
+        enrollment.completed_at = (
+            timezone.now() if progress_percentage == Decimal('100.00') else None
+        )
+        enrollment.save(update_fields=[
+            'progress_percentage',
+            'last_accessed_lesson',
+            'completed_at',
+        ])
+
+    return {
+        'is_completed': True,
+        'progress_percentage': progress_percentage,
+        'next_lesson': next_lesson,
+    }
 
 
 # ═══════════════════════════════════════════════════════════

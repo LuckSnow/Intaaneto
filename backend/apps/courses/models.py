@@ -154,6 +154,12 @@ class Enrollment(models.Model):
     completed_at = models.DateTimeField(_('completed at'), null=True, blank=True)
     
     progress_percentage = models.DecimalField(_('progress percentage'), max_digits=5, decimal_places=2, default=0.00)
+    mastery_percentage = models.DecimalField(
+        _('mastery percentage'),
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+    )
     last_accessed_lesson = models.ForeignKey(
         Lesson,
         on_delete=models.SET_NULL,

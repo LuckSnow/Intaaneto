@@ -41,7 +41,10 @@ class LessonAdmin(admin.ModelAdmin):
 
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):
-    list_display = ['user', 'course', 'progress_percentage', 'enrolled_at', 'completed_at']
+    list_display = [
+        'user', 'course', 'progress_percentage', 'mastery_percentage',
+        'enrolled_at', 'completed_at',
+    ]
     list_filter = ['enrolled_at', 'completed_at']
     search_fields = ['user__full_name', 'course__title']
     raw_id_fields = ['user', 'course', 'last_accessed_lesson']

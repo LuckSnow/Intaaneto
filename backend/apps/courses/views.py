@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,7 +6,6 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
-from django.utils import timezone
 
 from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
 from .serializers import (
@@ -16,7 +13,12 @@ from .serializers import (
     LessonUploadSerializer, LessonDetailSerializer, LessonCommentSerializer,
     EnrollmentSerializer, ReviewSerializer
 )
-from .services import PDFIngestionError, process_pdf_lesson
+from .services import (
+    AssessmentRequiredError,
+    PDFIngestionError,
+    complete_lesson,
+    process_pdf_lesson,
+)
 
 
 class IsTeacher(BasePermission):
@@ -136,101 +138,32 @@ class LessonViewSet(viewsets.ModelViewSet):
         self._validate_course_owner(serializer.validated_data['course'])
         serializer.save()
 
-    @staticmethod
-    def _available_lessons(course):
-        """Published lessons that have readable text or an active RAG index."""
-        return list(
-            Lesson.objects.filter(course=course, is_published=True)
-            .filter(
-                ~Q(content='')
-                | Q(
-                    knowledge_sources__is_active=True,
-                    knowledge_sources__status='ready',
-                )
-            )
-            .distinct()
-            .order_by('order', 'created_at', 'id')
-        )
-
-    def _next_available_lesson(self, lesson):
-        user = self.request.user
-        if user.role == 'student' and not Enrollment.objects.filter(
-            user=user,
-            course=lesson.course,
-        ).exists():
-            # A public preview must not reveal the next enrolled-only lesson.
-            return None
-
-        published_ids = list(
-            Lesson.objects.filter(course=lesson.course, is_published=True)
-            .order_by('order', 'created_at', 'id')
-            .values_list('id', flat=True)
-        )
-        try:
-            current_position = published_ids.index(lesson.id)
-        except ValueError:
-            return None
-
-        available_by_id = {
-            item.id: item for item in self._available_lessons(lesson.course)
-        }
-        for lesson_id in published_ids[current_position + 1:]:
-            if lesson_id in available_by_id:
-                return available_by_id[lesson_id]
-        return None
-
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         """Mark lesson as completed"""
         lesson = self.get_object()
-        progress, _ = LessonProgress.objects.get_or_create(
-            user=request.user,
-            lesson=lesson
-        )
-
-        progress.is_completed = True
-        if progress.completed_at is None:
-            progress.completed_at = timezone.now()
-        progress.save(update_fields=['is_completed', 'completed_at', 'updated_at'])
-
-        next_lesson = self._next_available_lesson(lesson)
-        enrollment = Enrollment.objects.filter(
-            user=request.user,
-            course=lesson.course,
-        ).first()
-        progress_percentage = None
-        if enrollment is not None:
-            available_ids = [item.id for item in self._available_lessons(lesson.course)]
-            completed_count = LessonProgress.objects.filter(
-                user=request.user,
-                lesson_id__in=available_ids,
-                is_completed=True,
-            ).count()
-            if available_ids:
-                progress_percentage = (
-                    Decimal(completed_count * 100) / Decimal(len(available_ids))
-                ).quantize(Decimal('0.01'))
-            else:
-                progress_percentage = Decimal('0.00')
-
-            enrollment.progress_percentage = progress_percentage
-            enrollment.last_accessed_lesson = next_lesson or lesson
-            enrollment.completed_at = (
-                timezone.now() if progress_percentage == Decimal('100.00') else None
+        try:
+            result = complete_lesson(user=request.user, lesson=lesson)
+        except AssessmentRequiredError as exc:
+            return Response(
+                {
+                    'code': 'assessment_required',
+                    'detail': str(exc),
+                    'assessment_id': exc.assessment_id,
+                },
+                status=status.HTTP_409_CONFLICT,
             )
-            enrollment.save(update_fields=[
-                'progress_percentage',
-                'last_accessed_lesson',
-                'completed_at',
-            ])
 
         return Response({
             'message': 'Lesson marked as completed',
-            'is_completed': True,
-            'progress_percentage': progress_percentage,
+            'is_completed': result['is_completed'],
+            'progress_percentage': result['progress_percentage'],
             'next_lesson': (
-                LessonSerializer(next_lesson, context={'request': request}).data
-                if next_lesson else None
+                LessonSerializer(
+                    result['next_lesson'],
+                    context={'request': request},
+                ).data
+                if result['next_lesson'] else None
             ),
         })
 

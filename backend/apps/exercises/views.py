@@ -1,15 +1,51 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .models import Exercise, Submission
-from .serializers import ExerciseSerializer, SubmissionSerializer, SubmissionCreateSerializer
+from rest_framework.permissions import BasePermission, IsAuthenticated
+
+from apps.courses.serializers import LessonSerializer
+
+from .models import Exercise, LessonAssessment, Submission
+from .serializers import (
+    AssessmentAttemptSerializer,
+    AssessmentSubmissionSerializer,
+    ExerciseSerializer,
+    LessonAssessmentLearnerSerializer,
+    LessonAssessmentTeacherSerializer,
+    SubmissionCreateSerializer,
+    SubmissionSerializer,
+)
+from .services import grade_assessment
+
+
+class IsTeacherOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role in ('teacher', 'admin')
+
+
+def accessible_exercises(user):
+    if user.role == 'admin':
+        return Exercise.objects.filter(is_published=True)
+    if user.role == 'teacher':
+        return Exercise.objects.filter(
+            is_published=True,
+            lesson__course__teacher=user,
+        )
+    return Exercise.objects.filter(
+        is_published=True,
+        lesson__is_published=True,
+        lesson__course__is_published=True,
+        lesson__course__enrollments__user=user,
+    ).distinct()
 
 
 class ExerciseViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Exercise.objects.filter(is_published=True)
     serializer_class = ExerciseSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return accessible_exercises(self.request.user)
     
     @action(detail=True, methods=['get'])
     def submissions(self, request, pk=None):
@@ -36,6 +72,9 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         return SubmissionSerializer
     
     def perform_create(self, serializer):
+        exercise = serializer.validated_data['exercise']
+        if not accessible_exercises(self.request.user).filter(pk=exercise.pk).exists():
+            raise PermissionDenied('Bạn không có quyền nộp bài tập này.')
         submission = serializer.save(user=self.request.user)
         # TODO: Implement code execution and testing logic
         # This would involve running the code against test cases
@@ -43,3 +82,86 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         submission.status = 'pending'
         submission.feedback = 'Bài nộp đang được xử lý...'
         submission.save()
+
+
+class LessonAssessmentViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsTeacherOrAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = LessonAssessment.objects.select_related(
+            'lesson',
+            'lesson__course',
+        ).prefetch_related('questions')
+        if user.role == 'admin':
+            pass
+        elif user.role == 'teacher':
+            queryset = queryset.filter(lesson__course__teacher=user)
+        else:
+            queryset = queryset.filter(
+                is_published=True,
+                lesson__is_published=True,
+                lesson__course__is_published=True,
+                lesson__course__enrollments__user=user,
+            ).distinct()
+
+        lesson_id = self.request.query_params.get('lesson')
+        if lesson_id:
+            queryset = queryset.filter(lesson_id=lesson_id)
+        return queryset
+
+    def get_serializer_class(self):
+        if self.request.user.role in ('teacher', 'admin'):
+            return LessonAssessmentTeacherSerializer
+        return LessonAssessmentLearnerSerializer
+
+    def _validate_lesson_owner(self, lesson):
+        user = self.request.user
+        if user.role != 'admin' and lesson.course.teacher_id != user.id:
+            raise PermissionDenied('Bạn không có quyền quản lý bài đánh giá này.')
+
+    def perform_create(self, serializer):
+        self._validate_lesson_owner(serializer.validated_data['lesson'])
+        serializer.save()
+
+    def perform_update(self, serializer):
+        lesson = serializer.validated_data.get('lesson', serializer.instance.lesson)
+        self._validate_lesson_owner(lesson)
+        serializer.save()
+
+    @action(detail=True, methods=['post'])
+    def submit(self, request, pk=None):
+        assessment = self.get_object()
+        input_serializer = AssessmentSubmissionSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        attempt, mastery_percentage, progression = grade_assessment(
+            assessment=assessment,
+            user=request.user,
+            submitted_answers=input_serializer.validated_data['answers'],
+        )
+
+        response_data = AssessmentAttemptSerializer(attempt).data
+        response_data['mastery_percentage'] = mastery_percentage
+        response_data['reinforcement'] = [
+            {
+                'learning_objective': objective,
+                'message': f'Hãy ôn lại mục tiêu: {objective}.',
+            }
+            for objective in attempt.weak_objectives
+        ]
+        response_data['progress_percentage'] = (
+            progression['progress_percentage'] if progression else None
+        )
+        response_data['next_lesson'] = (
+            LessonSerializer(
+                progression['next_lesson'],
+                context={'request': request},
+            ).data
+            if progression and progression['next_lesson'] else None
+        )
+        return Response(response_data, status=status.HTTP_201_CREATED)
