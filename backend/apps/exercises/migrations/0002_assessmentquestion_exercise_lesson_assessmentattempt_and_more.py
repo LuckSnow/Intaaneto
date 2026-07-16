@@ -6,6 +6,35 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def add_exercise_lesson_if_missing(apps, schema_editor):
+    """Bridge databases that applied the removed legacy exercises.0002_initial."""
+
+    Exercise = apps.get_model("exercises", "Exercise")
+    table_name = Exercise._meta.db_table
+    with schema_editor.connection.cursor() as cursor:
+        columns = {
+            column.name
+            for column in schema_editor.connection.introspection.get_table_description(
+                cursor,
+                table_name,
+            )
+        }
+    if "lesson_id" in columns:
+        return
+
+    Lesson = apps.get_model("courses", "Lesson")
+    field = models.ForeignKey(
+        Lesson,
+        blank=True,
+        null=True,
+        on_delete=django.db.models.deletion.CASCADE,
+        related_name="exercises",
+    )
+    field.set_attributes_from_name("lesson")
+    field.model = Exercise
+    schema_editor.add_field(Exercise, field)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -53,16 +82,26 @@ class Migration(migrations.Migration):
                 "ordering": ["order", "id"],
             },
         ),
-        migrations.AddField(
-            model_name="exercise",
-            name="lesson",
-            field=models.ForeignKey(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="exercises",
-                to="courses.lesson",
-            ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(
+                    add_exercise_lesson_if_missing,
+                    migrations.RunPython.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name="exercise",
+                    name="lesson",
+                    field=models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="exercises",
+                        to="courses.lesson",
+                    ),
+                ),
+            ],
         ),
         migrations.CreateModel(
             name="AssessmentAttempt",

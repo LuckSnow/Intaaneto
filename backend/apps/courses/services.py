@@ -123,6 +123,14 @@ def complete_lesson(*, user, lesson, require_assessment=True):
         assessment = None
 
     if (
+        assessment is not None
+        and assessment.is_published
+        and user.role == 'student'
+        and not Enrollment.objects.filter(user=user, course=lesson.course).exists()
+    ):
+        raise PermissionDenied('Bạn cần đăng ký khóa học để làm bài đánh giá.')
+
+    if (
         require_assessment
         and assessment is not None
         and assessment.is_published

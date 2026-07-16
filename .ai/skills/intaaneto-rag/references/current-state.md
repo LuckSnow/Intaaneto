@@ -105,7 +105,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and one backend tests passed on 2026-07-16 in the
+  regression coverage. One hundred and two backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -152,6 +152,11 @@ relying on it and update it after material implementation changes.
   compatibility, while learner list/detail/submission queries exclude unscoped
   records and enforce enrollment. The separate AI `get_hint` action still needs
   an explicit exercise enrollment check.
+- Course migration `0004` and exercises migration `0002` are applied in the
+  development PostgreSQL database. The exercises migration conditionally reuses
+  the complete `lesson_id` column/FK/index left by the removed legacy
+  `exercises.0002_initial`, while still creating that relationship on a fresh
+  database; both the existing PostgreSQL path and fresh isolated test path pass.
 - A live retry of the previously failing uploaded PDF completed on 2026-07-16:
   33,683 sanitized characters with zero NUL characters produced one active
   source with 40 chunks. This proves the observed PostgreSQL NUL failure is fixed

@@ -108,6 +108,29 @@ def test_non_enrolled_learner_cannot_discover_or_submit_assessment(
 
 
 @pytest.mark.django_db
+def test_preview_viewer_cannot_complete_assessed_lesson_or_receive_assessment_id(
+    api_client, assessment
+):
+    assessment.lesson.is_preview = True
+    assessment.lesson.save(update_fields=['is_preview'])
+    outsider = User.objects.create_user(
+        email='assessment-preview@example.com',
+        username='assessment-preview',
+        full_name='Assessment Preview',
+        password='Testpass123!',
+        is_verified=True,
+    )
+    api_client.force_authenticate(outsider)
+
+    response = api_client.post(
+        f'/api/courses/lessons/{assessment.lesson_id}/complete/'
+    )
+
+    assert response.status_code == 403
+    assert 'assessment_id' not in response.data
+
+
+@pytest.mark.django_db
 def test_owner_teacher_can_create_assessment_with_hidden_answers(
     api_client, teacher_user, lesson
 ):

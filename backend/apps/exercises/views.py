@@ -114,6 +114,8 @@ class LessonAssessmentViewSet(viewsets.ModelViewSet):
 
         lesson_id = self.request.query_params.get('lesson')
         if lesson_id:
+            if not lesson_id.isdigit():
+                return queryset.none()
             queryset = queryset.filter(lesson_id=lesson_id)
         return queryset
 
