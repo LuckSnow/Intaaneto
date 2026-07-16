@@ -37,6 +37,8 @@ Nghiên cứu xây dựng hệ thống E-learning trên môi trường web tích
 - Multiple-choice do teacher soạn, pass threshold cấu hình được.
 - Giáo viên có giao diện web để chọn course/lesson thuộc quyền quản lý, biên
   soạn mục tiêu/câu hỏi/lựa chọn/đáp án, lưu draft và xuất bản assessment.
+- Giáo viên có giao diện quản lý course theo vòng đời draft → thêm lesson usable
+  → publish; backend không cho tự featured hoặc xóa cascade course đã có dữ liệu.
 - Score và pass do backend tính; attempt/answer snapshot lưu theo version.
 - Chỉ attempt đạt mới hoàn thành lesson và nhận next lesson.
 - Mastery tách khỏi content progress.
@@ -68,7 +70,8 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 Tại ngày 2026-07-16:
 
-- 160 backend tests pass trong isolated Django test settings.
+- 168 backend tests pass trong isolated Django test settings, gồm một hành trình
+  tích hợp course draft → PDF/RAG index → assessment → enroll → progression.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint và production build pass.
 - PostgreSQL migration `courses.0005` đã áp dụng ở development.

@@ -57,7 +57,9 @@ relying on it and update it after material implementation changes.
 - `python manage.py index_lesson <lesson_id> --actor-id <user_id>` is the first
   trusted entry point. It has no HTTP/upload/background-job surface.
 - `python manage.py seed_demo_data` creates a deterministic, idempotent local
-  teacher/student/enrollment/course and text-only RAG lesson for collaborators.
+  teacher/student/enrollment/course, text-only RAG lesson, and reviewed five-
+  question published assessment for collaborators. The assessment is updated
+  only before attempts exist and is never overwritten after learner evidence.
   It excludes uploads, chat history, vectors, and fixed credentials; optional
   local login passwords come only from ignored environment values. Indexing is
   deliberately a separate command so setup does not unexpectedly download or
@@ -105,7 +107,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and sixty backend tests passed on 2026-07-16 in the
+  regression coverage. One hundred and sixty-eight backend tests passed on 2026-07-16 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -120,9 +122,9 @@ relying on it and update it after material implementation changes.
 - Six generation-provider cases cover OpenAI/Gemini selection, Gemini's
   OpenAI-compatible request contract, missing server-side keys, and an unknown
   provider failing closed.
-- Four demo-seed cases cover idempotency, exclusion of private/RAG-derived state,
-  environment-only passwords, collision safety, and removal of the legacy fixed
-  seed password.
+- Five demo-seed cases cover idempotency, the attempt-preserving assessment,
+  exclusion of private/RAG-derived state, environment-only passwords, collision
+  safety, and removal of the legacy fixed seed password.
 - Fourteen PDF-ingestion cases cover real PDF extraction with page markers, empty,
   encrypted, oversized, spoofed and non-PDF rejection, owner authorization before processing,
   NUL/control-character sanitization, upload-to-active-index, embedding failure
@@ -156,6 +158,20 @@ relying on it and update it after material implementation changes.
   are mandatory and authoring/submission are bounded to 50 questions. Five
   backend tests cover managed-course isolation, lesson-filter non-expansion,
   role denial, required objectives, and the bound; frontend lint/build pass.
+- Teachers now have a role-gated `/teacher/courses` page for owned course CRUD.
+  New courses must start as drafts and can publish only after at least one
+  published lesson has text content or an active ready RAG source. Teacher
+  payloads cannot set featured status; duplicate generated slugs fail with a
+  validation response; other teachers cannot mutate the course; and deletion
+  is rejected once lessons or enrollments exist to prevent cascade data loss.
+  Six API tests cover these invariants. Teacher upload now consumes the managed
+  course list, and the dashboard navigation remains reachable through a
+  horizontally scrollable second row on small screens.
+- A cross-app integration test now proves the main deterministic journey without
+  network/provider calls: a teacher creates a draft course, uploads and indexes
+  a real PDF fixture, authors/publishes an assessment, publishes the now-usable
+  course, then an enrolled learner receives no answer key, passes the assessment,
+  and reaches authoritative 100% progress/mastery with lesson completion.
 - Failed current-version assessment attempts now expose an explicit,
   learner-triggered RAG reinforcement action. The backend resolves the attempt
   as owned by the authenticated learner, uses only its server-recorded weak

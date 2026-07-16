@@ -1,299 +1,143 @@
-# Database Schema Documentation
+# Intaaneto database schema
 
-## Overview
+Cập nhật: 2026-07-16. Nguồn chuẩn là Django models và migrations trong
+`backend/apps/*`; tài liệu này mô tả các aggregate phục vụ đồ án, không thay thế
+migration.
 
-Intaaneto sử dụng PostgreSQL làm database chính với các bảng được tổ chức theo modules.
+## Users và role workflow
 
-## Tables
+### `users.User`
 
-### Users Module
+- Identity: email/username unique, full name, optional phone/avatar/bio.
+- Server-owned role: `student`, `teacher`, `admin`.
+- Active/verified flags và SHA-256 verification-token digest + creation time.
+- Django permission/staff fields và timestamps.
 
-#### User
-- `id`: BigAutoField (PK)
-- `email`: EmailField (unique, indexed)
-- `username`: CharField (unique, indexed)
-- `full_name`: CharField
-- `role`: CharField (choices: student, parent, teacher, admin)
-- `phone_number`: CharField
-- `date_of_birth`: DateField
-- `avatar`: ImageField
-- `bio`: TextField
-- `is_staff`: BooleanField
-- `is_active`: BooleanField
-- `is_verified`: BooleanField
-- `created_at`: DateTimeField (auto_now_add)
-- `updated_at`: DateTimeField (auto_now)
+### `users.Profile`
 
-**Indexes:**
-- (email, role)
-- (username)
+One-to-one với User; lưu thông tin học tập cơ bản hoặc specialization/years of
+experience của teacher.
 
-#### Profile
-- `id`: BigAutoField (PK)
-- `user_id`: ForeignKey(User) - OneToOne
-- `grade_level`: CharField
-- `school_name`: CharField
-- `learning_style`: CharField
-- `student_id`: ForeignKey(User) - for parents
-- `specialization`: CharField - for teachers
-- `years_of_experience`: PositiveIntegerField
-- `notification_enabled`: BooleanField
-- `email_notification`: BooleanField
-- `created_at`: DateTimeField
-- `updated_at`: DateTimeField
+### `users.TeacherApplication`
 
-### Courses Module
+Applicant, specialization, experience, reason, pending/approved/rejected,
+reviewer/note/timestamps. Partial unique constraint chỉ cho một pending request
+mỗi learner. Role chỉ đổi trong admin review transaction.
 
-#### Course
-- `id`: BigAutoField (PK)
-- `title`: CharField
-- `slug`: SlugField (unique, indexed)
-- `description`: TextField
-- `thumbnail`: ImageField
-- `difficulty`: CharField (choices: beginner, intermediate, advanced)
-- `duration_hours`: PositiveIntegerField
-- `objectives`: TextField
-- `prerequisites`: TextField
-- `teacher_id`: ForeignKey(User)
-- `is_published`: BooleanField
-- `is_featured`: BooleanField
-- `order`: PositiveIntegerField
-- `total_students`: PositiveIntegerField
-- `average_rating`: DecimalField
-- `created_at`: DateTimeField
-- `updated_at`: DateTimeField
+## Course và học tập
 
-**Indexes:**
-- (slug)
-- (is_published, difficulty)
+### `courses.Course`
 
-#### Lesson
-- `id`: BigAutoField (PK)
-- `course_id`: ForeignKey(Course)
-- `title`: CharField
-- `slug`: SlugField
-- `description`: TextField
-- `lesson_type`: CharField (choices: video, text, interactive, quiz)
-- `content`: TextField
-- `video_url`: URLField
-- `video_file`: FileField
-- `attachments`: FileField
-- `duration_minutes`: PositiveIntegerField
-- `order`: PositiveIntegerField
-- `is_preview`: BooleanField
-- `is_published`: BooleanField
-- `created_at`: DateTimeField
-- `updated_at`: DateTimeField
+Title/unique slug, description/thumbnail, difficulty/duration,
+objectives/prerequisites, teacher FK, draft/published/featured, order và denormalized
+student/rating counters. API teacher không được ghi featured.
 
-**Indexes:**
-- (course_id, order)
+### `courses.Lesson`
 
-**Unique Together:** (course, slug)
+Course FK; unique `(course, slug)`; title/description/type/content; PDF upload và
+extracted text; optional video fields; processing status/error; duration/order;
+preview/published flags. Generated SadTalker output gắn vào `video_file`.
 
-#### Enrollment
-- `id`: BigAutoField (PK)
-- `user_id`: ForeignKey(User)
-- `course_id`: ForeignKey(Course)
-- `enrolled_at`: DateTimeField
-- `completed_at`: DateTimeField (nullable)
-- `progress_percentage`: DecimalField
-- `last_accessed_lesson_id`: ForeignKey(Lesson)
+### `courses.Enrollment`
 
-**Unique Together:** (user, course)
+Unique `(user, course)`, enrollment/completion time, authoritative
+`progress_percentage`, `mastery_percentage` và `last_accessed_lesson`.
 
-#### LessonProgress
-- `id`: BigAutoField (PK)
-- `user_id`: ForeignKey(User)
-- `lesson_id`: ForeignKey(Lesson)
-- `is_completed`: BooleanField
-- `completed_at`: DateTimeField
-- `time_spent_minutes`: PositiveIntegerField
-- `created_at`: DateTimeField
-- `updated_at`: DateTimeField
+### `courses.LessonProgress`
 
-**Unique Together:** (user, lesson)
+Unique `(user, lesson)`, completion state/time và time-spent field.
 
-#### Review
-- `id`: BigAutoField (PK)
-- `user_id`: ForeignKey(User)
-- `course_id`: ForeignKey(Course)
-- `rating`: PositiveSmallIntegerField (1-5)
-- `comment`: TextField
-- `created_at`: DateTimeField
-- `updated_at`: DateTimeField
+### `courses.Review` và `courses.LessonComment`
 
-**Unique Together:** (user, course)
+Learner-created course rating/comment và nested lesson comment. API ghi owner từ
+request; cross-owner/cross-lesson mutation bị chặn.
 
-### Exercises Module
+### `courses.LessonVideoGenerationJob`
 
-#### Exercise
-- `id`: BigAutoField (PK)
-- `lesson_id`: ForeignKey(Lesson)
-- `title`: CharField
-- `description`: TextField
-- `instructions`: TextField
-- `difficulty`: CharField (choices: easy, medium, hard)
-- `starter_code`: TextField
-- `solution_code`: TextField
-- `test_cases`: JSONField
-- `max_points`: PositiveIntegerField
-- `hints`: JSONField
-- `order`: PositiveIntegerField
-- `is_published`: BooleanField
-- `created_at`: DateTimeField
-- `updated_at`: DateTimeField
+Audit record cho SadTalker local: lesson/requester/provider/status, approved
+script, input checksums, consent assertion, safe failure code, output file và
+timestamps. Check constraint yêu cầu rights/approval confirmation.
 
-#### Submission
-- `id`: BigAutoField (PK)
-- `exercise_id`: ForeignKey(Exercise)
-- `user_id`: ForeignKey(User)
-- `code`: TextField
-- `status`: CharField (choices: pending, passed, failed, error)
-- `points_earned`: PositiveIntegerField
-- `feedback`: TextField
-- `test_results`: JSONField
-- `execution_time_ms`: PositiveIntegerField
-- `memory_used_kb`: PositiveIntegerField
-- `submitted_at`: DateTimeField
+## Assessment và exercise
 
-**Indexes:**
-- (user_id, exercise_id)
-- (status)
+### `exercises.LessonAssessment`
 
-### Forum Module
+One-to-one lesson; title/instructions; threshold 1–100; version; publish state.
 
-#### Post
-- `id`: BigAutoField (PK)
-- `author_id`: ForeignKey(User)
-- `title`: CharField
-- `content`: TextField
-- `category`: CharField (choices: question, discussion, showcase, announcement)
-- `tags`: JSONField
-- `views_count`: PositiveIntegerField
-- `likes_count`: PositiveIntegerField
-- `is_pinned`: BooleanField
-- `is_closed`: BooleanField
-- `is_solved`: BooleanField
-- `created_at`: DateTimeField
-- `updated_at`: DateTimeField
+### `exercises.AssessmentQuestion`
 
-**Indexes:**
-- (category, -created_at)
-- (-is_pinned, -created_at)
+Assessment FK; prompt; JSON choices; correct-choice index; mandatory-by-API
+learning objective; teacher explanation; unique `(assessment, order)`.
 
-#### Comment
-- `id`: BigAutoField (PK)
-- `post_id`: ForeignKey(Post)
-- `author_id`: ForeignKey(User)
-- `parent_id`: ForeignKey(Comment) - self-referencing
-- `content`: TextField
-- `likes_count`: PositiveIntegerField
-- `is_solution`: BooleanField
-- `created_at`: DateTimeField
-- `updated_at`: DateTimeField
+### `exercises.AssessmentAttempt`
 
-#### Like
-- `id`: BigAutoField (PK)
-- `user_id`: ForeignKey(User)
-- `post_id`: ForeignKey(Post) (nullable)
-- `comment_id`: ForeignKey(Comment) (nullable)
-- `created_at`: DateTimeField
+Immutable server result: assessment/user, assessment-version + threshold
+snapshot, decimal score/pass, counts, weak-objective list và submit time.
 
-**Unique Together:** 
-- (user, post)
-- (user, comment)
+### `exercises.AssessmentAnswer`
 
-### AI Assistant Module
+Audit snapshot cho từng answer: prompt/choices/objective/correct choice tại thời
+điểm submit, learner selection và correctness. Điều này giữ kết quả giải thích
+được khi dữ liệu nguồn thay đổi.
 
-#### ChatSession
-- `id`: BigAutoField (PK)
-- `user_id`: ForeignKey(User)
-- `title`: CharField
-- `context`: JSONField
-- `created_at`: DateTimeField
-- `updated_at`: DateTimeField
+Legacy `Exercise`/`Submission` vẫn tồn tại cho coding-exercise compatibility;
+code execution/grading chưa được triển khai.
 
-#### ChatMessage
-- `id`: BigAutoField (PK)
-- `session_id`: ForeignKey(ChatSession)
-- `role`: CharField (choices: user, assistant, system)
-- `content`: TextField
-- `tokens_used`: PositiveIntegerField
-- `response_time_ms`: PositiveIntegerField
-- `created_at`: DateTimeField
+## RAG và chat
 
-### Analytics Module
+### `ai_assistant.KnowledgeSource`
 
-#### Achievement
-- `id`: BigAutoField (PK)
-- `name`: CharField
-- `description`: TextField
-- `icon`: ImageField
-- `criteria_type`: CharField
-- `criteria_value`: PositiveIntegerField
-- `points`: PositiveIntegerField
-- `created_at`: DateTimeField
+Lesson/version/checksum, normalized text, ready/archived + active state, embedding
+provider/model/revision/dimension và chunker config. Constraints đảm bảo một
+active source/lesson và unique lesson version.
 
-#### UserAchievement
-- `id`: BigAutoField (PK)
-- `user_id`: ForeignKey(User)
-- `achievement_id`: ForeignKey(Achievement)
-- `earned_at`: DateTimeField
+### `ai_assistant.KnowledgeChunk`
 
-**Unique Together:** (user, achievement)
+Source FK, stable ordinal, text/offset/char count và pgvector embedding. Unique
+`(source, ordinal)`. Retrieval luôn lọc authorized active source trước ranking.
 
-#### LearningAnalytics
-- `id`: BigAutoField (PK)
-- `user_id`: ForeignKey(User) - OneToOne
-- `total_learning_time_minutes`: PositiveIntegerField
-- `total_courses_enrolled`: PositiveIntegerField
-- `total_courses_completed`: PositiveIntegerField
-- `total_exercises_submitted`: PositiveIntegerField
-- `total_exercises_passed`: PositiveIntegerField
-- `total_forum_posts`: PositiveIntegerField
-- `total_forum_comments`: PositiveIntegerField
-- `total_ai_interactions`: PositiveIntegerField
-- `current_streak_days`: PositiveIntegerField
-- `longest_streak_days`: PositiveIntegerField
-- `last_activity_date`: DateField
-- `total_points`: PositiveIntegerField
-- `updated_at`: DateTimeField
+### `ai_assistant.ChatSession` và `ChatMessage`
 
-## Relationships
+Session thuộc user và giữ bounded lesson context. Message lưu role/content,
+token/latency tùy provider và bounded retrieval metadata; không lưu embedding,
+full prompt, provider error hoặc citation excerpt.
 
-### One-to-One
-- User ↔ Profile
-- User ↔ LearningAnalytics
+## Forum
 
-### One-to-Many
-- User → Courses (as teacher)
-- Course → Lessons
-- Lesson → Exercises
-- User → Enrollments
-- User → Submissions
-- User → Posts
-- Post → Comments
-- User → ChatSessions
-- ChatSession → ChatMessages
+`Tag`, `Post`, nested `Comment`, `Reaction`, `Report`, `Follow` hỗ trợ cộng đồng.
+Reaction/report có check constraint “đúng một target” và conditional unique
+constraints; privileged pin/status được quản lý qua action riêng.
 
-### Many-to-Many (through tables)
-- User ↔ Course (through Enrollment)
-- User ↔ Lesson (through LessonProgress)
-- User ↔ Achievement (through UserAchievement)
+## Analytics
 
-## Indexes Strategy
+Legacy `LearningAnalytics`, `Achievement`, `UserAchievement` vẫn phục vụ các
+counter/achievement cũ. Progress report mới **không** tin counter này; nó tổng
+hợp read-only từ Enrollment, LessonProgress và AssessmentAttempt current-version.
 
-1. **Primary Keys**: Tất cả tables có indexed PK
-2. **Foreign Keys**: Auto-indexed
-3. **Custom Indexes**:
-   - User: email, username, (email, role)
-   - Course: slug, (is_published, difficulty)
-   - Lesson: (course_id, order)
-   - Post: (category, created_at), (is_pinned, created_at)
+## Quan hệ chính
 
-## Data Integrity
+```text
+User ──< Course (teacher)
+User ──< Enrollment >── Course ──< Lesson
+User ──< LessonProgress >──────── Lesson
+Lesson ──1 LessonAssessment ──< AssessmentQuestion
+User ──< AssessmentAttempt ──< AssessmentAnswer
+Lesson ──< KnowledgeSource ──< KnowledgeChunk
+User ──< ChatSession ──< ChatMessage
+Lesson ──< LessonVideoGenerationJob
+```
 
-- Foreign key constraints với CASCADE/SET_NULL
-- Unique constraints cho business logic
-- Check constraints trong application layer
-- Default values cho boolean fields
+## Migration quan trọng
+
+- `ai_assistant.0003`: pgvector extension và vector schema path.
+- `ai_assistant.0004`: retrieval metadata.
+- `courses.0004`: enrollment mastery percentage.
+- `courses.0005`: SadTalker audit job.
+- `exercises.0002`: lesson assessment/attempt/answer và optional exercise lesson.
+- `forum.0004`: target/duplicate constraints cho reaction/report.
+
+Chạy kiểm tra drift:
+
+```bash
+docker compose exec backend python manage.py makemigrations --check --dry-run
+```

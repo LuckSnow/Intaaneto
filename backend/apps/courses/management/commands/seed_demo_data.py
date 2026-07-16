@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.courses.models import Course, Enrollment, Lesson
+from apps.exercises.models import AssessmentQuestion, LessonAssessment
 from apps.users.models import User
 
 
@@ -15,6 +16,70 @@ DEMO_STUDENT_EMAIL = 'demo.student@example.invalid'
 DEMO_STUDENT_USERNAME = 'intaaneto-demo-student'
 DEMO_COURSE_SLUG = 'demo-ai-tutor-rag'
 DEMO_LESSON_SLUG = 'demo-rag-la-gi'
+DEMO_ASSESSMENT_TITLE = 'Kiểm tra Demo: RAG an toàn'
+
+DEMO_ASSESSMENT_QUESTIONS = (
+    {
+        'prompt': 'RAG giúp mô hình trả lời dựa trên nguồn nào?',
+        'choices': [
+            'Kho tài liệu đã được phê duyệt',
+            'Mọi nội dung ngẫu nhiên trên Internet',
+            'Thông tin bí mật của hệ thống',
+        ],
+        'correct_choice': 0,
+        'learning_objective': 'Giải thích mục đích của RAG',
+        'explanation': 'RAG truy xuất bằng chứng từ kho tài liệu đã được phê duyệt.',
+        'order': 1,
+    },
+    {
+        'prompt': 'Bước nào thuộc giai đoạn lập chỉ mục?',
+        'choices': [
+            'Chuẩn hóa, chia đoạn, tạo embedding và lưu metadata',
+            'Tự quyết định quyền truy cập cho người học',
+            'Tạo citation không cần nguồn',
+        ],
+        'correct_choice': 0,
+        'learning_objective': 'Mô tả giai đoạn lập chỉ mục',
+        'explanation': 'Indexing chuẩn hóa/chunk/embed và lưu dữ liệu có vị trí ổn định.',
+        'order': 2,
+    },
+    {
+        'prompt': 'Quyền truy cập lesson phải được kiểm tra khi nào?',
+        'choices': [
+            'Trước khi embedding và retrieval câu hỏi',
+            'Sau khi đã gửi dữ liệu cho provider',
+            'Chỉ khi người học báo lỗi',
+        ],
+        'correct_choice': 0,
+        'learning_objective': 'Nhận biết boundary phân quyền retrieval',
+        'explanation': 'Authorization phải xảy ra trước mọi xử lý hoặc truy xuất tốn tài nguyên.',
+        'order': 3,
+    },
+    {
+        'prompt': 'Citation trong câu trả lời RAG do thành phần nào xây dựng?',
+        'choices': [
+            'Ứng dụng từ các chunk thực sự được truy xuất',
+            'Mô hình tự đặt ra bất kỳ nguồn nào',
+            'Trình duyệt của học viên',
+        ],
+        'correct_choice': 0,
+        'learning_objective': 'Giải thích nguồn gốc citation',
+        'explanation': 'Citation là dữ liệu application-owned từ selected chunks.',
+        'order': 4,
+    },
+    {
+        'prompt': 'AI Tutor phải làm gì khi bằng chứng có độ liên quan thấp?',
+        'choices': [
+            'Fallback và nói tài liệu chưa đủ thông tin',
+            'Đoán bằng kiến thức chung rồi gắn citation',
+            'Tự giảm ngưỡng cho đến khi có câu trả lời',
+        ],
+        'correct_choice': 0,
+        'learning_objective': 'Áp dụng weak-evidence fallback',
+        'explanation': 'Thiếu bằng chứng phải dẫn đến fallback thay vì phỏng đoán.',
+        'order': 5,
+    },
+)
 
 DEMO_RAG_CONTENT = """
 RAG, viết tắt của Retrieval-Augmented Generation, là kỹ thuật giúp mô hình ngôn
@@ -92,6 +157,7 @@ class Command(BaseCommand):
             },
         )
         Enrollment.objects.get_or_create(user=student, course=course)
+        assessment = self._upsert_assessment(lesson)
 
         enrolled_count = course.enrollments.count()
         if course.total_students != enrolled_count:
@@ -103,6 +169,10 @@ class Command(BaseCommand):
         self.stdout.write(f'Student: {student.email} (id={student.id})')
         self.stdout.write(f'Course: {course.title} (id={course.id})')
         self.stdout.write(f'RAG lesson: {lesson.title} (id={lesson.id})')
+        self.stdout.write(
+            f'Assessment: {assessment.title} (id={assessment.id}, '
+            f'version={assessment.version})'
+        )
         self.stdout.write(
             'Index command: '
             f'python manage.py index_lesson {lesson.id} --actor-id {teacher.id}'
@@ -190,3 +260,51 @@ class Command(BaseCommand):
             },
         )
         return course
+
+    @staticmethod
+    def _upsert_assessment(lesson):
+        assessment = LessonAssessment.objects.select_for_update().filter(
+            lesson=lesson,
+        ).first()
+        if assessment is not None and assessment.title != DEMO_ASSESSMENT_TITLE:
+            raise CommandError(
+                'Demo lesson already has a non-demo assessment; refusing to overwrite it.'
+            )
+        if assessment is None:
+            assessment = LessonAssessment.objects.create(
+                lesson=lesson,
+                title=DEMO_ASSESSMENT_TITLE,
+                instructions=(
+                    'Chọn một đáp án đúng cho mỗi câu. Điểm đạt tối thiểu 70%.'
+                ),
+                pass_threshold=70,
+                is_published=True,
+            )
+        if assessment.attempts.exists():
+            return assessment
+
+        desired_questions = list(DEMO_ASSESSMENT_QUESTIONS)
+        current_questions = list(
+            assessment.questions.order_by('order', 'id').values(
+                'prompt', 'choices', 'correct_choice', 'learning_objective',
+                'explanation', 'order',
+            )
+        )
+        changed = current_questions != desired_questions
+        assessment_fields_changed = (
+            assessment.pass_threshold != 70 or not assessment.is_published
+        )
+        if assessment_fields_changed:
+            assessment.pass_threshold = 70
+            assessment.is_published = True
+        if changed:
+            assessment.questions.all().delete()
+            AssessmentQuestion.objects.bulk_create([
+                AssessmentQuestion(assessment=assessment, **question)
+                for question in desired_questions
+            ])
+        if changed or assessment_fields_changed:
+            if assessment.pk and current_questions:
+                assessment.version += 1
+            assessment.save()
+        return assessment

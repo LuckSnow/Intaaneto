@@ -40,8 +40,9 @@ docker compose exec backend python manage.py seed_demo_data
 ```
 
 Command tạo một giảng viên demo, một học viên đã enroll, course `Demo AI Tutor
-với RAG` và lesson `RAG là gì?`. Chạy lại command sẽ cập nhật đúng bộ dữ liệu đó
-thay vì tạo duplicate. Command không tạo uploads, chat history hoặc vector index.
+với RAG`, lesson `RAG là gì?` và assessment 5 câu đã được biên tập. Chạy lại
+command sẽ cập nhật đúng bộ dữ liệu đó thay vì tạo duplicate; assessment đã có
+attempt không bị ghi đè. Command không tạo uploads, chat history hoặc vector index.
 
 Mặc định hai tài khoản có password không sử dụng được. Nếu cần đăng nhập, mỗi
 developer tự đặt các giá trị sau trong `backend/.env`; không commit hoặc gửi các

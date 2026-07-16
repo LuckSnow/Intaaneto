@@ -5,10 +5,12 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 
 from apps.ai_assistant.models import ChatMessage, KnowledgeSource
+from apps.exercises.models import AssessmentAttempt, LessonAssessment
 from apps.users.models import User
 
 from .management.commands.seed_demo_data import (
     DEMO_COURSE_SLUG,
+    DEMO_ASSESSMENT_TITLE,
     DEMO_LESSON_SLUG,
     DEMO_RAG_CONTENT,
     DEMO_STUDENT_EMAIL,
@@ -45,6 +47,39 @@ def test_seed_demo_data_is_idempotent_and_contains_no_private_state(monkeypatch)
     assert not lesson.attachments
     assert KnowledgeSource.objects.count() == 0
     assert ChatMessage.objects.count() == 0
+    assessment = LessonAssessment.objects.get(lesson=lesson)
+    assert assessment.title == DEMO_ASSESSMENT_TITLE
+    assert assessment.is_published is True
+    assert assessment.questions.count() == 5
+
+
+@pytest.mark.django_db
+def test_seed_demo_data_preserves_assessment_after_learner_attempt(monkeypatch):
+    monkeypatch.delenv('DEMO_TEACHER_PASSWORD', raising=False)
+    monkeypatch.delenv('DEMO_STUDENT_PASSWORD', raising=False)
+    call_command('seed_demo_data', stdout=StringIO())
+    assessment = LessonAssessment.objects.get(title=DEMO_ASSESSMENT_TITLE)
+    first_question = assessment.questions.order_by('order').first()
+    first_question.prompt = 'Nội dung snapshot đã được sử dụng.'
+    first_question.save(update_fields=['prompt'])
+    student = User.objects.get(email=DEMO_STUDENT_EMAIL)
+    AssessmentAttempt.objects.create(
+        assessment=assessment,
+        user=student,
+        assessment_version=assessment.version,
+        threshold_snapshot=assessment.pass_threshold,
+        score=0,
+        passed=False,
+        total_questions=5,
+        correct_answers=0,
+        weak_objectives=['Ôn tập RAG'],
+    )
+
+    call_command('seed_demo_data', stdout=StringIO())
+
+    first_question.refresh_from_db()
+    assert first_question.prompt == 'Nội dung snapshot đã được sử dụng.'
+    assert assessment.questions.count() == 5
 
 
 @pytest.mark.django_db

@@ -117,6 +117,7 @@ Command idempotent, tạo/cập nhật:
 - Course: `Demo AI Tutor với RAG`
 - Lesson: `RAG là gì?`
 - Enrollment cho student demo
+- Assessment demo 5 câu, published, không ghi đè sau khi có attempt
 
 Hai tài khoản chỉ đăng nhập được nếu bạn tự cấu hình password local theo
 `docs/SETUP.md`, recreate backend và chạy lại seed. Không ghi password vào tài
@@ -190,29 +191,31 @@ application và admin duyệt.
 
 ### 6.1 Course
 
-Vào `Courses > Courses > Add`:
+Đăng nhập Teacher A và mở http://localhost:5173/teacher/courses:
 
-- Teacher: Teacher A
-- Title/slug: giá trị test dễ nhận biết
-- Description: nội dung không nhạy cảm
-- `is_published = true`
-- Thêm objectives và prerequisites nếu cần kiểm tra hiển thị
+1. Chọn `Khóa học mới`, nhập title, description, difficulty, objectives và
+   prerequisites.
+2. Xác nhận không thể publish ngay khi course chưa có lesson usable.
+3. Lưu course ở trạng thái draft. Course phải xuất hiện trong danh sách quản lý
+   của Teacher A nhưng không xuất hiện ở trang khóa học công khai.
+4. Không thể đặt `is_featured` từ frontend/API teacher.
 
-Hiện frontend chưa có màn hình đầy đủ để teacher tạo course, vì vậy dùng Django
-Admin cho bước này.
+Django Admin chỉ dùng để kiểm tra dữ liệu hoặc để admin tạo course thay mặt một
+teacher cụ thể.
 
-### 6.2 Lesson văn bản
+### 6.2 Lesson PDF
 
-Vào `Courses > Lessons > Add`:
+Mở http://localhost:5173/teacher/upload:
 
-- Course: course của Teacher A
-- Title và slug duy nhất trong course
-- Content: một đoạn kiến thức có thể đặt câu hỏi
-- Order: `1`
-- `is_published = true`
-- `is_preview = false`
+1. Chọn course draft vừa tạo.
+2. Tải PDF hợp lệ có nội dung, đặt order `1` và đợi trạng thái
+   `Đã lập chỉ mục và sẵn sàng hỏi đáp`.
+3. Tải thêm PDF thứ hai với order `2` để kiểm tra chuyển bài.
+4. Quay lại `/teacher/courses`, publish course và xác nhận course xuất hiện ở
+   trang công khai.
 
-Tạo thêm lesson thứ hai với content và order `2` để kiểm tra chuyển bài.
+Nếu cần lesson text-only để test importer, có thể dùng corpus importer hoặc
+Django Admin; luồng sản phẩm chính của teacher là PDF upload.
 
 ### 6.3 Assessment trên trang giáo viên
 
@@ -688,6 +691,8 @@ provider output.
 | Teacher B quản lý assessment Teacher A | 403/404 |
 | Student mở `/teacher/assessments` hoặc `/courses/managed/` | Redirect/403 |
 | Teacher query lesson bằng course ID của Teacher B | Danh sách rỗng |
+| Teacher publish course chưa có lesson usable | 400, course vẫn draft |
+| Teacher xóa course đã có lesson/học viên | 409, không cascade dữ liệu |
 | Student dùng teacher login | 403 và không có JWT |
 | Student tự đổi role qua profile payload | Bị bỏ qua/từ chối |
 | Preview viewer lấy next enrolled-only lesson | Không được trả |
@@ -711,7 +716,8 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `160` tests pass.
+- Backend: `168` tests pass, gồm một integration test teacher PDF → assessment
+  → learner progression không gọi mạng/LLM.
 - Frontend: lint pass và production build pass.
 - Build còn cảnh báo JavaScript chunk lớn và Browserslist data cũ.
 - Frontend chưa có test runner tự động riêng.

@@ -32,6 +32,11 @@ quyền quản lý, tạo/sửa/xóa assessment chưa có attempt, đặt ngư�
 learning objective và xuất bản. Backend giới hạn tối đa 50 câu, không tin đáp án
 hoặc score từ learner.
 
+Teacher có trang `/teacher/courses` để tạo/sửa course thuộc sở hữu. Course mới
+bắt buộc là draft và chỉ được publish sau khi có lesson đã publish với content
+hoặc active ready RAG source. Course có lesson/học viên không thể bị xóa cascade
+qua API; teacher không thể tự gắn trạng thái featured.
+
 Các boundary đã có test:
 
 - Teacher ownership được kiểm tra trước khi đọc/xử lý upload.

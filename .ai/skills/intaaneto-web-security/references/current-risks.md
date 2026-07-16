@@ -119,6 +119,9 @@ exploitation. Re-check code and tests before changing status.
 - Scoped request throttles have endpoint-level `429` regression tests for login,
   PDF upload, AI chat, and assessment submission; teacher-application status GET
   remains outside its POST-only submission scope.
+- Teacher course mutations are owner-scoped, ignore featured escalation, require
+  a usable published lesson before publication, and reject deletion once lesson
+  or enrollment data exists instead of cascading an entire learning history.
 
 ## Status discipline
 
