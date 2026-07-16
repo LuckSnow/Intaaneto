@@ -70,7 +70,7 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 Tại ngày 2026-07-17:
 
-- 172 backend tests pass trong isolated Django test settings, gồm một hành trình
+- 175 backend tests pass trong isolated Django test settings, gồm một hành trình
   tích hợp course draft → PDF/RAG index → assessment → enroll → progression.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
@@ -111,8 +111,12 @@ phải bằng chứng về tác động học tập.
 
 ### E3 — Reinforcement outcome
 
-- So sánh điểm attempt trước/sau khi dùng RAG reinforcement.
-- Không suy ra causal effect nếu không có thiết kế nhóm/điều kiện phù hợp.
+- Audit event tối thiểu và report paired đã được implement: lấy exposure có
+  evidence đầu tiên của failed attempt và attempt tiếp theo cùng version, báo
+  before/after/change/pass conversion/pending mà không trả identity.
+- Chưa có baseline từ usage thật; cần learner sử dụng reinforcement rồi làm lại.
+- Một learner có thể đóng góp nhiều cặp attempt; không suy ra causal effect nếu
+  không có thiết kế nhóm/điều kiện và xử lý repeated measures phù hợp.
 
 ### E4 — SadTalker real smoke
 

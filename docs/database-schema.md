@@ -80,6 +80,13 @@ Audit snapshot cho từng answer: prompt/choices/objective/correct choice tại 
 điểm submit, learner selection và correctness. Điều này giữ kết quả giải thích
 được khi dữ liệu nguồn thay đổi.
 
+### `exercises.AssessmentReinforcementEvent`
+
+Audit tối thiểu khi learner lấy reinforcement packet thành công: attempt FK,
+safe retrieval status, số objective, objective có evidence, citation count và
+thời điểm. Không lưu prompt, excerpt hoặc learner identity lặp lại. Constraint
+đảm bảo ready-objective count không vượt tổng objective.
+
 Legacy `Exercise`/`Submission` vẫn tồn tại cho coding-exercise compatibility;
 code execution/grading chưa được triển khai.
 
@@ -122,6 +129,7 @@ User ──< Enrollment >── Course ──< Lesson
 User ──< LessonProgress >──────── Lesson
 Lesson ──1 LessonAssessment ──< AssessmentQuestion
 User ──< AssessmentAttempt ──< AssessmentAnswer
+AssessmentAttempt ──< AssessmentReinforcementEvent
 Lesson ──< KnowledgeSource ──< KnowledgeChunk
 User ──< ChatSession ──< ChatMessage
 Lesson ──< LessonVideoGenerationJob
@@ -134,6 +142,7 @@ Lesson ──< LessonVideoGenerationJob
 - `courses.0004`: enrollment mastery percentage.
 - `courses.0005`: SadTalker audit job.
 - `exercises.0002`: lesson assessment/attempt/answer và optional exercise lesson.
+- `exercises.0003`: reinforcement audit event và count constraint.
 - `forum.0004`: target/duplicate constraints cho reaction/report.
 
 Chạy kiểm tra drift:

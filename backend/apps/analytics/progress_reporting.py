@@ -268,6 +268,7 @@ def teaching_reinforcement_outcome_report(*, actor, course_id, limit=1000):
         'limitations': [
             'observational_association_not_causal_effect',
             'learners_without_followup_are_reported_as_pending',
+            'repeated_learners_may_contribute_multiple_attempt_pairs',
             'truncated_results_are_not_a_complete_course_baseline',
         ],
     }

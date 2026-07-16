@@ -7,6 +7,12 @@ import { analyticsService } from '../services/analyticsService'
 import { useAuthStore } from '../store/authStore'
 
 const formatPercentage = (value) => `${Number(value || 0).toFixed(0)}%`
+const formatScore = (value) => value == null ? 'Chưa có' : Number(value).toFixed(1)
+const formatScoreChange = (value) => {
+  if (value == null) return 'Chưa có'
+  const score = Number(value)
+  return `${score > 0 ? '+' : ''}${score.toFixed(1)}`
+}
 
 function StatCard({ icon: Icon, label, value }) {
   return (
@@ -26,6 +32,7 @@ export default function Dashboard() {
   const [report, setReport] = useState(null)
   const [selectedCourseReport, setSelectedCourseReport] = useState(null)
   const [objectiveReport, setObjectiveReport] = useState(null)
+  const [reinforcementOutcomes, setReinforcementOutcomes] = useState(null)
   const [loading, setLoading] = useState(true)
   const [courseLoading, setCourseLoading] = useState(false)
   const [exportingCourseId, setExportingCourseId] = useState(null)
@@ -56,13 +63,16 @@ export default function Dashboard() {
     setError('')
     setSelectedCourseReport(null)
     setObjectiveReport(null)
+    setReinforcementOutcomes(null)
     try {
-      const [courseData, objectiveData] = await Promise.all([
+      const [courseData, objectiveData, outcomeData] = await Promise.all([
         analyticsService.getProgressReport({ course_id: courseId }),
         analyticsService.getObjectiveReport(courseId),
+        analyticsService.getReinforcementOutcomes(courseId),
       ])
       setSelectedCourseReport(courseData)
       setObjectiveReport(objectiveData)
+      setReinforcementOutcomes(outcomeData)
     } catch {
       setError('Không thể tải tiến độ học viên của khóa học này.')
     } finally {
@@ -238,6 +248,7 @@ export default function Dashboard() {
                   onClick={() => {
                     setSelectedCourseReport(null)
                     setObjectiveReport(null)
+                    setReinforcementOutcomes(null)
                   }}
                   className="text-sm text-slate-600 hover:text-slate-950"
                 >
@@ -290,6 +301,55 @@ export default function Dashboard() {
                 {objectiveReport?.pagination.truncated && (
                   <p className="mt-3 text-sm text-amber-800">
                     Danh sách đang hiển thị {objectiveReport.pagination.limit}/{objectiveReport.pagination.count} mục tiêu.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-6 border-t border-slate-200 pt-5">
+                <h3 className="font-semibold text-slate-950">Kết quả sau củng cố RAG</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  So sánh quan sát trước/sau, không chứng minh củng cố là nguyên nhân làm thay đổi điểm.
+                </p>
+                {reinforcementOutcomes?.summary.total_usable_exposures ? (
+                  <>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-lg border border-slate-200 p-4">
+                        <span className="text-sm text-slate-500">Exposure có bằng chứng</span>
+                        <strong className="mt-1 block text-xl text-slate-950">
+                          {reinforcementOutcomes.summary.total_usable_exposures}
+                        </strong>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 p-4">
+                        <span className="text-sm text-slate-500">Có attempt tiếp theo</span>
+                        <strong className="mt-1 block text-xl text-slate-950">
+                          {reinforcementOutcomes.summary.paired_attempts}
+                        </strong>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 p-4">
+                        <span className="text-sm text-slate-500">Điểm TB trước → sau</span>
+                        <strong className="mt-1 block text-xl text-slate-950">
+                          {formatScore(reinforcementOutcomes.summary.average_before_score)} → {formatScore(reinforcementOutcomes.summary.average_after_score)}
+                        </strong>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 p-4">
+                        <span className="text-sm text-slate-500">Thay đổi TB</span>
+                        <strong className="mt-1 block text-xl text-slate-950">
+                          {formatScoreChange(reinforcementOutcomes.summary.average_score_change)} điểm
+                        </strong>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm text-slate-600">
+                      Chuyển sang đạt: {reinforcementOutcomes.summary.pass_conversion_count} · Chưa có attempt tiếp theo: {reinforcementOutcomes.summary.pending_followup}
+                    </p>
+                    {reinforcementOutcomes.truncated && (
+                      <p className="mt-2 text-sm text-amber-800">
+                        Báo cáo bị giới hạn; không dùng số liệu này làm baseline đầy đủ.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-600">
+                    Chưa có phiên củng cố chứa bằng chứng RAG để ghép với attempt tiếp theo.
                   </p>
                 )}
               </div>

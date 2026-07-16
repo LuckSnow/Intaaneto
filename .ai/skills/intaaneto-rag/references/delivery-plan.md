@@ -119,7 +119,11 @@ Learner and owned-course teacher progress reports were implemented on
 owned-course report gained bounded CSV export and an aggregate objective
 distribution based on each learner's latest current-version attempt; nine
 reporting tests cover scope, versioning, privacy, and spreadsheet injection.
-Time-series exports and a bounded conversational rubric remain later work.
+On 2026-07-17 reinforcement requests gained minimal audit events and a bounded
+owned-course paired outcome report. It compares the first usable exposure for a
+failed attempt with the first same-version follow-up, omits identities, and
+labels the result observational rather than causal. A real usage baseline,
+time-series exports, and a bounded conversational rubric remain later work.
 
 Next: prepare the separate runtime and record the first real SadTalker smoke;
 adapter completion alone is not video-quality evidence.

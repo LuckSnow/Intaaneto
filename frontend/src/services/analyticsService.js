@@ -18,4 +18,10 @@ export const analyticsService = {
     })
     return response.data
   },
+  getReinforcementOutcomes: async (courseId) => {
+    const response = await api.get('/analytics/reinforcement-outcomes/', {
+      params: { course_id: courseId },
+    })
+    return response.data
+  },
 }

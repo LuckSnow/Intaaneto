@@ -107,7 +107,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and seventy-two backend tests passed on 2026-07-17 in the
+  regression coverage. One hundred and seventy-five backend tests passed on 2026-07-17 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -181,6 +181,13 @@ relying on it and update it after material implementation changes.
   stale, foreign, and non-enrolled attempts are rejected; missing/weak indexes
   return explicit fallback states. The lesson UI shows the review evidence and
   lets the learner prefill—not auto-send—a grounded Tutor question.
+- Successful reinforcement packet requests now create a minimal audit event with
+  safe status and objective/evidence counts, but no prompt, excerpt, or repeated
+  learner identity. Retrieval failures do not create successful evidence. An
+  owned-course E3 report pairs the first usable event for a failed attempt with
+  the first later attempt for the same learner/assessment/version and reports
+  aggregate score change/pass conversion/pending follow-up only. It is explicitly
+  observational; no real learner-usage baseline has been recorded yet.
 - A read-only role-aware progress report now derives learner and teacher
   dashboards from authoritative `Enrollment`, `LessonProgress`, and
   current-version `AssessmentAttempt` records instead of the legacy mutable
@@ -211,7 +218,7 @@ relying on it and update it after material implementation changes.
   share the same published, lesson-scoped owner/enrollment boundary. Hint prompts
   contain title/description and optional learner code, never solution code or
   hidden tests; outsiders are denied before the generation provider.
-- Course migration `0004` and exercises migration `0002` are applied in the
+- Course migrations `0004`/`0005` and exercises migrations `0002`/`0003` are applied in the
   development PostgreSQL database. The exercises migration conditionally reuses
   the complete `lesson_id` column/FK/index left by the removed legacy
   `exercises.0002_initial`, while still creating that relationship on a fresh

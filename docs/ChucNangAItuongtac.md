@@ -90,6 +90,10 @@ cho weak objective và không thay đổi score/mastery/progression. AI dialogue
 grading với rubric/calibration chưa được triển khai và không được coi là kết quả
 đã có.
 
+Một audit event tối thiểu ghi nhận packet đã được lấy mà không lưu prompt/excerpt.
+Teacher report ghép exposure có evidence với attempt tiếp theo cùng version để
+hiển thị before/after; đây chỉ là association quan sát, không phải causal effect.
+
 ## 5. Giảng viên video ảo
 
 Adapter SadTalker local đã có dưới dạng management command thủ công. Nó nhận

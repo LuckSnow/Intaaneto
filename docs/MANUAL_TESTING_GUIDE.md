@@ -67,6 +67,7 @@ Kết quả mong đợi:
 - Tất cả migration có dấu `[X]`, đặc biệt:
   - `courses.0004_enrollment_mastery_percentage`
   - `exercises.0002_assessmentquestion_...`
+  - `exercises.0003_assessmentreinforcementevent_...`
 
 Nếu service không chạy:
 
@@ -518,6 +519,8 @@ Mong đợi:
 - Nút `Hỏi AI Tutor về mục tiêu này` chỉ điền câu hỏi và chuyển sang tab chat;
   học viên vẫn chủ động gửi câu hỏi.
 - Việc mở học liệu củng cố không thay đổi score, mastery hoặc completion.
+- Django Admin tạo một read-only `AssessmentReinforcementEvent` với status/count,
+  không có prompt, excerpt hoặc citation payload. Retrieval lỗi 503 không tạo event.
 
 ### 13.3 Lần làm đạt
 
@@ -582,6 +585,12 @@ Kiểm tra endpoint course progress hoặc Django Admin:
   lệ đúng khớp các answer snapshot trong Django Admin.
 - Objective của attempt version cũ và attempt cũ hơn của cùng learner/assessment
   không được tính; response không có learner identity, selected/correct choice.
+- Phần `Kết quả sau củng cố RAG` chỉ tính failed attempt có event ready/partial
+  và ghép attempt tiếp theo cùng assessment/version. Kiểm tra before/after/change,
+  pass conversion và pending follow-up khớp dữ liệu Admin.
+- UI phải ghi rõ đây là so sánh quan sát, không chứng minh quan hệ nhân quả.
+- Một learner có thể tạo nhiều cặp attempt; `paired_attempts` không phải số learner
+  duy nhất.
 - Dùng Teacher A gọi report với `course_id` của Teacher B phải nhận 404.
 - Dùng Student A gọi `progress-export` phải nhận 403. Dùng Teacher A xuất course
   của Teacher B phải nhận 404.
@@ -728,7 +737,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `172` tests pass, gồm một integration test teacher PDF → assessment
+- Backend: `175` tests pass, gồm một integration test teacher PDF → assessment
   → learner progression không gọi mạng/LLM.
 - Frontend: lint pass, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
 - Bundle chính khoảng 461 kB; Google Auth được tải theo nhu cầu. Build còn cảnh

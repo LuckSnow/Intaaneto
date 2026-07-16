@@ -13,8 +13,8 @@ truy cập, citation, điểm và progression đều do backend kiểm soát.
 | Quản lý khóa học | Teacher tạo course draft, upload PDF thành lesson, publish course khi có lesson usable |
 | Kho tri thức | PDF-only extraction có bounds, deterministic normalization/chunking, FastEmbed local, PostgreSQL/pgvector, source versioning và atomic activation |
 | AI Tutor | Retrieval trong lesson đã authorize, OpenAI/Gemini generation, fallback khi thiếu bằng chứng, citation do ứng dụng tạo |
-| Đánh giá | Teacher biên soạn trắc nghiệm, backend chấm deterministic, pass threshold, immutable attempt snapshot, weak objectives và RAG reinforcement |
-| Tiến độ | Lesson completion, mastery/progress, learner report, teacher roster/CSV và phân bố objective theo course sở hữu |
+| Đánh giá | Teacher biên soạn trắc nghiệm, backend chấm deterministic, immutable attempt, weak objectives và RAG reinforcement có audit event tối thiểu |
+| Tiến độ | Lesson completion, mastery/progress, roster/CSV, objective distribution và paired reinforcement outcome theo course sở hữu |
 | Cộng đồng | Forum, lesson comments và reviews với ownership/role boundary |
 | Video ảo | Adapter SadTalker local được kiểm thử bằng fake runtime; chỉ chạy management command có consent/bounds/timeout/audit |
 
@@ -138,7 +138,7 @@ docker compose exec frontend npm run lint
 docker compose exec frontend npm run build
 ```
 
-Baseline ngày 2026-07-17: 172 backend tests pass; Django check và migration drift
+Baseline ngày 2026-07-17: 175 backend tests pass; Django check và migration drift
 check pass; frontend lint/build pass; `npm audit` báo 0 lỗ hổng đã biết. Bundle
 JavaScript chính còn khoảng 461 kB và Google Auth được tách thành các chunk tải
 khi cần. Build vẫn cảnh báo Browserslist data cũ. Frontend chưa có test runner

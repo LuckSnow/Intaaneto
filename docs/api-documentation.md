@@ -142,6 +142,10 @@ POST /api/exercises/assessments/{id}/reinforcement/
 { "attempt_id": 42 }
 ```
 
+Khi packet được tạo thành công, backend lưu audit event tối thiểu gồm attempt,
+status, số objective/evidence và thời điểm. Event không lưu prompt, citation text
+hoặc nội dung chat; lỗi retrieval không tạo event thành công giả.
+
 ## Grounded AI Tutor
 
 ```http
@@ -215,6 +219,16 @@ Teacher sở hữu course hoặc admin nhận aggregate theo `learning_objective
 làm mới nhất của mỗi learner trên mỗi assessment phiên bản hiện hành. Response
 gồm learner count, số learner cần ôn, answer count, correct count/rate; không trả
 danh tính, lựa chọn hay đáp án. `limit` từ 1–200, mặc định 100.
+
+```http
+GET /api/analytics/reinforcement-outcomes/?course_id={course_id}&limit=1000
+```
+
+Báo cáo ghép exposure có evidence đầu tiên của mỗi failed attempt với attempt
+tiếp theo của cùng learner/assessment/version. Chỉ trả aggregate before/after,
+change, pass conversion và pending follow-up; không trả user/attempt ID. Đây là
+quan sát theo cặp attempt, không phải causal effect hoặc số learner độc lập.
+`limit` tối đa 5.000; response có `truncated`.
 
 ## Forum, lesson comments và reviews
 
