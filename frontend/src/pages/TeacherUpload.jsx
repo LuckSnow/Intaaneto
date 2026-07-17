@@ -23,6 +23,10 @@ export default function TeacherUpload() {
   const [order, setOrder] = useState(1)
   const [uploading, setUploading] = useState(false)
   const [uploadedLessons, setUploadedLessons] = useState([])
+  const activeUploadLessonIds = uploadedLessons
+    .filter((lesson) => !['completed', 'failed'].includes(lesson.status))
+    .map((lesson) => lesson.id)
+    .join(',')
 
   useEffect(() => {
     if (!user || (user.role !== 'teacher' && user.role !== 'admin')) {
@@ -32,6 +36,41 @@ export default function TeacherUpload() {
     }
     fetchCourses()
   }, [user, navigate])
+
+  useEffect(() => {
+    const activeIds = activeUploadLessonIds
+      .split(',')
+      .filter(Boolean)
+      .map(Number)
+    if (activeIds.length === 0) return undefined
+
+    let cancelled = false
+    const pollStatuses = async () => {
+      const updates = await Promise.all(activeIds.map(async (lessonId) => {
+        try {
+          const result = await courseService.getLessonStatus(lessonId)
+          return {
+            id: lessonId,
+            status: result.status,
+            error: result.error || '',
+          }
+        } catch {
+          return null
+        }
+      }))
+      if (cancelled) return
+      setUploadedLessons((current) => current.map((lesson) => {
+        const update = updates.find((item) => item?.id === lesson.id)
+        return update ? { ...lesson, ...update } : lesson
+      }))
+    }
+    pollStatuses()
+    const interval = window.setInterval(pollStatuses, 4000)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [activeUploadLessonIds])
 
   const fetchCourses = async () => {
     try {
@@ -83,7 +122,7 @@ export default function TeacherUpload() {
       formData.append('order', order)
 
       const result = await courseService.uploadLesson(formData)
-      toast.success('PDF đã được trích xuất và lập chỉ mục')
+      toast.success('PDF đã được đưa vào hàng đợi xử lý')
 
       // Add to tracking list
       const lesson = result.lesson
@@ -91,7 +130,9 @@ export default function TeacherUpload() {
         {
           id: lesson.id,
           title: lesson.title,
-          status: lesson.processing_status || 'pending',
+          status: result.ingestion_job?.status === 'completed'
+            ? 'completed'
+            : lesson.processing_status || 'pending',
           error: '',
         },
         ...prev,
@@ -123,10 +164,10 @@ export default function TeacherUpload() {
       const result = await courseService.reprocessLesson(lessonId)
       setUploadedLessons((prev) =>
         prev.map((l) => (l.id === lessonId
-          ? { ...l, status: result.lesson?.processing_status || 'completed', error: '' }
+          ? { ...l, status: result.lesson?.processing_status || 'pending', error: '' }
           : l))
       )
-      toast.success('PDF đã được xử lý lại')
+      toast.success('PDF đã được đưa vào hàng đợi xử lý lại')
     } catch {
       toast.error('Không thể xử lý lại')
     }
@@ -236,10 +277,10 @@ export default function TeacherUpload() {
               {uploading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                  Đang tải lên và lập chỉ mục...
+                  Đang tải PDF...
                 </span>
               ) : (
-                'Tải lên & lập chỉ mục PDF'
+                'Tải lên và xử lý PDF'
               )}
             </Button>
           </form>

@@ -4,10 +4,35 @@ from .models import (
     Enrollment,
     Lesson,
     LessonComment,
+    LessonIngestionJob,
     LessonProgress,
     LessonVideoGenerationJob,
     Review,
 )
+
+
+@admin.register(LessonIngestionJob)
+class LessonIngestionJobAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'lesson', 'requested_by', 'status', 'attempts', 'created_at',
+    ]
+    list_filter = ['status', 'failure_code', 'created_at']
+    search_fields = ['lesson__title', 'requested_by__full_name']
+    raw_id_fields = ['lesson', 'requested_by', 'knowledge_source']
+    readonly_fields = [
+        'lesson', 'requested_by', 'knowledge_source', 'status', 'task_id',
+        'attempts', 'index_created', 'failure_code', 'safe_error', 'created_at',
+        'started_at', 'completed_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 class LessonInline(admin.TabularInline):

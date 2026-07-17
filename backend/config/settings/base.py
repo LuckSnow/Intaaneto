@@ -308,6 +308,24 @@ LESSON_PDF_MAX_EXTRACTED_CHARS = config(
     cast=int,
 )
 
+# Durable PDF ingestion worker. Results are persisted in application tables,
+# not in Celery's result backend.
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://redis:6379/0')
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+LESSON_INGESTION_MAX_RETRIES = config(
+    'LESSON_INGESTION_MAX_RETRIES', default=2, cast=int
+)
+LESSON_INGESTION_RETRY_BASE_SECONDS = config(
+    'LESSON_INGESTION_RETRY_BASE_SECONDS', default=10, cast=int
+)
+LESSON_INGESTION_LEASE_SECONDS = config(
+    'LESSON_INGESTION_LEASE_SECONDS', default=1800, cast=int
+)
+
 # Email Configuration - Mailjet via Anymail
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='anymail.backends.mailjet.EmailBackend')
 ANYMAIL = {

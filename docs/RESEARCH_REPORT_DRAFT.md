@@ -74,11 +74,12 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 Tại ngày 2026-07-17:
 
-- 197 backend tests pass trong isolated Django test settings, gồm một hành trình
+- 201 backend tests pass trong isolated Django test settings, gồm một hành trình
   tích hợp course draft → PDF/RAG index → assessment → enroll → progression.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
-- PostgreSQL migration `courses.0005` đã áp dụng ở development.
+- PostgreSQL migrations `courses.0005` và `ai_assistant.0005` đã áp dụng ở
+  development; migration sau đã backfill page range hợp lệ cho 40/40 PDF chunks.
 - Bundle chính đã giảm từ khoảng 997 kB xuống 465 kB nhờ tách Google Auth; build
   còn cảnh báo Browserslist data cũ.
 

@@ -15,6 +15,9 @@ DATABASES = {
 }
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 ANYMAIL = {}
+CELERY_BROKER_URL = 'memory://'
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = False
 
 # Throttle behavior has dedicated tests. Keep unrelated tests isolated from the
 # shared cache, whose keys intentionally outlive database transaction rollbacks.

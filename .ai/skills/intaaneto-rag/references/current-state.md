@@ -22,8 +22,14 @@ relying on it and update it after material implementation changes.
   `%PDF-` signature, bounds bytes/pages/extracted characters, rejects encrypted,
   malformed, and text-empty files, preserves page markers in extracted text,
   normalizes Unicode and removes database-unsafe NUL/control characters, and
-  invokes the existing idempotent lesson indexer. DOCX/PPT/PPTX are outside
+  escapes untrusted text lines that could impersonate an app-owned page marker,
+  then invokes the existing idempotent lesson indexer. DOCX/PPT/PPTX are outside
   the product target and `python-pptx` is no longer a runtime dependency.
+- Migration `ai_assistant.0005` stores nullable, constrained `page_start` and
+  `page_end` on each PDF-derived chunk. Indexing derives ranges deterministically
+  from normalized page markers, retains original page numbers when empty pages
+  were skipped, and supports chunks spanning pages. The migration backfilled all
+  40 existing development PDF chunks with valid ranges on 2026-07-17.
 - PDF ingestion authorizes the owning teacher or admin before extraction and
   embedding. A complete index is activated only after extraction and all
   embeddings succeed; failures persist a bounded safe status without activating
@@ -110,8 +116,8 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and ninety-seven backend tests passed on 2026-07-17 in the
-  Docker backend, including nine Slice 1 tests for deterministic
+  regression coverage. Two hundred and one backend tests passed on 2026-07-17 in the
+  Docker backend, including eleven Slice 1/index-location tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
   further eleven Slice 2 cases cover Vietnamese relevance, weak evidence,
@@ -353,10 +359,10 @@ relying on it and update it after material implementation changes.
 
 - No reranking or comprehensive multi-lesson answer-generation RAG evaluation
   yet. The first live demo baseline exists, but still needs an expanded dataset,
-  holdout split and human semantic/pedagogical review. Citation
-  objects are returned and shown for
-  the current response, while only safe retrieval identifiers and scores are
-  persisted; restoring citation excerpts after a page reload is not implemented.
+  holdout split and human semantic/pedagogical review. Citation objects are
+  returned and shown for the current response; only safe retrieval identifiers
+  and scores are persisted. Reloaded citations are rebuilt from authorized
+  database chunks and PDF citations include structured page ranges.
 - No ANN vector index is created yet. The pgvector column intentionally accepts
   configurable dimensions until embedding quality is evaluated; retrieval
   queries only vectors matching the active source's model/revision/dimension.
@@ -364,8 +370,8 @@ relying on it and update it after material implementation changes.
   about 0.22 GB and therefore still needs deployment cache/network planning.
 - No Redis/Celery services in `docker-compose.yml`.
 - PDF upload currently performs extraction and local embedding inside the HTTP
-  request. Durable background execution, parser wall-clock isolation, structured
-  per-chunk page fields, and orphan-file cleanup are not implemented yet.
+  request. Durable background execution, parser wall-clock isolation, and
+  orphan-file cleanup are not implemented yet.
 - No validated teacher competency test or scoring rubric is implemented. A future
   assessment may provide evidence to the admin review, but must not automatically
   grant a privileged role without an explicitly accepted policy.
@@ -409,8 +415,8 @@ relying on it and update it after material implementation changes.
 ## Session handoff — start here
 
 - Product priority remains RAG. Slices 0 through 3 are complete; Slice 4
-  now has a tested synchronous PDF-only upload-to-index path. Durable background
-  jobs and structured page-location persistence remain intentionally deferred.
+  now has a tested synchronous PDF-only upload-to-index path plus structured,
+  backfilled page-location persistence. Durable background jobs remain deferred.
 - For the live smoke, configure one generation provider, use an enrolled learner
   and an indexed lesson, ask one answerable and one unsupported question, and
   confirm citations/fallback in the UI without exposing provider or retrieval

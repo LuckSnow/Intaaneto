@@ -8,6 +8,7 @@ PAGE_MARKER = re.compile(r'^--- Trang ([1-9]\d*) ---$', re.MULTILINE)
 
 
 def backfill_pdf_page_ranges(apps, schema_editor):
+    """Populate locations without re-embedding or reading original uploads."""
     KnowledgeSource = apps.get_model('ai_assistant', 'KnowledgeSource')
     for source in KnowledgeSource.objects.filter(source_type='extracted_text').iterator():
         text = source.normalized_text

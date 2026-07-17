@@ -404,6 +404,8 @@ Mong đợi:
 - Thành công: lesson có `processing_status = completed`.
 - Django Admin → `AI Assistant > Knowledge sources` có source `ready`, active.
 - Lesson mở được và có nút vào AI Tutor.
+- Chunk của source PDF có `page_start/page_end`; hỏi câu nằm trong PDF thì UI
+  citation hiển thị `Trang N` hoặc `Trang N–M`, không chỉ hiện ordinal chunk.
 
 Lưu ý: luồng này chỉ trích xuất PDF và lập index. Nó không tự sinh summary,
 voice, avatar hoặc video trong slice hiện tại.
@@ -768,7 +770,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `197` tests pass, gồm một integration test teacher PDF → assessment
+- Backend: `201` tests pass, gồm một integration test teacher PDF → assessment
   → learner progression không gọi mạng/LLM.
 - Frontend: lint pass, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
 - Bundle chính khoảng 465 kB; Google Auth được tải theo nhu cầu. Build còn cảnh

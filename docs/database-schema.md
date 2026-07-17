@@ -100,8 +100,11 @@ active source/lesson và unique lesson version.
 
 ### `ai_assistant.KnowledgeChunk`
 
-Source FK, stable ordinal, text/offset/char count và pgvector embedding. Unique
-`(source, ordinal)`. Retrieval luôn lọc authorized active source trước ranking.
+Source FK, stable ordinal, text/offset/char count và pgvector embedding. Chunk từ
+PDF có `page_start/page_end` nullable, được suy ra deterministic từ marker trong
+normalized source; constraint yêu cầu cả hai cùng null hoặc `page_end >=
+page_start`. Unique `(source, ordinal)`. Retrieval luôn lọc authorized active
+source trước ranking.
 
 ### `ai_assistant.ChatSession` và `ChatMessage`
 

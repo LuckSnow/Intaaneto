@@ -141,7 +141,7 @@ docker compose exec frontend npm run lint
 docker compose exec frontend npm run build
 ```
 
-Baseline ngày 2026-07-17: 197 backend tests pass; Django check và migration drift
+Baseline ngày 2026-07-17: 201 backend tests pass; Django check và migration drift
 check pass; frontend lint/build pass; `npm audit` báo 0 lỗ hổng đã biết. Bundle
 JavaScript chính còn khoảng 465 kB và Google Auth được tách thành các chunk tải
 khi cần. Build vẫn cảnh báo Browserslist data cũ. Frontend chưa có test runner

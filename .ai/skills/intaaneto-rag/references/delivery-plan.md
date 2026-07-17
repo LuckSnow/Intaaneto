@@ -65,7 +65,9 @@ and API contract tests pass.
 
 Status: In progress. A synchronous PDF-only upload-to-index path with ownership,
 bounded validation, safe failures, and idempotent retry tests was implemented on
-2026-07-15. Durable background execution and structured page metadata remain.
+2026-07-15. On 2026-07-17 structured per-chunk PDF page ranges were added,
+backfilled in PostgreSQL, propagated through retrieval/chat/reinforcement
+citations, and rendered in the lesson UI. Durable background execution remains.
 
 - Accept only PDF uploads; DOCX, PPT, and PPTX are deliberately out of scope.
 - Validate the allowlisted file type, content signature, structure, and size.

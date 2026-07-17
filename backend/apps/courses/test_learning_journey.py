@@ -38,7 +38,7 @@ def test_teacher_pdf_assessment_to_learner_progression_journey(
             upload_payload(course),
             format='multipart',
         )
-    assert uploaded.status_code == 201
+    assert uploaded.status_code == 202
     lesson_id = uploaded.data['lesson']['id']
     assert KnowledgeSource.objects.filter(
         lesson_id=lesson_id,

@@ -12,8 +12,13 @@ from apps.ai_assistant.models import KnowledgeSource
 from apps.ai_assistant.rag_services import EmbeddingProviderError
 from apps.users.models import User
 
-from .models import Course, Lesson
-from .services import PDFIngestionError, extract_text_from_pdf, sanitize_extracted_text
+from .models import Course, Lesson, LessonIngestionJob
+from .services import (
+    PDFIngestionError,
+    escape_pdf_page_marker_collisions,
+    extract_text_from_pdf,
+    sanitize_extracted_text,
+)
 
 
 class FakeEmbeddingProvider:
@@ -97,6 +102,14 @@ def test_sanitize_extracted_text_removes_nul_and_unsafe_controls():
     extracted = sanitize_extracted_text('RAG\x00\tTutor\r\nNội dung\x01')
 
     assert extracted == 'RAG\tTutor\nNội dung'
+
+
+def test_untrusted_pdf_text_cannot_impersonate_page_marker():
+    text = 'Nội dung\n--- Trang 999 ---\nTiếp tục'
+
+    escaped = escape_pdf_page_marker_collisions(text)
+
+    assert escaped == 'Nội dung\n\\--- Trang 999 ---\nTiếp tục'
 
 
 def test_pdf_extraction_never_returns_nul_characters():
@@ -186,7 +199,7 @@ def test_other_teacher_is_denied_before_pdf_processing(
     )
     api_client.force_authenticate(other_teacher)
 
-    with patch('apps.courses.views.process_pdf_lesson') as process:
+    with patch('apps.courses.views.queue_pdf_ingestion') as queue:
         response = api_client.post(
             '/api/courses/lessons/upload/',
             upload_payload(owned_course, content=b'%PDF-invalid'),
@@ -194,7 +207,7 @@ def test_other_teacher_is_denied_before_pdf_processing(
         )
 
     assert response.status_code == 403
-    process.assert_not_called()
+    queue.assert_not_called()
     assert Lesson.objects.count() == 0
 
 
@@ -212,8 +225,9 @@ def test_owner_upload_extracts_and_indexes_pdf(api_client, teacher_user, owned_c
             format='multipart',
         )
 
-    assert response.status_code == 201
+    assert response.status_code == 202
     lesson = Lesson.objects.get(pk=response.data['lesson']['id'])
+    job = LessonIngestionJob.objects.get(lesson=lesson)
     source = KnowledgeSource.objects.get(lesson=lesson, is_active=True)
     assert lesson.processing_status == 'completed'
     assert lesson.extracted_text.startswith('--- Trang 1 ---')
@@ -221,7 +235,9 @@ def test_owner_upload_extracts_and_indexes_pdf(api_client, teacher_user, owned_c
     assert source.chunks.exists()
     assert not source.chunks.filter(page_start__isnull=True).exists()
     assert set(source.chunks.values_list('page_start', flat=True)) == {1}
-    assert response.data['knowledge_source_id'] == source.id
+    assert response.data['ingestion_job']['id'] == job.id
+    assert job.status == 'completed'
+    assert job.knowledge_source_id == source.id
 
 
 @pytest.mark.django_db
@@ -240,10 +256,14 @@ def test_index_failure_never_activates_partial_pdf_chunks(
             format='multipart',
         )
 
-    assert response.status_code == 400
-    lesson = Lesson.objects.get(pk=response.data['lesson_id'])
+    assert response.status_code == 202
+    lesson = Lesson.objects.get(pk=response.data['lesson']['id'])
+    job = LessonIngestionJob.objects.get(lesson=lesson)
     assert lesson.processing_status == 'failed'
     assert lesson.processing_error == 'Không thể lập chỉ mục nội dung PDF'
+    assert job.status == 'failed'
+    assert job.attempts == 3
+    assert job.failure_code == 'processing_failed'
     assert not KnowledgeSource.objects.filter(lesson=lesson, is_active=True).exists()
 
 
@@ -262,14 +282,20 @@ def test_reprocess_unchanged_pdf_is_idempotent(api_client, teacher_user, owned_c
             format='multipart',
         )
         lesson_id = upload_response.data['lesson']['id']
-        source_id = upload_response.data['knowledge_source_id']
+        upload_job = LessonIngestionJob.objects.get(
+            pk=upload_response.data['ingestion_job']['id']
+        )
+        source_id = upload_job.knowledge_source_id
         reprocess_response = api_client.post(
             f'/api/courses/lessons/{lesson_id}/reprocess/',
             format='json',
         )
 
-    assert upload_response.status_code == 201
-    assert reprocess_response.status_code == 200
-    assert reprocess_response.data['index_created'] is False
-    assert reprocess_response.data['knowledge_source_id'] == source_id
+    assert upload_response.status_code == 202
+    assert reprocess_response.status_code == 202
+    reprocess_job = LessonIngestionJob.objects.get(
+        pk=reprocess_response.data['ingestion_job']['id']
+    )
+    assert reprocess_job.index_created is False
+    assert reprocess_job.knowledge_source_id == source_id
     assert KnowledgeSource.objects.filter(lesson_id=lesson_id, is_active=True).count() == 1

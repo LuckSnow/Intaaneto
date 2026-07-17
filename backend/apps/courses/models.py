@@ -245,6 +245,62 @@ class LessonComment(models.Model):
         return f"{self.user.username}: {self.content[:50]}"
 
 
+class LessonIngestionJob(models.Model):
+    """Durable, auditable execution state for one PDF ingestion request."""
+
+    STATUS_CHOICES = [
+        ('queued', 'Chờ chạy'),
+        ('running', 'Đang chạy'),
+        ('completed', 'Hoàn thành'),
+        ('failed', 'Thất bại'),
+    ]
+
+    lesson = models.ForeignKey(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='ingestion_jobs',
+    )
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='requested_lesson_ingestion_jobs',
+    )
+    knowledge_source = models.ForeignKey(
+        'ai_assistant.KnowledgeSource',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ingestion_jobs',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued')
+    task_id = models.UUIDField(unique=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    index_created = models.BooleanField(null=True, blank=True)
+    failure_code = models.CharField(max_length=50, blank=True)
+    safe_error = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['lesson'],
+                condition=models.Q(status__in=('queued', 'running')),
+                name='unique_active_ingestion_job_per_lesson',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['lesson', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'Ingestion job {self.pk} for lesson {self.lesson_id}'
+
+
 class LessonVideoGenerationJob(models.Model):
     """Auditable, manually triggered local virtual-lecturer render."""
 

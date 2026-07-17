@@ -176,6 +176,12 @@ Response ổn định:
       "id": "knowledge-chunk-15",
       "lesson_id": 121,
       "source_version": 1,
+      "location": {
+        "start_offset": 0,
+        "end_offset": 420,
+        "page_start": 2,
+        "page_end": 3
+      },
       "excerpt": "..."
     }
   ],
@@ -189,6 +195,8 @@ Response ổn định:
 ```
 
 Nếu evidence yếu/chưa index, backend fallback và không gọi generation provider.
+Với source PDF, `page_start/page_end` giữ số trang gốc; chunk đi qua ranh giới
+trang trả một range. Lesson text thông thường trả hai giá trị này là `null`.
 
 Khôi phục phiên gần nhất của một lesson:
 

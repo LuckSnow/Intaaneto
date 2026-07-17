@@ -9,6 +9,7 @@ from django.db.models import Q
 from config.throttling import ActionScopedThrottleMixin
 
 from .models import Course, Lesson, Enrollment, Review, LessonComment
+from .ingestion import IngestionQueueError, queue_pdf_ingestion
 from .serializers import (
     CourseSerializer, CourseDetailSerializer, LessonSerializer,
     LessonUploadSerializer, LessonDetailSerializer, LessonCommentSerializer,
@@ -16,9 +17,7 @@ from .serializers import (
 )
 from .services import (
     AssessmentRequiredError,
-    PDFIngestionError,
     complete_lesson,
-    process_pdf_lesson,
 )
 
 
@@ -227,9 +226,7 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[IsTeacher])
     def upload(self, request):
-        """
-        Teacher uploads one PDF, then extraction and RAG indexing run synchronously.
-        """
+        """Validate and persist one PDF lesson, then enqueue durable ingestion."""
         course = Course.objects.filter(pk=request.data.get('course')).first()
         if course is not None:
             self._validate_course_owner(course)
@@ -243,50 +240,77 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         )
 
         try:
-            source, created = process_pdf_lesson(actor=request.user, lesson=lesson)
-        except PDFIngestionError as exc:
+            job, created = queue_pdf_ingestion(actor=request.user, lesson=lesson)
+        except IngestionQueueError as exc:
             return Response(
                 {'error': str(exc), 'lesson_id': lesson.id},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        lesson.refresh_from_db()
+        job.refresh_from_db()
         return Response({
-            'message': 'PDF đã được trích xuất và lập chỉ mục.',
+            'message': 'PDF đã được tiếp nhận để xử lý.',
             'lesson': LessonDetailSerializer(lesson).data,
-            'knowledge_source_id': source.id,
-            'index_created': created,
-        }, status=status.HTTP_201_CREATED)
+            'ingestion_job': {
+                'id': job.id,
+                'status': job.status,
+                'attempts': job.attempts,
+            },
+            'queue_created': created,
+        }, status=status.HTTP_202_ACCEPTED)
 
     @action(detail=True, methods=['get'])
     def processing_status(self, request, pk=None):
         """Check AI processing status of a lesson."""
         lesson = self.get_object()
+        job = lesson.ingestion_jobs.order_by('-created_at', '-id').first()
         return Response({
             'id': lesson.id,
             'status': lesson.processing_status,
             'ai_video_url': lesson.ai_video_url,
             'ai_summary': lesson.ai_summary[:200] if lesson.ai_summary else '',
             'error': lesson.processing_error,
+            'ingestion_job': (
+                {
+                    'id': job.id,
+                    'status': job.status,
+                    'attempts': job.attempts,
+                    'failure_code': job.failure_code,
+                    'knowledge_source_id': job.knowledge_source_id,
+                    'index_created': job.index_created,
+                }
+                if job else None
+            ),
         })
 
     @action(detail=True, methods=['post'])
     def reprocess(self, request, pk=None):
-        """Safely extract and index the lesson PDF again."""
+        """Queue a safe, idempotent retry for the lesson PDF."""
         lesson = self.get_object()
         if lesson.processing_status not in ('failed', 'completed'):
             return Response({'error': 'Bài giảng đang được xử lý'}, status=400)
 
         try:
-            source, created = process_pdf_lesson(actor=request.user, lesson=lesson)
-        except PDFIngestionError as exc:
-            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            job, created = queue_pdf_ingestion(actor=request.user, lesson=lesson)
+        except IngestionQueueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
+        lesson.refresh_from_db()
+        job.refresh_from_db()
         return Response({
-            'message': 'PDF đã được xử lý lại.',
+            'message': 'PDF đã được đưa vào hàng đợi xử lý lại.',
             'lesson': LessonDetailSerializer(lesson).data,
-            'knowledge_source_id': source.id,
-            'index_created': created,
-        })
+            'ingestion_job': {
+                'id': job.id,
+                'status': job.status,
+                'attempts': job.attempts,
+            },
+            'queue_created': created,
+        }, status=status.HTTP_202_ACCEPTED)
 
 
 class LessonCommentViewSet(viewsets.ModelViewSet):

@@ -5,6 +5,7 @@ Legacy multimedia helpers plus the PDF-only RAG ingestion service.
 
 from decimal import Decimal
 import io
+import re
 import time
 import logging
 import unicodedata
@@ -21,6 +22,10 @@ logger = logging.getLogger(__name__)
 
 class PDFIngestionError(Exception):
     """Safe, user-facing failure from the bounded PDF ingestion pipeline."""
+
+    def __init__(self, message, *, retryable=False):
+        self.retryable = retryable
+        super().__init__(message)
 
 
 class AssessmentRequiredError(Exception):
@@ -211,6 +216,15 @@ def sanitize_extracted_text(text: str) -> str:
     )
 
 
+PDF_PAGE_MARKER_COLLISION = re.compile(r'^--- Trang ([1-9]\d*) ---$', re.MULTILINE)
+
+
+def escape_pdf_page_marker_collisions(text: str) -> str:
+    """Prevent untrusted page text from impersonating an app-owned marker."""
+
+    return PDF_PAGE_MARKER_COLLISION.sub(r'\\--- Trang \1 ---', text)
+
+
 def _extract_pdf_pages(reader):
     if reader.is_encrypted:
         raise PDFIngestionError('Chưa hỗ trợ PDF được mã hóa hoặc đặt mật khẩu')
@@ -222,7 +236,9 @@ def _extract_pdf_pages(reader):
     pages = []
     extracted_chars = 0
     for page_number, page in enumerate(reader.pages, start=1):
-        text = sanitize_extracted_text(page.extract_text()).strip()
+        text = escape_pdf_page_marker_collisions(
+            sanitize_extracted_text(page.extract_text()).strip()
+        )
         if not text:
             continue
         extracted_chars += len(text)
@@ -293,16 +309,19 @@ def process_pdf_lesson(*, actor, lesson, embedding_provider=None):
         raise
     except PDFIngestionError as exc:
         safe_error = str(exc)
+        retryable = exc.retryable
     except LessonIndexingError:
         safe_error = 'Không thể lập chỉ mục nội dung PDF'
+        retryable = True
     except Exception:
         logger.exception('Unexpected PDF ingestion failure for lesson %s', lesson.id)
         safe_error = 'Không thể xử lý file PDF'
+        retryable = True
 
     lesson.processing_status = 'failed'
     lesson.processing_error = safe_error
     lesson.save(update_fields=['processing_status', 'processing_error'])
-    raise PDFIngestionError(safe_error)
+    raise PDFIngestionError(safe_error, retryable=retryable)
 
 
 # ═══════════════════════════════════════════════════════════
