@@ -104,6 +104,7 @@ export const courseService = {
     const response = await api.post(
       `/courses/lessons/${lessonId}/generate-video/`,
       formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
     )
     return response.data
   },

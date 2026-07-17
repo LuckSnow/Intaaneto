@@ -248,7 +248,11 @@ export default function TeacherUpload() {
       setSummaryText(data.summary?.text || '')
       toast.success(successMessage)
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Không thể thực hiện thao tác')
+      const responseData = error.response?.data
+      const fieldError = responseData && typeof responseData === 'object'
+        ? Object.values(responseData).flat().find((message) => typeof message === 'string')
+        : null
+      toast.error(responseData?.detail || fieldError || 'Không thể thực hiện thao tác')
     } finally {
       setAuthoringBusy('')
     }
