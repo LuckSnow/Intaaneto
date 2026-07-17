@@ -59,6 +59,10 @@ exploitation. Re-check code and tests before changing status.
   system policy from untrusted evidence, constructs citations only from selected
   retrieved chunks, redacts provider/retrieval failures, and persists no full
   prompt, embedding, provider error, or citation excerpt.
+- Grounded-answer human review requires separate cost and sensitive-export
+  confirmations, writes two same-package local files with mode `0600`, detects
+  content tampering/incomplete or same-rater sheets, and emits aggregate-only
+  agreement without raw answers, citations, notes, ratings, or identities.
 - OpenAI/Gemini generation selection and credentials remain server-side. Missing
   keys and unknown provider values fail closed, with provider error details kept
   out of the student response.
@@ -99,6 +103,11 @@ exploitation. Re-check code and tests before changing status.
   fields, cross-assessment questions, and mutation after attempts. Legacy coding
   exercises now have an optional lesson link for migration compatibility;
   learner exercise queries and submissions deny unscoped or unenrolled records.
+- Dialogue checks require current enrollment plus a passed current-version
+  attempt, reject foreign questions before retrieval, search only the assessment
+  lesson, skip generation on weak evidence, validate provider JSON and cannot
+  mutate learning state. Audit omits raw answers, prompts, rubrics, feedback,
+  answer keys and citation excerpts.
 - Assessment reinforcement resolves an owned failed current-version attempt
   before embedding, bounds weak-objective retrieval inside the assessment
   lesson, returns only application-owned citations, redacts provider failures,

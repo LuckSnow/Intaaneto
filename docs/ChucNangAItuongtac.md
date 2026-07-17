@@ -93,9 +93,11 @@ Phần objective report dùng lần làm mới nhất trên assessment version h
 hiển thị số học viên cần củng cố và correct rate mà không lộ danh tính/đáp án.
 
 RAG reinforcement là thao tác riêng sau attempt không đạt. Nó truy xuất học liệu
-cho weak objective và không thay đổi score/mastery/progression. AI dialogue
-grading với rubric/calibration chưa được triển khai và không được coi là kết quả
-đã có.
+cho weak objective và không thay đổi score/mastery/progression. Sau khi đã pass
+baseline deterministic, learner có thể trả lời tự do một câu assessment để nhận
+AI recommendation grounded theo lesson. Kết quả này cũng không thay đổi learning
+state; raw answer/rubric/feedback không được lưu. Dialogue grading chính thức vẫn
+cần human-labeled cases, rubric calibration và policy riêng.
 
 Một audit event tối thiểu ghi nhận packet đã được lấy mà không lưu prompt/excerpt.
 Teacher report ghép exposure có evidence với attempt tiếp theo cùng version để

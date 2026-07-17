@@ -123,7 +123,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. Two hundred and nine backend tests passed on 2026-07-17 in the
+  regression coverage. Two hundred and twenty-five backend tests passed on 2026-07-17 in the
   Docker backend, including eleven Slice 1/index-location tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -175,6 +175,17 @@ relying on it and update it after material implementation changes.
 - The lesson page now renders the learner-safe multiple-choice assessment and
   server-confirmed pass/reinforcement/next-lesson states. Lessons without a
   published assessment retain the explicit completion action.
+- A recommendation-only dialogue knowledge check is available after a learner
+  passes the current deterministic assessment. The backend resolves one
+  assessment-owned question/rubric, retrieves evidence inside the authorized
+  lesson, and strictly parses a Vietnamese provider recommendation. Weak evidence
+  returns `unavailable` without generation. Application-owned citations accompany
+  feedback; the action never changes score, mastery, completion, or progression.
+  Its audit event stores the passed attempt/version, objective, HMAC answer digest,
+  chunk IDs and bounded provider metadata—not raw answer, prompt, rubric, feedback,
+  citation excerpt or answer key. Eleven focused service/API/provider/throttle
+  cases cover access scope, fallback, redaction, malformed output and immutable
+  learning state.
 - Teachers/admins now have a role-gated `/teacher/assessments` authoring page.
   It loads draft and published managed courses through a dedicated paginated
   endpoint, filters lessons without expanding the backend ownership scope, and
@@ -260,7 +271,7 @@ relying on it and update it after material implementation changes.
   share the same published, lesson-scoped owner/enrollment boundary. Hint prompts
   contain title/description and optional learner code, never solution code or
   hidden tests; outsiders are denied before the generation provider.
-- Course migrations `0004`/`0005` and exercises migrations `0002`/`0003` are applied in the
+- Course migrations `0004`/`0005` and exercises migrations `0002`–`0004` are applied in the
   development PostgreSQL database. The exercises migration conditionally reuses
   the complete `lesson_id` column/FK/index left by the removed legacy
   `exercises.0002_initial`, while still creating that relationship on a fresh
@@ -324,6 +335,14 @@ relying on it and update it after material implementation changes.
   strict lexical-proxy pass `0.50`, warm mean latency `1515.62 ms`, and 2,283
   provider-reported tokens across four generation calls. Raw answers were not
   committed; semantic and pedagogical claims still require human review.
+- The grounded-answer harness can now export two private `0600` review sheets
+  from one provider run, with distinct pseudonymous raters and an immutable
+  package digest. A separate aggregate-only command validates complete ratings
+  and reports agreement/kappa plus clarity summaries without raw questions,
+  answers, citations, ratings, notes, or reviewer identities. Five focused tests
+  cover aggregate output, tamper/same-rater/incomplete rejection, identical
+  package export, file permissions, stdout redaction, and explicit sensitive-
+  export confirmation. No human ratings or adjudicated E1 result exist yet.
 - Rollback-only PostgreSQL smoke tests persisted and ranked pgvector chunks with
   exact cosine distance. A live FastEmbed smoke ranked the intended RAG and
   Python chunks first (`0.494` and `0.756`) and marked the unsupported weather
@@ -387,10 +406,11 @@ relying on it and update it after material implementation changes.
 - No validated teacher competency test or scoring rubric is implemented. A future
   assessment may provide evidence to the admin review, but must not automatically
   grant a privileged role without an explicitly accepted policy.
-- No AI-dialogue assessment or AI-generated grade is implemented yet. The
-  current lesson assessment is deterministic multiple choice and supplies the
-  trusted score/progression baseline; conversational rubric evaluation, teacher
-  calibration, and assessment-quality experiments remain.
+- A bounded post-pass AI dialogue recommendation is implemented, but no
+  AI-generated grade affects learner state. The deterministic multiple-choice
+  assessment remains the trusted score/progression baseline; teacher calibration,
+  human-labeled dialogue cases, consistency evaluation and any policy for using
+  AI recommendations in progression remain unimplemented.
 - A manually invoked local SadTalker PoC adapter is implemented behind
   `generate_sadtalker_video`; there is no HTTP trigger. It authorizes ownership
   before reading files, requires explicit rights/approval confirmation, bounds
@@ -435,7 +455,8 @@ relying on it and update it after material implementation changes.
   diagnostics. Free Gemini API usage must not receive sensitive, confidential,
   or personal lesson/student data.
 - Run and record the grounded-answer/refusal harness with a configured provider,
-  then expand the Vietnamese dataset and add a holdout plus human review before
+  have two independent reviewers complete the private E1 sheets, then expand the
+  Vietnamese dataset and add a holdout before
   tuning the provisional `0.45` threshold, changing the 384-dimensional model,
   or adding an ANN index. Exact pgvector search is sufficient for the current
   small corpus baseline.

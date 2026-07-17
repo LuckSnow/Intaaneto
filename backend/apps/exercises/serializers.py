@@ -218,6 +218,20 @@ class ReinforcementRequestSerializer(serializers.Serializer):
     attempt_id = serializers.IntegerField(min_value=1)
 
 
+class DialogueKnowledgeCheckSerializer(serializers.Serializer):
+    question_id = serializers.IntegerField(min_value=1)
+    answer = serializers.CharField(
+        min_length=1,
+        max_length=2000,
+        trim_whitespace=True,
+    )
+
+    def validate_answer(self, value):
+        if '\x00' in value:
+            raise serializers.ValidationError('Câu trả lời chứa ký tự không hợp lệ.')
+        return value
+
+
 class AssessmentAttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = AssessmentAttempt

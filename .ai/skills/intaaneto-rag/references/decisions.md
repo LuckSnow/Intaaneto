@@ -272,3 +272,33 @@ affected files or migration.
 - Constraint: Redis/AOF in development is evidence of broker delivery, not a
   production HA guarantee. Parser wall-clock isolation, malware scanning,
   monitoring, orphan cleanup and production object storage remain separate.
+
+## RAG-020 — Human RAG review uses one immutable private answer package
+
+- Status: Implemented for the E1 review workflow
+- Date: 2026-07-17
+- Affected: grounded-answer evaluation, private review/aggregate commands,
+  focused tests, and `docs/RAG_GROUNDED_ANSWER_EVALUATION.md`
+- Decision: Generate both independent reviewer sheets from one provider run,
+  bind their bounded demo questions/answers/citations to the same digest, store
+  them as local `0600` files, and emit only agreement aggregates after review.
+- Reason: Lexical markers do not measure semantic or pedagogical quality, while
+  separate live runs would expose reviewers to different stochastic outputs.
+- Constraint: Tooling and blank sheets are not human evidence. No accuracy,
+  agreement, or pedagogical-quality claim is allowed before two real reviewers
+  finish the same package and disagreements are adjudicated.
+
+## RAG-021 — Dialogue assessment starts post-pass and recommendation-only
+
+- Status: Implemented for the first software seam
+- Date: 2026-07-17
+- Affected: exercises dialogue-check model/service/API/tests, structured AI
+  recommendation parser, lesson UI, throttling and documentation
+- Decision: Permit a RAG-grounded free-text check only after the learner passes
+  the current deterministic assessment. Its outcome is optional feedback and
+  cannot affect progression.
+- Reason: The thesis needs a dialogue-evaluation seam, but an uncalibrated model
+  must not create false passes/fails or weaken the explainable baseline.
+- Constraint: Audit stores an HMAC answer digest and bounded metadata, not raw
+  answer/rubric/key/feedback. Grading use requires human-labeled evaluation,
+  teacher review, an appeal path and a separate architecture decision.

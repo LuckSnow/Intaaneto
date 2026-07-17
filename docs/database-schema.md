@@ -119,6 +119,13 @@ queued/running/completed/failed, bounded attempt count, safe failure code/error,
 source kết quả và timestamps. Conditional unique constraint chỉ cho một job
 queued/running trên mỗi lesson. Polling API không trả task UUID hoặc requester.
 
+### `exercises.DialogueKnowledgeCheckEvent`
+
+Audit tối thiểu của knowledge check recommendation-only: passed attempt,
+assessment version, question/objective, outcome, HMAC answer digest, selected
+chunk IDs và bounded provider usage/latency. Không lưu raw answer, prompt, rubric,
+answer key, feedback hoặc citation excerpt; record không tham gia progression.
+
 ## Forum
 
 `Tag`, `Post`, nested `Comment`, `Reaction`, `Report`, `Follow` hỗ trợ cộng đồng.

@@ -14,6 +14,7 @@ THROTTLE_TEST_SETTINGS = {
         'lesson_upload': '1/hour',
         'ai_chat': '1/minute',
         'assessment_submit': '1/hour',
+        'assessment_dialogue': '1/hour',
     },
 }
 
@@ -90,6 +91,20 @@ def test_assessment_submit_is_throttled_per_authenticated_user(
 
     first = authenticated_client.post(url, {'answers': []}, format='json')
     second = authenticated_client.post(url, {'answers': []}, format='json')
+
+    assert first.status_code == 404
+    assert second.status_code == 429
+
+
+@pytest.mark.django_db
+@override_settings(REST_FRAMEWORK=THROTTLE_TEST_SETTINGS)
+def test_dialogue_assessment_is_throttled_per_authenticated_user(
+    authenticated_client,
+):
+    url = '/api/exercises/assessments/999999/dialogue-check/'
+
+    first = authenticated_client.post(url, {}, format='json')
+    second = authenticated_client.post(url, {}, format='json')
 
     assert first.status_code == 404
     assert second.status_code == 429

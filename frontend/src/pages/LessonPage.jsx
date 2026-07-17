@@ -53,6 +53,11 @@ export default function LessonPage() {
   const [reinforcement, setReinforcement] = useState(null)
   const [reinforcementLoading, setReinforcementLoading] = useState(false)
   const [reinforcementError, setReinforcementError] = useState('')
+  const [dialogueQuestionId, setDialogueQuestionId] = useState('')
+  const [dialogueAnswer, setDialogueAnswer] = useState('')
+  const [dialogueResult, setDialogueResult] = useState(null)
+  const [dialogueLoading, setDialogueLoading] = useState(false)
+  const [dialogueError, setDialogueError] = useState('')
 
   useEffect(() => {
     fetchLesson()
@@ -100,6 +105,10 @@ export default function LessonPage() {
     setAssessmentError('')
     setReinforcement(null)
     setReinforcementError('')
+    setDialogueQuestionId('')
+    setDialogueAnswer('')
+    setDialogueResult(null)
+    setDialogueError('')
   }, [id])
 
   useEffect(() => {
@@ -110,7 +119,10 @@ export default function LessonPage() {
       setAssessmentLoading(true)
       try {
         const data = await courseService.getLessonAssessment(id)
-        if (!cancelled) setAssessment(data)
+        if (!cancelled) {
+          setAssessment(data)
+          setDialogueQuestionId(data?.questions?.[0]?.id || '')
+        }
       } catch (error) {
         if (!cancelled && error.response?.status !== 404) {
           setAssessmentError('Không thể tải bài đánh giá. Vui lòng thử lại.')
@@ -262,6 +274,28 @@ export default function LessonPage() {
   const handleAskAboutObjective = (prompt) => {
     setChatInput(prompt)
     setActiveTab('chat')
+  }
+
+  const handleDialogueKnowledgeCheck = async () => {
+    if (!assessment || !dialogueQuestionId || !dialogueAnswer.trim() || dialogueLoading) return
+    setDialogueLoading(true)
+    setDialogueError('')
+    setDialogueResult(null)
+    try {
+      const result = await courseService.runDialogueKnowledgeCheck(
+        assessment.id,
+        Number(dialogueQuestionId),
+        dialogueAnswer.trim(),
+      )
+      setDialogueResult(result)
+    } catch (error) {
+      setDialogueError(
+        error.response?.data?.detail
+          || 'Kiểm tra hội thoại tạm thời không khả dụng. Điểm và tiến độ không thay đổi.',
+      )
+    } finally {
+      setDialogueLoading(false)
+    }
   }
 
   // AI Chat
@@ -803,6 +837,96 @@ export default function LessonPage() {
                             ? 'Đang chấm bài...'
                             : assessmentResult ? 'Làm lại bài đánh giá' : 'Nộp bài đánh giá'}
                         </Button>
+                      )}
+
+                      {(assessment.passed || assessmentResult?.passed) && (
+                        <section className="rounded-xl border border-white/15 bg-black/10 p-4">
+                          <div className="flex items-start gap-3">
+                            <Bot className="mt-0.5 h-5 w-5 text-orange-300" aria-hidden="true" />
+                            <div>
+                              <h3 className="font-semibold text-white">Tự kiểm tra bằng hội thoại AI</h3>
+                              <p className="mt-1 text-sm text-white/60">
+                                Đây chỉ là khuyến nghị luyện tập sau khi bạn đã đạt bài trắc nghiệm.
+                                Kết quả không thay đổi điểm, mastery hoặc quyền chuyển bài.
+                              </p>
+                            </div>
+                          </div>
+
+                          <label htmlFor="dialogue-question" className="mt-4 block text-sm font-medium text-white">
+                            Câu hỏi
+                          </label>
+                          <select
+                            id="dialogue-question"
+                            value={dialogueQuestionId}
+                            onChange={(event) => {
+                              setDialogueQuestionId(event.target.value)
+                              setDialogueResult(null)
+                            }}
+                            disabled={dialogueLoading}
+                            className="mt-2 min-h-11 w-full rounded-lg border border-white/20 bg-slate-900 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          >
+                            {assessment.questions.map((question) => (
+                              <option key={question.id} value={question.id}>{question.prompt}</option>
+                            ))}
+                          </select>
+
+                          <label htmlFor="dialogue-answer" className="mt-4 block text-sm font-medium text-white">
+                            Trả lời bằng lời của bạn
+                          </label>
+                          <textarea
+                            id="dialogue-answer"
+                            value={dialogueAnswer}
+                            onChange={(event) => setDialogueAnswer(event.target.value)}
+                            disabled={dialogueLoading}
+                            maxLength={2000}
+                            rows={4}
+                            className="mt-2 w-full rounded-lg border border-white/20 bg-black/20 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            placeholder="Giải thích ngắn gọn điều bạn hiểu..."
+                          />
+                          <Button
+                            onClick={handleDialogueKnowledgeCheck}
+                            disabled={dialogueLoading || !dialogueQuestionId || !dialogueAnswer.trim()}
+                            className="mt-3 bg-orange-600 text-white hover:bg-orange-700"
+                          >
+                            {dialogueLoading ? 'Đang đối chiếu học liệu...' : 'Nhận khuyến nghị'}
+                          </Button>
+
+                          {dialogueError && (
+                            <p className="mt-3 text-sm text-red-200" role="alert">{dialogueError}</p>
+                          )}
+
+                          {dialogueResult && (
+                            <div className="mt-4 rounded-lg border border-white/15 p-3" role="status">
+                              <p className="text-sm font-semibold text-orange-200">
+                                Khuyến nghị: {
+                                  dialogueResult.outcome === 'demonstrated'
+                                    ? 'Đã thể hiện hiểu biết'
+                                    : dialogueResult.outcome === 'partial'
+                                      ? 'Hiểu một phần'
+                                      : dialogueResult.outcome === 'not_demonstrated'
+                                        ? 'Chưa thể hiện rõ'
+                                        : 'Chưa đủ bằng chứng'
+                                }
+                              </p>
+                              <p className="mt-2 whitespace-pre-wrap text-sm text-white/80">{dialogueResult.feedback}</p>
+                              <p className="mt-2 text-sm text-white/60">Bước tiếp theo: {dialogueResult.next_step}</p>
+                              {dialogueResult.citations?.length > 0 && (
+                                <ol className="mt-3 space-y-2">
+                                  {dialogueResult.citations.map((citation) => (
+                                    <li key={citation.id} className="rounded border border-white/10 p-2 text-sm text-white/70">
+                                      <span className="font-medium text-orange-200">
+                                        {citation.location?.page_start
+                                          ? `Trang ${citation.location.page_start}`
+                                          : citation.lesson_title}
+                                      </span>
+                                      <p className="mt-1 whitespace-pre-wrap">{citation.excerpt}</p>
+                                    </li>
+                                  ))}
+                                </ol>
+                              )}
+                            </div>
+                          )}
+                        </section>
                       )}
                     </div>
                   )}

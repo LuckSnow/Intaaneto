@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from apps.ai_assistant.rag_services import LessonRetrievalError
+from apps.ai_assistant.services import AIProviderError
 
 from apps.courses.models import Enrollment
 from apps.courses.serializers import LessonSerializer
@@ -13,13 +14,13 @@ from config.throttling import ActionScopedThrottleMixin
 from .access import accessible_exercises
 from .models import (
     AssessmentReinforcementEvent,
-    Exercise,
     LessonAssessment,
     Submission,
 )
 from .serializers import (
     AssessmentAttemptSerializer,
     AssessmentSubmissionSerializer,
+    DialogueKnowledgeCheckSerializer,
     ExerciseSerializer,
     LessonAssessmentLearnerSerializer,
     LessonAssessmentTeacherSerializer,
@@ -27,6 +28,7 @@ from .serializers import (
     SubmissionCreateSerializer,
     SubmissionSerializer,
 )
+from .dialogue_assessment import run_dialogue_knowledge_check
 from .reinforcement import build_reinforcement_packet
 from .services import grade_assessment
 
@@ -85,6 +87,7 @@ class LessonAssessmentViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
     throttle_scope_by_action = {
         'submit': 'assessment_submit',
         'reinforcement': 'assessment_reinforcement',
+        'dialogue_check': 'assessment_dialogue',
     }
 
     def get_permissions(self):
@@ -239,3 +242,27 @@ class LessonAssessmentViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
             ),
         )
         return Response(packet)
+
+    @action(detail=True, methods=['post'], url_path='dialogue-check')
+    def dialogue_check(self, request, pk=None):
+        assessment = self.get_object()
+        input_serializer = DialogueKnowledgeCheckSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        try:
+            result = run_dialogue_knowledge_check(
+                assessment=assessment,
+                user=request.user,
+                question_id=input_serializer.validated_data['question_id'],
+                learner_answer=input_serializer.validated_data['answer'],
+            )
+        except (AIProviderError, LessonRetrievalError):
+            return Response(
+                {
+                    'detail': (
+                        'Kiểm tra hội thoại tạm thời không khả dụng. '
+                        'Điểm và tiến độ của bạn không thay đổi.'
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(result, status=status.HTTP_201_CREATED)

@@ -107,6 +107,19 @@ không mở rộng scope sang course của teacher khác.
 
 ## Lesson assessment
 
+`POST /api/exercises/assessments/{id}/dialogue-check/` nhận:
+
+```json
+{"question_id": 12, "answer": "Retrieval tìm bằng chứng liên quan..."}
+```
+
+Chỉ learner đang enroll và đã pass assessment version hiện tại được gọi. Backend
+kiểm tra question thuộc assessment, retrieval trong đúng lesson rồi trả
+`recommendation_only`, outcome, feedback, next step và citations. Weak evidence
+trả `unavailable` mà không gọi generation provider. Action không nhận hoặc thay
+đổi score/pass/mastery/progress. Audit chỉ lưu HMAC answer và bounded metadata,
+không lưu raw answer, rubric, feedback hoặc answer key.
+
 Teacher owner dùng:
 
 - `GET /api/exercises/assessments/?lesson={lesson_id}`.

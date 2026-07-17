@@ -3,6 +3,7 @@ from .models import (
     AssessmentAttempt,
     AssessmentQuestion,
     AssessmentReinforcementEvent,
+    DialogueKnowledgeCheckEvent,
     Exercise,
     LessonAssessment,
     Submission,
@@ -72,6 +73,30 @@ class AssessmentReinforcementEventAdmin(admin.ModelAdmin):
     readonly_fields = [
         'attempt', 'status', 'objective_count', 'ready_objective_count',
         'evidence_count', 'requested_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(DialogueKnowledgeCheckEvent)
+class DialogueKnowledgeCheckEventAdmin(admin.ModelAdmin):
+    list_display = [
+        'attempt', 'question', 'outcome', 'assessment_version', 'created_at',
+    ]
+    list_filter = ['outcome', 'generation_provider', 'created_at']
+    raw_id_fields = ['attempt', 'question']
+    readonly_fields = [
+        'attempt', 'question', 'assessment_version',
+        'learning_objective_snapshot', 'outcome', 'answer_digest',
+        'evidence_chunk_ids', 'generation_provider', 'generation_model',
+        'tokens_used', 'latency_ms', 'created_at',
     ]
 
     def has_add_permission(self, request):

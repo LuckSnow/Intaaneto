@@ -68,6 +68,7 @@ Kết quả mong đợi:
   - `courses.0004_enrollment_mastery_percentage`
   - `exercises.0002_assessmentquestion_...`
   - `exercises.0003_assessmentreinforcementevent_...`
+  - `exercises.0004_dialogueknowledgecheckevent`
 
 Nếu service không chạy:
 
@@ -594,6 +595,29 @@ Dùng Swagger hoặc DevTools thử:
 - Teacher B không được tạo/sửa assessment của Teacher A.
 - Sửa/xóa assessment qua API sau khi đã có attempt: trả 409.
 
+### 13.5 Knowledge check hội thoại sau khi đạt
+
+Sau khi pass, panel `Tự kiểm tra bằng hội thoại AI` xuất hiện:
+
+1. Chọn một câu hỏi, nhập giải thích bằng lời của bạn và nhấn `Nhận khuyến nghị`.
+2. Với lesson đã index và provider hợp lệ, UI hiển thị outcome, feedback, bước
+   tiếp theo và citation thuộc đúng lesson.
+3. Với evidence yếu/chưa index, outcome là `unavailable`; generation không chạy.
+4. Xác nhận UI luôn ghi recommendation-only và điểm/mastery/progress không đổi.
+
+Trong Admin, `Dialogue knowledge check events` chỉ có passed attempt/version,
+objective, outcome, HMAC answer digest, chunk IDs và bounded provider metadata;
+không có raw answer, prompt, rubric, feedback hay answer key.
+
+Ca âm:
+
+- Learner chưa pass nhận 403 trước retrieval/provider.
+- Student ngoài enrollment nhận 404 và không khám phá assessment.
+- Question ID thuộc assessment khác trả 400.
+- Provider lỗi/malformed trả 503 chung, không tạo success event và không đổi
+  learning state.
+- Gọi quá rate cấu hình trả 429.
+
 ## 14. Kiểm tra progress và báo cáo học tập
 
 Kiểm tra endpoint course progress hoặc Django Admin:
@@ -776,7 +800,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `209` tests pass, gồm một integration test teacher PDF → assessment
+- Backend: `225` tests pass, gồm một integration test teacher PDF → assessment
   → learner progression không gọi mạng/LLM.
 - Frontend: lint pass, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
 - Bundle chính khoảng 465 kB; Google Auth được tải theo nhu cầu. Build còn cảnh

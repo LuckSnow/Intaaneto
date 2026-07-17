@@ -160,6 +160,9 @@ REST_FRAMEWORK = {
         'assessment_reinforcement': config(
             'THROTTLE_ASSESSMENT_REINFORCEMENT', default='20/hour'
         ),
+        'assessment_dialogue': config(
+            'THROTTLE_ASSESSMENT_DIALOGUE', default='10/hour'
+        ),
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,

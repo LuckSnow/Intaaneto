@@ -98,8 +98,10 @@ and omits raw questions/answers by default. The first live Gemini baseline was
 recorded on 2026-07-17: contract pass `0.75`, citation scope `1.00`, refusal
 `1.00`, strict lexical proxy pass `0.50`, and warm mean latency `1515.62 ms`.
 Report schema 2 separates contract pass from exact-marker proxy so neither is
-misstated as semantic accuracy. Dataset expansion, holdout split, and human
-semantic/pedagogical review remain.
+misstated as semantic accuracy. A private two-rater export and aggregate-only
+agreement command now make semantic/pedagogical review reproducible without
+committing raw provider output. Dataset expansion, holdout split, completed
+human ratings, and adjudication remain.
 
 - Version an evaluation set with answerability and expected sources.
 - Track retrieval recall/precision proxy, citation correctness, groundedness,
@@ -127,6 +129,24 @@ server-owned decision. Cross-enrollment and teacher-ownership tests pass.
 RAG-grounded reinforcement tied to weak objectives was added on 2026-07-16 as a
 separate bounded retrieval action with application-owned citations. It does not
 change the deterministic result or invoke generation during grading.
+
+## Assessment loop B — Post-pass dialogue recommendation
+
+Status: Implemented as a bounded product/research seam on 2026-07-17; calibration
+and human evaluation remain.
+
+- Require enrollment and a passed current-version deterministic attempt.
+- Resolve question, objective and rubric from the server-owned assessment.
+- Retrieve only inside the authorized lesson and skip generation on weak evidence.
+- Strictly parse a recommendation and return application-owned citations.
+- Persist only an HMAC answer digest and bounded audit metadata.
+- Never mutate score, mastery, completion or progression.
+
+Software exit met: access/question scope, fallback, provider failure/malformed
+output, prompt-data separation, no-state-mutation, throttling and lesson UI are
+covered. Research exit remains: human-labeled Vietnamese free-text cases,
+agreement/false-pass/false-fail/stability measurement, teacher calibration and a
+separate policy decision before any AI outcome may affect progression.
 
 Learner and owned-course teacher progress reports were implemented on
 2026-07-16 from deterministic attempt/progression evidence. On 2026-07-17 the

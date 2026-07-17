@@ -264,3 +264,44 @@ class AssessmentReinforcementEvent(models.Model):
                 name='reinforcement_ready_objectives_lte_total',
             ),
         ]
+
+
+class DialogueKnowledgeCheckEvent(models.Model):
+    """Minimal audit record for recommendation-only AI knowledge checks."""
+
+    OUTCOME_CHOICES = [
+        ('demonstrated', 'Demonstrated'),
+        ('partial', 'Partial'),
+        ('not_demonstrated', 'Not demonstrated'),
+        ('unavailable', 'Unavailable'),
+    ]
+
+    attempt = models.ForeignKey(
+        AssessmentAttempt,
+        on_delete=models.PROTECT,
+        related_name='dialogue_check_events',
+    )
+    question = models.ForeignKey(
+        AssessmentQuestion,
+        on_delete=models.SET_NULL,
+        related_name='dialogue_check_events',
+        null=True,
+        blank=True,
+    )
+    assessment_version = models.PositiveIntegerField()
+    learning_objective_snapshot = models.CharField(max_length=255)
+    outcome = models.CharField(max_length=24, choices=OUTCOME_CHOICES)
+    answer_digest = models.CharField(max_length=64)
+    evidence_chunk_ids = models.JSONField(default=list, blank=True)
+    generation_provider = models.CharField(max_length=32, blank=True)
+    generation_model = models.CharField(max_length=100, blank=True)
+    tokens_used = models.PositiveIntegerField(null=True, blank=True)
+    latency_ms = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['attempt', '-created_at']),
+            models.Index(fields=['outcome', '-created_at']),
+        ]

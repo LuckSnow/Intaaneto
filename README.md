@@ -13,7 +13,7 @@ truy cập, citation, điểm và progression đều do backend kiểm soát.
 | Quản lý khóa học | Teacher tạo course draft, upload PDF thành lesson, publish course khi có lesson usable |
 | Kho tri thức | PDF-only Celery/Redis ingestion có DB job/retry, bounds, deterministic normalization/chunking, page range, FastEmbed local, PostgreSQL/pgvector, source versioning và atomic activation |
 | AI Tutor | Retrieval trong lesson đã authorize, OpenAI/Gemini generation, fallback khi thiếu bằng chứng, citation do ứng dụng tạo |
-| Đánh giá | Teacher biên soạn trắc nghiệm, backend chấm deterministic, immutable attempt, weak objectives và RAG reinforcement có audit event tối thiểu |
+| Đánh giá | Teacher biên soạn trắc nghiệm, backend chấm deterministic, RAG reinforcement và dialogue knowledge check recommendation-only sau khi pass |
 | Tiến độ | Lesson completion, mastery/progress, roster/CSV, objective distribution và paired reinforcement outcome theo course sở hữu |
 | Cộng đồng | Forum, lesson comments và reviews với ownership/role boundary |
 | Video ảo | Adapter SadTalker local có consent/bounds/timeout/audit; technical GPU smoke đã tạo MP4, còn thiếu render học liệu với asset được duyệt và đánh giá chất lượng |
@@ -35,7 +35,8 @@ Teacher tạo course draft
 
 - AI dialogue grading ảnh hưởng điểm hoặc progression. Baseline hiện tại là
   trắc nghiệm teacher-authored, chấm deterministic.
-- Tự động tạo/tóm tắt assessment từ PDF.
+- Tự động tạo/tóm tắt assessment từ PDF; dialogue recommendation chưa được
+  human-calibrate và không tham gia progression.
 - TTS tự động và bằng chứng chất lượng SadTalker bằng portrait/audio học liệu đã
   được duyệt. Technical smoke trên GPU đã pass nhưng không thay thế bước này.
 - Parser subprocess wall-clock isolation, malware scanning, production broker
@@ -141,7 +142,7 @@ docker compose exec frontend npm run lint
 docker compose exec frontend npm run build
 ```
 
-Baseline ngày 2026-07-17: 209 backend tests pass; Django check và migration drift
+Baseline ngày 2026-07-17: 225 backend tests pass; Django check và migration drift
 check pass; frontend lint/build pass; `npm audit` báo 0 lỗ hổng đã biết. Bundle
 JavaScript chính còn khoảng 465 kB và Google Auth được tách thành các chunk tải
 khi cần. Build vẫn cảnh báo Browserslist data cũ. Frontend chưa có test runner

@@ -328,6 +328,14 @@ def evaluate_grounded_answers(
         if include_answers:
             result['question'] = case.question
             result['answer'] = answer.answer[:2000]
+            result['citations'] = [
+                {
+                    'lesson_title': citation.get('lesson_title', ''),
+                    'location': citation.get('location'),
+                    'excerpt': str(citation.get('excerpt', ''))[:1000],
+                }
+                for citation in answer.citations
+            ]
         results.append(result)
 
     case_count = len(dataset.cases)

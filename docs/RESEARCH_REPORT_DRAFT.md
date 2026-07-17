@@ -74,7 +74,7 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 Tại ngày 2026-07-17:
 
-- 209 backend tests pass trong isolated Django test settings, gồm một hành trình
+- 225 backend tests pass trong isolated Django test settings, gồm một hành trình
   tích hợp course draft → PDF/RAG index → assessment → enroll → progression.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
@@ -104,6 +104,10 @@ phải bằng chứng về tác động học tập.
 - Mean warm latency là `1.515,62 ms/case`, provider báo 2.283 token cho 4 call.
   Hai answerable case bị threshold từ chối; hai output grounded khác cách diễn
   đạt source marker. Không coi contract hoặc lexical proxy là answer accuracy.
+- E1 đã có quy trình xuất hai phiếu review local quyền `0600` từ cùng một lần
+  chạy provider và command tổng hợp agreement/kappa không chứa raw output. Đây
+  mới là công cụ thí nghiệm; chưa có rating của hai người hoặc adjudication nên
+  chưa được báo semantic/pedagogical accuracy.
 - Mở rộng dataset và tách development/holdout.
 - Chấm thủ công answer correctness, groundedness, citation correctness và
   refusal quality; lexical marker không thay thế semantic judgment.
@@ -152,7 +156,10 @@ asset đã được duyệt, đo tài nguyên và review định tính theo rubr
 - Dataset retrieval hiện quá nhỏ và cùng miền với demo content.
 - Threshold/model chưa được tuning trên holdout; exact search phù hợp corpus nhỏ
   nhưng chưa chứng minh khả năng mở rộng.
-- Assessment hiện là trắc nghiệm teacher-authored, chưa phải AI dialogue grading.
+- Assessment quyết định progression vẫn là trắc nghiệm teacher-authored. Một
+  post-pass dialogue knowledge check đã trả recommendation grounded theo lesson
+  nhưng không thay đổi learning state. Chưa có human-labeled free-text dataset,
+  calibration hoặc agreement/false-pass/false-fail nên chưa phải AI grading.
 - Progress/mastery phản ánh quy tắc sản phẩm, không tự động đồng nghĩa với năng
   lực thực tế hoặc tác động giáo dục.
 - PDF parser và embedding đã chuyển sang DB job + Celery/Redis worker với retry
