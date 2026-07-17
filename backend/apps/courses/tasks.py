@@ -6,8 +6,12 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Lesson, LessonIngestionJob
+from .models import Lesson, LessonIngestionJob, LessonVideoGenerationJob
 from .services import PDFIngestionError, process_pdf_lesson
+from .video_generation import (
+    VideoGenerationError,
+    process_stored_video_job,
+)
 
 
 def _mark_failed(job_id, *, code, message):
@@ -120,3 +124,47 @@ def process_pdf_lesson_job(self, job_id):
         'knowledge_source_id': source.id,
         'index_created': created,
     }
+
+
+@shared_task(bind=True, acks_late=True, reject_on_worker_lost=True)
+def process_sadtalker_video_job(self, job_id):
+    """Consume one approved video job only on the dedicated `video` queue."""
+
+    job = LessonVideoGenerationJob.objects.select_related(
+        'lesson__course', 'requested_by',
+    ).filter(pk=job_id).first()
+    if job is None:
+        return {'job_id': job_id, 'status': 'discarded'}
+    if job.status in ('completed', 'failed'):
+        return {'job_id': job.id, 'status': job.status}
+    try:
+        process_stored_video_job(job=job)
+    except PermissionDenied:
+        job.status = 'failed'
+        job.failure_code = 'authorization_revoked'
+        job.safe_error = 'Quyền tạo video đã bị thu hồi.'
+        job.completed_at = timezone.now()
+        job.save(update_fields=[
+            'status', 'failure_code', 'safe_error', 'completed_at',
+        ])
+        if job.portrait_file:
+            job.portrait_file.delete(save=False)
+            job.portrait_file = None
+            job.save(update_fields=['portrait_file'])
+        return {'job_id': job.id, 'status': 'failed'}
+    except VideoGenerationError as exc:
+        job.refresh_from_db()
+        if job.status != 'failed':
+            job.status = 'failed'
+            job.failure_code = exc.code[:50]
+            job.safe_error = str(exc)[:255]
+            job.completed_at = timezone.now()
+            job.save(update_fields=[
+                'status', 'failure_code', 'safe_error', 'completed_at',
+            ])
+            if job.portrait_file:
+                job.portrait_file.delete(save=False)
+                job.portrait_file = None
+                job.save(update_fields=['portrait_file'])
+        return {'job_id': job.id, 'status': 'failed'}
+    return {'job_id': job.id, 'status': 'completed'}

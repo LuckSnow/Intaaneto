@@ -468,10 +468,27 @@ export default function LessonPage() {
               {activeTab === 'video' && (
                 <div>
                   <h2 className="text-xl font-bold text-white mb-4">Nội dung bài giảng</h2>
-                  {lesson.content ? (
-                    <div className="text-white/80 whitespace-pre-wrap leading-relaxed">{lesson.content}</div>
+                  {(lesson.content || lesson.learning_content) ? (
+                    <>
+                      <div className="text-white/80 whitespace-pre-wrap leading-relaxed">
+                        {lesson.content || lesson.learning_content}
+                      </div>
+                      {lesson.content_truncated && (
+                        <p className="mt-4 text-sm text-amber-200">
+                          Bản xem trên web đã được rút gọn. Mở PDF để đọc toàn bộ học liệu.
+                        </p>
+                      )}
+                    </>
                   ) : (
-                    <p className="text-white/50">Nội dung sẽ được cập nhật sau khi AI xử lý xong.</p>
+                    <p className="text-white/50">Bài học chưa có nội dung có thể đọc.</p>
+                  )}
+                  {lesson.uploaded_file && (
+                    <a href={lesson.uploaded_file} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-medium text-orange-300 underline">
+                      Mở file PDF gốc
+                    </a>
+                  )}
+                  {lesson.rag_ready && (
+                    <p className="mt-3 text-sm text-emerald-300">Kho kiến thức RAG đã sẵn sàng cho AI Tutor.</p>
                   )}
                 </div>
               )}
@@ -482,7 +499,7 @@ export default function LessonPage() {
                   {lesson.ai_summary ? (
                     <div className="text-white/80 whitespace-pre-wrap leading-relaxed">{lesson.ai_summary}</div>
                   ) : (
-                    <p className="text-white/50">AI đang tóm tắt bài giảng... Vui lòng chờ.</p>
+                    <p className="text-white/50">Giảng viên chưa duyệt bản tóm tắt cho bài học này.</p>
                   )}
                 </div>
               )}

@@ -8,7 +8,8 @@ duyệt và lưu kết quả đánh giá chất lượng.
 ## SadTalker làm gì và không làm gì
 
 SadTalker nhận **một ảnh chân dung và một file audio** để tạo talking-head video.
-Nó không tự viết kịch bản và không tự chuyển văn bản thành giọng nói. Luồng PoC:
+Nó không tự viết kịch bản hoặc tự làm TTS; Intaaneto bổ sung summary draft có
+teacher review và `espeak-ng` local trước adapter. Luồng PoC:
 
 ```text
 Nội dung lesson đã duyệt
@@ -35,7 +36,8 @@ hoặc giọng nói của người thật nếu chưa có quyền và sự đồ
 
 ## Boundary của Intaaneto
 
-PoC chỉ chạy qua management command, không có HTTP endpoint:
+PoC có hai entry point: management command tin cậy và endpoint teacher-owner chỉ
+enqueue database job cho worker `video`; không chạy GPU inline trong HTTP:
 
 - Kiểm tra teacher ownership/admin trước khi đọc input.
 - Bắt buộc cờ xác nhận quyền sử dụng và phê duyệt.
@@ -46,7 +48,9 @@ PoC chỉ chạy qua management command, không có HTTP endpoint:
 - Timeout mặc định 900 giây và dừng process group khi quá hạn.
 - Chỉ nhận đúng một MP4 có signature phù hợp, tối đa 250 MiB.
 - Database lưu script đã duyệt, checksum input, actor, trạng thái và failure
-  code an toàn; không lưu stdout/stderr hoặc đường dẫn input.
+  code an toàn; không lưu stdout/stderr hoặc đường dẫn input do client cung cấp.
+- Web flow yêu cầu summary hiện tại đã duyệt, WAV checksum khớp summary và xóa
+  portrait tạm sau trạng thái cuối; trạng thái DB là polling contract.
 
 Mỗi lần chạy tạo `Courses > Lesson video generation jobs` trong Django Admin.
 Job là audit record read-only. Thành công sẽ gắn file MP4 vào `Lesson.video_file`.
@@ -117,7 +121,7 @@ SADTALKER_HOST_RUNTIME=/absolute/path/to/intaaneto-sadtalker \
   docker compose -f docker-compose.yml -f docker-compose.sadtalker.yml config --quiet
 
 SADTALKER_HOST_RUNTIME=/absolute/path/to/intaaneto-sadtalker \
-  docker compose -f docker-compose.yml -f docker-compose.sadtalker.yml up -d backend
+  docker compose -f docker-compose.yml -f docker-compose.sadtalker.yml up -d video_worker
 ```
 
 Adapter chạy upstream trong một work directory ghi được, truyền checkpoint bằng
@@ -144,9 +148,9 @@ python manage.py generate_sadtalker_video LESSON_ID \
   --confirm-rights-and-approval
 ```
 
-Không thêm API key vì adapter không dùng dịch vụ SadTalker online. Nếu chọn TTS
-cloud ở slice sau, key TTS mới cần được đặt server-side; PoC hiện chấp nhận WAV
-đã chuẩn bị sẵn để tách đánh giá lip-sync khỏi chất lượng TTS.
+Không thêm API key vì adapter không dùng dịch vụ SadTalker online. Web flow tạo
+WAV bằng `espeak-ng` local từ summary đã duyệt; management command vẫn chấp nhận
+WAV đã chuẩn bị riêng để có thể tách đánh giá lip-sync khỏi chất lượng TTS.
 
 ## Biên bản manual smoke
 

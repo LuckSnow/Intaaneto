@@ -8,6 +8,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useSearchParams } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { assessmentService } from '../services/assessmentService'
@@ -45,6 +46,9 @@ const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3
 const MAX_QUESTIONS = 50
 
 export default function TeacherAssessments() {
+  const [searchParams] = useSearchParams()
+  const requestedCourseId = searchParams.get('course')
+  const requestedLessonId = searchParams.get('lesson')
   const [courses, setCourses] = useState([])
   const [lessons, setLessons] = useState([])
   const [courseId, setCourseId] = useState('')
@@ -65,7 +69,8 @@ export default function TeacherAssessments() {
         const data = await assessmentService.getManagedCourses()
         if (!active) return
         setCourses(data)
-        setCourseId(data[0] ? String(data[0].id) : '')
+        const requested = data.find((course) => String(course.id) === requestedCourseId)
+        setCourseId(String(requested?.id || data[0]?.id || ''))
       } catch (requestError) {
         if (active) setError(firstError(requestError.response?.data) || 'Không thể tải khóa học được quản lý.')
       } finally {
@@ -92,7 +97,8 @@ export default function TeacherAssessments() {
       .then((data) => {
         if (!active) return
         setLessons(data)
-        setLessonId(data[0] ? String(data[0].id) : '')
+        const requested = data.find((lesson) => String(lesson.id) === requestedLessonId)
+        setLessonId(String(requested?.id || data[0]?.id || ''))
       })
       .catch((requestError) => {
         if (active) setError(firstError(requestError.response?.data) || 'Không thể tải danh sách bài học.')

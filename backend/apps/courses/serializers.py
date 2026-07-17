@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.conf import settings
 from django.db.models import Q
 from django.utils.text import slugify
+from PIL import Image, UnidentifiedImageError
 
 from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
 
@@ -46,17 +47,72 @@ class LessonUploadSerializer(serializers.ModelSerializer):
 class LessonDetailSerializer(serializers.ModelSerializer):
     """Full lesson detail including AI content for student view."""
     comments_count = serializers.SerializerMethodField()
+    learning_content = serializers.SerializerMethodField()
+    content_truncated = serializers.SerializerMethodField()
+    rag_ready = serializers.SerializerMethodField()
     
     class Meta:
         model = Lesson
         fields = ['id', 'course', 'title', 'slug', 'description', 'lesson_type', 'content',
                   'video_url', 'video_file', 'ai_video_url', 'ai_summary', 'processing_status',
                   'duration_minutes', 'order', 'is_preview', 'is_published',
-                  'uploaded_file', 'comments_count', 'created_at']
+                  'uploaded_file', 'comments_count', 'learning_content',
+                  'content_truncated', 'rag_ready', 'created_at']
         read_only_fields = ['slug', 'created_at']
     
     def get_comments_count(self, obj):
         return obj.comments.count()
+
+    def get_learning_content(self, obj):
+        text = obj.content.strip() if obj.content else (obj.extracted_text or '').strip()
+        return text[:settings.LESSON_DISPLAY_CONTENT_MAX_CHARS]
+
+    def get_content_truncated(self, obj):
+        text = obj.content.strip() if obj.content else (obj.extracted_text or '').strip()
+        return len(text) > settings.LESSON_DISPLAY_CONTENT_MAX_CHARS
+
+    def get_rag_ready(self, obj):
+        return obj.knowledge_sources.filter(is_active=True, status='ready').exists()
+
+
+class SummaryApprovalSerializer(serializers.Serializer):
+    text = serializers.CharField(min_length=1, max_length=4000, trim_whitespace=True)
+
+
+class VideoGenerationRequestSerializer(serializers.Serializer):
+    portrait = serializers.ImageField()
+    rights_and_approval_confirmed = serializers.BooleanField()
+
+    def validate_rights_and_approval_confirmed(self, value):
+        if value is not True:
+            raise serializers.ValidationError(
+                'Cần xác nhận quyền sử dụng ảnh, giọng đọc và kịch bản.'
+            )
+        return value
+
+    def validate_portrait(self, value):
+        if value.size <= 0 or value.size > settings.SADTALKER_MAX_PORTRAIT_BYTES:
+            raise serializers.ValidationError('Ảnh chân dung vượt giới hạn.')
+        position = value.tell()
+        try:
+            value.seek(0)
+            with Image.open(value) as image:
+                image.verify()
+            value.seek(0)
+            with Image.open(value) as image:
+                width, height = image.size
+                if (
+                    image.format not in ('JPEG', 'PNG')
+                    or min(width, height) < 256
+                    or max(width, height) > 4096
+                    or width * height > settings.SADTALKER_MAX_PORTRAIT_PIXELS
+                ):
+                    raise serializers.ValidationError('Ảnh chân dung không hợp lệ.')
+        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            raise serializers.ValidationError('Ảnh chân dung không hợp lệ.') from exc
+        finally:
+            value.seek(position)
+        return value
 
 
 class LessonCommentSerializer(serializers.ModelSerializer):

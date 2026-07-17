@@ -23,6 +23,11 @@ export default function TeacherUpload() {
   const [order, setOrder] = useState(1)
   const [uploading, setUploading] = useState(false)
   const [uploadedLessons, setUploadedLessons] = useState([])
+  const [authoring, setAuthoring] = useState(null)
+  const [summaryText, setSummaryText] = useState('')
+  const [authoringBusy, setAuthoringBusy] = useState('')
+  const [portrait, setPortrait] = useState(null)
+  const [rightsConfirmed, setRightsConfirmed] = useState(false)
   const activeUploadLessonIds = uploadedLessons
     .filter((lesson) => !['completed', 'failed'].includes(lesson.status))
     .map((lesson) => lesson.id)
@@ -98,6 +103,26 @@ export default function TeacherUpload() {
       cancelled = true
     }
   }, [selectedCourse])
+
+  useEffect(() => {
+    if (!authoring?.lesson_id || !['queued', 'running'].includes(authoring.video?.status)) {
+      return undefined
+    }
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const data = await courseService.getLessonAuthoringStatus(authoring.lesson_id)
+        if (!cancelled) setAuthoring(data)
+      } catch {
+        // Keep the last server-confirmed state visible.
+      }
+    }
+    const interval = window.setInterval(poll, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [authoring?.lesson_id, authoring?.video?.status])
 
   const fetchCourses = async () => {
     try {
@@ -198,6 +223,47 @@ export default function TeacherUpload() {
     } catch {
       toast.error('Không thể xử lý lại')
     }
+  }
+
+  const openAuthoring = async (lessonId) => {
+    setAuthoringBusy('status')
+    try {
+      const data = await courseService.getLessonAuthoringStatus(lessonId)
+      setAuthoring(data)
+      setSummaryText(data.summary?.text || '')
+      setPortrait(null)
+      setRightsConfirmed(false)
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Không thể tải trạng thái biên soạn')
+    } finally {
+      setAuthoringBusy('')
+    }
+  }
+
+  const runAuthoringAction = async (name, action, successMessage) => {
+    setAuthoringBusy(name)
+    try {
+      const data = await action()
+      setAuthoring(data)
+      setSummaryText(data.summary?.text || '')
+      toast.success(successMessage)
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Không thể thực hiện thao tác')
+    } finally {
+      setAuthoringBusy('')
+    }
+  }
+
+  const handleGenerateVideo = async () => {
+    if (!portrait || !rightsConfirmed) {
+      toast.error('Hãy chọn ảnh và xác nhận quyền sử dụng')
+      return
+    }
+    await runAuthoringAction(
+      'video',
+      () => courseService.generateLessonVideo(authoring.lesson_id, portrait),
+      'Video đã được đưa vào hàng đợi GPU',
+    )
   }
 
   return (
@@ -342,12 +408,21 @@ export default function TeacherUpload() {
                     )}
 
                     {lesson.status === 'completed' && (
-                      <Button
-                        onClick={() => navigate(`/lessons/${lesson.id}`)}
-                        className="bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30 rounded-lg px-4 py-2 text-sm"
-                      >
-                        Mở bài học →
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          onClick={() => openAuthoring(lesson.id)}
+                          disabled={authoringBusy === 'status'}
+                          className="border border-orange-400/30 bg-orange-500/20 text-orange-200 hover:bg-orange-500/30"
+                        >
+                          Biên soạn
+                        </Button>
+                        <Button
+                          onClick={() => navigate(`/lessons/${lesson.id}`)}
+                          className="bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30 rounded-lg px-4 py-2 text-sm"
+                        >
+                          Mở bài học →
+                        </Button>
+                      </div>
                     )}
 
                     {lesson.status === 'failed' && (
@@ -363,6 +438,121 @@ export default function TeacherUpload() {
               })}
             </div>
           </div>
+        )}
+
+        {authoring && (
+          <section className="mt-8 rounded-2xl border border-white/20 bg-slate-950/90 p-6 text-white" aria-label="Biên soạn học liệu AI">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold">Biên soạn: {authoring.lesson_title}</h2>
+                <p className="mt-1 text-sm text-white/60">
+                  PDF {authoring.extracted_chars.toLocaleString('vi-VN')} ký tự · RAG {authoring.rag_ready ? 'đã sẵn sàng' : 'chưa sẵn sàng'}
+                </p>
+              </div>
+              <Button onClick={() => setAuthoring(null)} className="border border-white/20 bg-transparent text-white hover:bg-white/10">Đóng</Button>
+            </div>
+
+            <div className="mt-5 grid gap-5">
+              <div className="rounded-xl border border-white/15 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">1. Học liệu PDF và RAG</h3>
+                    <p className="text-sm text-white/60">PDF và chỉ mục phải sẵn sàng trước các bước sinh nội dung.</p>
+                  </div>
+                  {authoring.pdf_url && <a href={authoring.pdf_url} target="_blank" rel="noreferrer" className="text-sm text-orange-300 underline">Mở PDF</a>}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/15 p-4">
+                <h3 className="font-semibold">2. Tóm tắt nháp</h3>
+                <p className="mt-1 text-sm text-white/60">AI chỉ tạo bản nháp. Nội dung chỉ xuất hiện cho học viên sau khi bạn duyệt.</p>
+                <Button
+                  onClick={() => runAuthoringAction('summary', () => courseService.generateLessonSummary(authoring.lesson_id), 'Đã tạo bản tóm tắt nháp')}
+                  disabled={!authoring.rag_ready || Boolean(authoringBusy)}
+                  className="mt-3 bg-orange-600 text-white hover:bg-orange-700"
+                >
+                  {authoringBusy === 'summary' ? 'Đang tạo...' : authoring.summary ? 'Tạo lại bản nháp' : 'Tạo bản tóm tắt'}
+                </Button>
+                {authoring.summary && (
+                  <>
+                    <textarea
+                      value={summaryText}
+                      onChange={(event) => setSummaryText(event.target.value)}
+                      maxLength={4000}
+                      rows={9}
+                      className="mt-3 w-full rounded-lg border border-white/20 bg-black/20 p-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                    <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                      <span className={authoring.summary.status === 'approved' ? 'text-emerald-300' : 'text-amber-300'}>
+                        {authoring.summary.status === 'approved' ? 'Đã duyệt' : 'Đang chờ duyệt'}
+                      </span>
+                      <Button
+                        onClick={() => runAuthoringAction('approve', () => courseService.approveLessonSummary(authoring.lesson_id, summaryText), 'Đã duyệt bản tóm tắt')}
+                        disabled={!summaryText.trim() || Boolean(authoringBusy)}
+                        className="bg-emerald-700 text-white hover:bg-emerald-800"
+                      >
+                        {authoringBusy === 'approve' ? 'Đang lưu...' : 'Duyệt tóm tắt'}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/15 p-4">
+                <h3 className="font-semibold">3. Assessment nháp</h3>
+                <p className="mt-1 text-sm text-white/60">Sinh 5 câu ở trạng thái draft; hãy kiểm tra đáp án và explanation trước khi publish.</p>
+                {authoring.assessment ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <span className="text-sm text-white/70">{authoring.assessment.question_count} câu · {authoring.assessment.is_published ? 'Đã publish' : 'Bản nháp'}</span>
+                    <Button onClick={() => navigate(`/teacher/assessments?course=${selectedCourse}&lesson=${authoring.lesson_id}`)} className="bg-orange-600 text-white hover:bg-orange-700">Mở trang rà soát</Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => runAuthoringAction('assessment', () => courseService.generateLessonAssessment(authoring.lesson_id), 'Đã tạo assessment nháp')}
+                    disabled={!authoring.rag_ready || Boolean(authoringBusy)}
+                    className="mt-3 bg-orange-600 text-white hover:bg-orange-700"
+                  >
+                    {authoringBusy === 'assessment' ? 'Đang tạo...' : 'Tạo assessment nháp'}
+                  </Button>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/15 p-4">
+                <h3 className="font-semibold">4. Giọng đọc và SadTalker</h3>
+                <p className="mt-1 text-sm text-white/60">TTS local không cần key. Video cần ảnh chân dung có quyền sử dụng và GPU worker.</p>
+                <Button
+                  onClick={() => runAuthoringAction('narration', () => courseService.generateLessonNarration(authoring.lesson_id), 'Đã tạo giọng đọc local')}
+                  disabled={authoring.summary?.status !== 'approved' || Boolean(authoringBusy)}
+                  className="mt-3 bg-orange-600 text-white hover:bg-orange-700"
+                >
+                  {authoringBusy === 'narration' ? 'Đang tạo giọng...' : authoring.narration ? 'Tạo lại giọng đọc' : 'Tạo giọng đọc'}
+                </Button>
+                {authoring.narration?.audio_url && <audio className="mt-3 w-full" controls src={authoring.narration.audio_url} />}
+                {authoring.narration && (
+                  <div className="mt-4 space-y-3">
+                    <label className="block text-sm font-medium">
+                      Ảnh chân dung JPEG/PNG
+                      <input type="file" accept="image/jpeg,image/png" onChange={(event) => setPortrait(event.target.files?.[0] || null)} className="mt-2 block w-full text-sm text-white/70" />
+                    </label>
+                    <label className="flex items-start gap-2 text-sm text-white/70">
+                      <input type="checkbox" checked={rightsConfirmed} onChange={(event) => setRightsConfirmed(event.target.checked)} className="mt-1" />
+                      Tôi xác nhận có quyền sử dụng ảnh, giọng đọc và kịch bản đã duyệt; video là nội dung tổng hợp.
+                    </label>
+                    <Button onClick={handleGenerateVideo} disabled={!portrait || !rightsConfirmed || Boolean(authoringBusy)} className="bg-orange-600 text-white hover:bg-orange-700">
+                      {authoringBusy === 'video' ? 'Đang đưa vào hàng đợi...' : 'Tạo video SadTalker'}
+                    </Button>
+                  </div>
+                )}
+                {authoring.video && (
+                  <div className="mt-4 rounded-lg border border-white/10 p-3 text-sm">
+                    <p>Video job #{authoring.video.job_id}: {authoring.video.status}</p>
+                    {authoring.video.safe_error && <p className="mt-1 text-red-300">{authoring.video.safe_error}</p>}
+                    {authoring.video.video_url && <video className="mt-3 w-full rounded-lg" controls src={authoring.video.video_url} />}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
         )}
       </div>
     </div>

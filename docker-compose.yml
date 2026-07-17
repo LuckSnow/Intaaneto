@@ -83,7 +83,7 @@ services:
     command: >-
       sh -c "chown -R appuser:appuser /app/media /home/appuser/.cache &&
       exec celery -A config worker --loglevel=INFO --concurrency=1
-      --uid=appuser --gid=appuser"
+      --queues=celery --uid=appuser --gid=appuser"
     env_file:
       - path: ./backend/.env
         required: false

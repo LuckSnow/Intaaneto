@@ -42,6 +42,24 @@ relying on it and update it after material implementation changes.
   failed states instead of leaving false pending work. The worker runs as UID/GID
   10001 and shares media/model-cache volumes; this path does not invoke Groq,
   D-ID or R2.
+- Completed PDF lessons expose bounded learner-safe `learning_content` (manual
+  content first, otherwise extracted PDF text), a truncation flag, `rag_ready`,
+  and the existing PDF URL on `LessonPage`; raw embeddings and internal source
+  diagnostics are not serialized.
+- The teacher upload page has a reviewed downstream-authoring panel for an owned
+  ready lesson. It can generate an editable AI summary draft and only copy it to
+  `Lesson.ai_summary` after explicit approval. It can also generate exactly five
+  multiple-choice questions as an unpublished assessment draft; answer review
+  and publishing remain manual. Both paths require an active/ready source,
+  recheck mutable state, are owner/admin scoped and use OpenAI or Gemini.
+- An approved current summary can be converted to a bounded PCM WAV with local
+  Vietnamese `espeak-ng`; no TTS API key is used. Checksums bind narration and
+  later video work to the reviewed text.
+- An owner-scoped endpoint enqueues SadTalker only after current summary approval,
+  matching narration, validated portrait and explicit rights confirmation. A
+  dedicated one-at-a-time `video` Celery worker mounts the runtime read-only;
+  the normal worker consumes only the PDF/default queue. Video remains optional
+  and cannot block lesson, RAG or assessment readiness.
 - AI generation now uses a provider adapter with the supported OpenAI client,
   configurable model/timeout, bounded history, and explicit provider failures.
 - AI Tutor generation can now select `openai` or `gemini` through
@@ -411,8 +429,8 @@ relying on it and update it after material implementation changes.
   assessment remains the trusted score/progression baseline; teacher calibration,
   human-labeled dialogue cases, consistency evaluation and any policy for using
   AI recommendations in progression remain unimplemented.
-- A manually invoked local SadTalker PoC adapter is implemented behind
-  `generate_sadtalker_video`; there is no HTTP trigger. It authorizes ownership
+- A local SadTalker PoC adapter is available through the trusted management
+  command and the owner-scoped durable web queue. It authorizes ownership
   before reading files, requires explicit rights/approval confirmation, bounds
   and validates an approved script, PCM WAV, JPEG/PNG portrait, timeout, and MP4
   output, invokes `inference.py` without a shell, and records a read-only-admin audit
@@ -423,13 +441,14 @@ relying on it and update it after material implementation changes.
   required model files, supplies an isolated environment and absolute checkpoint
   directory, and uses a writable per-run cwd while the checkout remains mounted
   read-only. Migration `courses.0005` is applied
-  in development PostgreSQL.
+  in development PostgreSQL; migration `courses.0007` adds reviewed summaries,
+  local narration and durable stored web-job state.
 - A pinned separate SadTalker runtime produced a technical 1.48-second H.264/AAC
   MP4 on the NVIDIA T1200 GPU in 53 seconds on 2026-07-17. The test used an
   upstream demo asset only to prove execution and is not attached/published.
   A consented/licensed Vietnamese portrait/audio render, peak-resource measure,
-  and qualitative review are still not proven. SadTalker needs no API key; TTS
-  is a separate input.
+  and qualitative review are still not proven. SadTalker needs no API key; the
+  local TTS smoke is execution evidence, not a natural-voice quality claim.
 
 ## Known integration risks
 
@@ -460,17 +479,18 @@ relying on it and update it after material implementation changes.
   tuning the provisional `0.45` threshold, changing the 384-dimensional model,
   or adding an ANN index. Exact pgvector search is sufficient for the current
   small corpus baseline.
-- The SadTalker adapter boundary and technical GPU runtime smoke are implemented,
-  but a consented Vietnamese render and measured video-quality record remain. Next code
-  work can proceed on research evaluation/reporting without pretending that
-  live render, automatic TTS, conversational grading, or production background
-  execution is complete.
+- The reviewed summary/assessment authoring seam, local TTS, durable SadTalker
+  web queue and dedicated GPU worker are implemented. A consented Vietnamese
+  render and measured voice/video-quality record remain; do not present the
+  local WAV smoke or upstream demo render as pedagogical-quality evidence.
 - Collaborators should run migrations and `seed_demo_data` locally rather than
   sharing development database volumes or dumps containing accounts and chats.
 - The worktree contains intentional uncommitted changes from stabilization,
   Docker/docs/environment cleanup, authorization/chat work, and frontend
   Firebase fallback. Inspect and preserve them; do not reset or overwrite them.
-- Baseline verification for the next slice: `pytest`, `python manage.py check`,
+- Baseline verification on 2026-07-17: all `235` backend tests, Django check,
+  migration drift check, frontend lint/build, local Vietnamese WAV smoke and
+  dedicated `video` worker startup passed. For the next slice rerun `pytest`, `python manage.py check`,
   `python manage.py makemigrations --check --dry-run`, `npm run lint`, and
   `npm run build`. Docker development startup is documented in `docs/SETUP.md`.
 

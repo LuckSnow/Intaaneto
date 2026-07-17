@@ -72,6 +72,42 @@ export const courseService = {
     return response.data.results || []
   },
 
+  getLessonAuthoringStatus: async (lessonId) => {
+    const response = await api.get(`/courses/lessons/${lessonId}/authoring-status/`)
+    return response.data
+  },
+
+  generateLessonSummary: async (lessonId) => {
+    const response = await api.post(`/courses/lessons/${lessonId}/generate-summary/`)
+    return response.data
+  },
+
+  approveLessonSummary: async (lessonId, text) => {
+    const response = await api.post(`/courses/lessons/${lessonId}/approve-summary/`, { text })
+    return response.data
+  },
+
+  generateLessonAssessment: async (lessonId) => {
+    const response = await api.post(`/courses/lessons/${lessonId}/generate-assessment/`)
+    return response.data
+  },
+
+  generateLessonNarration: async (lessonId) => {
+    const response = await api.post(`/courses/lessons/${lessonId}/generate-narration/`)
+    return response.data
+  },
+
+  generateLessonVideo: async (lessonId, portrait) => {
+    const formData = new FormData()
+    formData.append('portrait', portrait)
+    formData.append('rights_and_approval_confirmed', 'true')
+    const response = await api.post(
+      `/courses/lessons/${lessonId}/generate-video/`,
+      formData,
+    )
+    return response.data
+  },
+
   // Reprocess failed lesson
   reprocessLesson: async (id) => {
     const response = await api.post(`/courses/lessons/${id}/reprocess/`)

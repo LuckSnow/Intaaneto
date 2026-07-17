@@ -411,10 +411,28 @@ Mong đợi:
 - Chunk của source PDF có `page_start/page_end`; hỏi câu nằm trong PDF thì UI
   citation hiển thị `Trang N` hoặc `Trang N–M`, không chỉ hiện ordinal chunk.
 
-Lưu ý: luồng này chỉ trích xuất PDF và lập index. Nó không tự sinh summary,
-voice, avatar hoặc video trong slice hiện tại.
+Upload chỉ trích xuất và lập index; hệ thống không tự publish nội dung AI. Sau
+khi trạng thái completed, bấm **Biên soạn** để chạy luồng review dưới đây.
 
-### 10.2 Ca lỗi PDF
+### 10.2 Biên soạn summary, assessment, giọng đọc và video
+
+1. Ở `/teacher/upload`, chọn **Biên soạn** trên lesson completed.
+2. Xác nhận panel hiển thị PDF, số ký tự trích xuất và `RAG sẵn sàng`; mở
+   LessonPage và kiểm tra nội dung PDF hiện ra dù `Lesson.content` trống.
+3. Bấm tạo tóm tắt. Kết quả phải là **Bản nháp**, có thể sửa; learner chưa thấy
+   cho tới khi teacher bấm duyệt. Sau khi duyệt, reload LessonPage để kiểm tra.
+4. Bấm tạo assessment. Mở link review, kiểm tra đủ 5 câu, 4 lựa chọn/câu, đáp án
+   và giải thích; assessment phải ở draft. Chỉ publish sau khi teacher xác minh.
+5. Tạo giọng đọc local, nghe WAV và kiểm tra nội dung vẫn khớp summary đã duyệt.
+6. Chọn JPEG/PNG có quyền sử dụng, tick xác nhận rồi tạo video. UI phải hiển thị
+   trạng thái DB `queued/running/completed/failed`; lỗi video không làm lesson
+   hoặc RAG mất khả dụng.
+
+Không cần API key cho `espeak-ng` hoặc SadTalker. Hai nút sinh draft cần một
+generation provider được cấu hình và có thể gửi phần học liệu bị giới hạn tới
+provider đó; không dùng tài liệu nhạy cảm với provider chưa được phê duyệt.
+
+### 10.3 Ca lỗi PDF
 
 Thử từng file riêng:
 
@@ -738,8 +756,9 @@ LessonProgress và AssessmentAttempt phiên bản hiện hành.
 
 ## 17. Kiểm tra adapter SadTalker PoC
 
-Đọc [SADTALKER_POC.md](SADTALKER_POC.md). Adapter không dùng API key và chỉ chạy
-qua management command, không có nút HTTP/public upload.
+Đọc [SADTALKER_POC.md](SADTALKER_POC.md). Adapter không dùng API key. Ngoài
+management command tin cậy, teacher-owner có nút enqueue đã authorize; portrait
+không phải public upload và bắt buộc xác nhận quyền sử dụng.
 
 Các ca có thể kiểm tra khi chưa cài model/GPU:
 
@@ -750,8 +769,9 @@ Các ca có thể kiểm tra khi chưa cài model/GPU:
 - `SADTALKER_ENABLED=False`: input hợp lệ tạo audit job `failed` với
   `provider_disabled`, không lưu lỗi private.
 
-Nếu runtime SadTalker riêng đã được chuẩn bị, chạy đúng command trong tài liệu và
-kiểm tra job completed, checksum, actor, MP4 trên LessonPage và biên bản
+Nếu runtime SadTalker riêng đã được chuẩn bị, khởi động `video_worker` theo tài
+liệu rồi dùng panel Biên soạn hoặc management command. Kiểm tra job completed,
+checksum, actor, MP4 trên LessonPage và biên bản
 commit/checkpoint/GPU/thời gian/lip-sync. Nếu chưa có runtime, ghi
 `BLOCKED BY SADTALKER RUNTIME`; fake provider không phải bằng chứng render thật.
 
@@ -800,7 +820,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `225` tests pass, gồm một integration test teacher PDF → assessment
+- Backend: `235` tests pass, gồm một integration test teacher PDF → assessment
   → learner progression không gọi mạng/LLM.
 - Frontend: lint pass, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
 - Bundle chính khoảng 465 kB; Google Auth được tải theo nhu cầu. Build còn cảnh
@@ -817,9 +837,9 @@ Không đánh `PASS` cho các mục sau chỉ vì model hoặc UI placeholder t�
 - Parser wall-clock isolation và malware scanning.
 - Production Redis/broker HA, monitoring và dead-letter operations.
 - Cloudflare R2/object storage production.
-- TTS tự động và render SadTalker bằng portrait/audio học liệu đã được duyệt;
-  technical GPU smoke đã có nhưng chưa phải quality evidence.
-- Tự động sinh/tóm tắt bài giảng trong luồng PDF hiện tại.
+- Bằng chứng chất lượng TTS/SadTalker với portrait/audio học liệu đã được duyệt;
+  pipeline và technical smoke đã có nhưng chưa phải quality evidence.
+- Tự động publish summary/assessment AI; hiện tại bắt buộc teacher review.
 - Grounded-answer evaluation đa lesson/holdout có hai người chấm; baseline demo
   live V1 đã có nhưng chưa phải comprehensive quality evidence.
 

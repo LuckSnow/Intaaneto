@@ -240,7 +240,8 @@ affected files or migration.
 
 ## RAG-018 — SadTalker PoC is local, manual, bounded, and audited
 
-- Status: Adapter implemented; real GPU render not yet verified
+- Status: Initial command implemented; technical GPU smoke verified; web queue
+  extension is governed by RAG-022
 - Date: 2026-07-16
 - Affected: video job model/migration/admin, local provider/command/tests,
   lesson video serialization/UI, environment example, and `docs/SADTALKER_POC.md`
@@ -302,3 +303,25 @@ affected files or migration.
 - Constraint: Audit stores an HMAC answer digest and bounded metadata, not raw
   answer/rubric/key/feedback. Grading use requires human-labeled evaluation,
   teacher review, an appeal path and a separate architecture decision.
+
+## RAG-022 — Generated lesson artifacts remain reviewed drafts
+
+- Status: Implemented for summary, assessment, local narration and video enqueue
+- Date: 2026-07-17
+- Affected: lesson authoring models/services/API/UI, AI provider adapter,
+  dedicated video worker, migration `courses.0007`, tests and operations docs
+- Decision: Generate summaries and five-question assessments only as teacher-
+  reviewable drafts from the active ready lesson source. Only explicit summary
+  approval updates learner-visible state; assessments remain unpublished until
+  the existing teacher publish action. Bind local narration and SadTalker input
+  to the approved summary checksum, require portrait rights confirmation, and
+  render on a dedicated one-at-a-time GPU queue.
+- Reason: LLM output is untrusted authoring assistance, not authoritative course
+  content or grading policy. Review gates prevent hallucinated text/answer keys
+  from silently reaching learners, while a separate queue keeps GPU work from
+  delaying PDF ingestion.
+- Constraint: Provider calls require deliberate server-side configuration and
+  may send bounded lesson text to that provider. `espeak-ng` and SadTalker use no
+  API key, but a technical smoke is not evidence of natural voice, lip-sync or
+  pedagogical quality. Video remains optional; consented Vietnamese input and
+  quality measurement are still required.

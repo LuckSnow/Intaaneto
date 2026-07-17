@@ -312,3 +312,69 @@ def generate_lesson_video(
     finally:
         if generated and generated.cleanup_dir:
             shutil.rmtree(generated.cleanup_dir, ignore_errors=True)
+
+
+def process_stored_video_job(*, job, provider=None):
+    """Run one already-authorized queued web job on the dedicated GPU worker."""
+
+    if job.status == 'completed':
+        return job
+    authorize_video_generation(actor=job.requested_by, lesson=job.lesson)
+    if not job.rights_and_approval_confirmed:
+        raise VideoGenerationError('approval_required', 'Thiếu xác nhận quyền sử dụng.')
+    if not job.audio_file or not job.portrait_file:
+        raise VideoGenerationError('invalid_input', 'Thiếu audio hoặc ảnh chân dung.')
+    validate_approved_script(job.approved_script)
+    audio = validate_audio(job.audio_file.path)
+    portrait = validate_portrait(job.portrait_file.path)
+    provider = provider or SadTalkerLocalProvider()
+    job.status = 'running'
+    job.started_at = timezone.now()
+    job.failure_code = ''
+    job.safe_error = ''
+    job.save(update_fields=['status', 'started_at', 'failure_code', 'safe_error'])
+
+    generated = None
+    try:
+        generated = provider.generate(audio_path=audio, portrait_path=portrait)
+        video = _validate_video(generated.path)
+        with video.open('rb') as stream:
+            job.output_file.save(
+                f'lesson-{job.lesson_id}-sadtalker-job-{job.id}.mp4',
+                File(stream),
+                save=False,
+            )
+        job.status = 'completed'
+        job.completed_at = timezone.now()
+        job.save(update_fields=['output_file', 'status', 'completed_at'])
+        job.lesson.video_file.name = job.output_file.name
+        job.lesson.save(update_fields=['video_file'])
+        return job
+    except VideoGenerationError as exc:
+        job.status = 'failed'
+        job.failure_code = exc.code[:50]
+        job.safe_error = str(exc)[:255]
+        job.completed_at = timezone.now()
+        job.save(update_fields=[
+            'status', 'failure_code', 'safe_error', 'completed_at',
+        ])
+        raise
+    except Exception as exc:
+        job.status = 'failed'
+        job.failure_code = 'unexpected_failure'
+        job.safe_error = 'Không thể tạo video bài học.'
+        job.completed_at = timezone.now()
+        job.save(update_fields=[
+            'status', 'failure_code', 'safe_error', 'completed_at',
+        ])
+        raise VideoGenerationError(
+            'unexpected_failure',
+            'Không thể tạo video bài học.',
+        ) from exc
+    finally:
+        if generated and generated.cleanup_dir:
+            shutil.rmtree(generated.cleanup_dir, ignore_errors=True)
+        if job.portrait_file:
+            job.portrait_file.delete(save=False)
+            job.portrait_file = None
+            job.save(update_fields=['portrait_file'])

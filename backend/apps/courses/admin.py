@@ -5,7 +5,9 @@ from .models import (
     Lesson,
     LessonComment,
     LessonIngestionJob,
+    LessonNarrationAudio,
     LessonProgress,
+    LessonSummaryDraft,
     LessonVideoGenerationJob,
     Review,
 )
@@ -122,8 +124,49 @@ class LessonVideoGenerationJobAdmin(admin.ModelAdmin):
     readonly_fields = [
         'lesson', 'requested_by', 'provider', 'status', 'approved_script',
         'script_checksum', 'audio_checksum', 'portrait_checksum',
-        'rights_and_approval_confirmed', 'output_file', 'failure_code',
+        'rights_and_approval_confirmed', 'audio_file', 'portrait_file',
+        'task_id', 'output_file', 'failure_code', 'safe_error',
         'created_at', 'started_at', 'completed_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(LessonSummaryDraft)
+class LessonSummaryDraftAdmin(admin.ModelAdmin):
+    list_display = ['lesson', 'status', 'source_version', 'generated_by', 'updated_at']
+    list_filter = ['status', 'provider', 'updated_at']
+    raw_id_fields = ['lesson', 'generated_by', 'approved_by']
+    readonly_fields = [
+        'lesson', 'text', 'status', 'source_checksum', 'source_version',
+        'provider', 'model', 'generated_by', 'approved_by', 'created_at',
+        'updated_at', 'approved_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(LessonNarrationAudio)
+class LessonNarrationAudioAdmin(admin.ModelAdmin):
+    list_display = ['lesson', 'provider', 'voice', 'generated_by', 'created_at']
+    raw_id_fields = ['lesson', 'generated_by']
+    readonly_fields = [
+        'lesson', 'summary_checksum', 'audio_file', 'audio_checksum',
+        'provider', 'voice', 'generated_by', 'created_at',
     ]
 
     def has_add_permission(self, request):

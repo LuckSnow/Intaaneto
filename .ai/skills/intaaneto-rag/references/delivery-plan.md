@@ -188,6 +188,23 @@ Exit for real PoC (not yet met): record one consented-input render with pinned
 SadTalker commit/checkpoints, environment, latency/resource data, and qualitative
 lip-sync/artifact review.
 
+## Virtual lecturer B — Reviewed lesson authoring pipeline
+
+Status: Implemented on 2026-07-17. Summary and assessment generation use the
+configured provider after owner/source checks; local TTS and the dedicated
+SadTalker queue do not require an API key.
+
+- Show extracted PDF lesson content and PDF/RAG readiness to learners.
+- Generate an editable summary draft and require explicit teacher approval.
+- Generate an unpublished five-question assessment draft for answer review.
+- Produce checksum-bound Vietnamese WAV with local `espeak-ng`.
+- Enqueue only consented portrait plus current narration to the isolated
+  one-at-a-time `video` worker and expose safe database-backed status.
+
+Software exit met: 235 backend tests, frontend lint/build, Django checks,
+migration, live local WAV smoke and dedicated queue startup pass. Research exit
+remains a consented Vietnamese render and voice/video quality assessment.
+
 ## Learning corpus A — Reviewed Markdown to draft lessons
 
 Status: Implemented on 2026-07-16 and extended on 2026-07-17. Eight corpus tests

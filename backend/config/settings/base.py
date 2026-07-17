@@ -163,6 +163,12 @@ REST_FRAMEWORK = {
         'assessment_dialogue': config(
             'THROTTLE_ASSESSMENT_DIALOGUE', default='10/hour'
         ),
+        'lesson_authoring': config(
+            'THROTTLE_LESSON_AUTHORING', default='10/hour'
+        ),
+        'video_generation': config(
+            'THROTTLE_VIDEO_GENERATION', default='3/hour'
+        ),
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
@@ -212,6 +218,18 @@ GEMINI_GENERATION_MODEL = config(
 )
 AI_REQUEST_TIMEOUT_SECONDS = config('AI_REQUEST_TIMEOUT_SECONDS', default=30, cast=int)
 AI_MAX_HISTORY_MESSAGES = config('AI_MAX_HISTORY_MESSAGES', default=12, cast=int)
+AI_AUTHORING_MAX_SOURCE_CHARS = config(
+    'AI_AUTHORING_MAX_SOURCE_CHARS', default=12000, cast=int
+)
+
+# Local narration used before optional SadTalker rendering.
+TTS_ESPEAK_EXECUTABLE = config('TTS_ESPEAK_EXECUTABLE', default='espeak-ng')
+TTS_ESPEAK_VOICE = config('TTS_ESPEAK_VOICE', default='vi')
+TTS_ESPEAK_SPEED = config('TTS_ESPEAK_SPEED', default=155, cast=int)
+TTS_TIMEOUT_SECONDS = config('TTS_TIMEOUT_SECONDS', default=30, cast=int)
+LESSON_DISPLAY_CONTENT_MAX_CHARS = config(
+    'LESSON_DISPLAY_CONTENT_MAX_CHARS', default=20000, cast=int
+)
 
 # RAG lesson indexing
 RAG_EMBEDDING_MODEL = config(

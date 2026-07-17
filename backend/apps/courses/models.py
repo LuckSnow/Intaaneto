@@ -333,7 +333,19 @@ class LessonVideoGenerationJob(models.Model):
         null=True,
         blank=True,
     )
+    audio_file = models.FileField(
+        upload_to='courses/video_inputs/audio/',
+        null=True,
+        blank=True,
+    )
+    portrait_file = models.ImageField(
+        upload_to='courses/video_inputs/portraits/',
+        null=True,
+        blank=True,
+    )
+    task_id = models.UUIDField(null=True, blank=True, unique=True)
     failure_code = models.CharField(max_length=50, blank=True)
+    safe_error = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -345,6 +357,11 @@ class LessonVideoGenerationJob(models.Model):
                 check=models.Q(rights_and_approval_confirmed=True),
                 name='video_job_requires_rights_confirmation',
             ),
+            models.UniqueConstraint(
+                fields=['lesson'],
+                condition=models.Q(status__in=('queued', 'running')),
+                name='unique_active_video_job_per_lesson',
+            ),
         ]
         indexes = [
             models.Index(fields=['lesson', '-created_at']),
@@ -353,3 +370,59 @@ class LessonVideoGenerationJob(models.Model):
 
     def __str__(self):
         return f'SadTalker job {self.pk} for lesson {self.lesson_id}'
+
+
+class LessonSummaryDraft(models.Model):
+    """Teacher-reviewed summary generated from one active knowledge source."""
+
+    STATUS_CHOICES = [('draft', 'Bản nháp'), ('approved', 'Đã duyệt')]
+
+    lesson = models.OneToOneField(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='summary_draft',
+    )
+    text = models.TextField(max_length=4000)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    source_checksum = models.CharField(max_length=64)
+    source_version = models.PositiveIntegerField()
+    provider = models.CharField(max_length=32)
+    model = models.CharField(max_length=100)
+    generated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='generated_lesson_summary_drafts',
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_lesson_summaries',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+
+class LessonNarrationAudio(models.Model):
+    """Local TTS output bound to an approved summary checksum."""
+
+    lesson = models.OneToOneField(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='narration_audio',
+    )
+    summary_checksum = models.CharField(max_length=64)
+    audio_file = models.FileField(upload_to='courses/generated_audio/')
+    audio_checksum = models.CharField(max_length=64)
+    provider = models.CharField(max_length=32, default='espeak-ng-local')
+    voice = models.CharField(max_length=50, default='vi')
+    generated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='generated_lesson_narrations',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import PermissionDenied
+from apps.ai_assistant.services import AIProviderError
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from config.throttling import ActionScopedThrottleMixin
@@ -14,18 +15,30 @@ from .models import (
     Lesson,
     LessonComment,
     LessonIngestionJob,
+    LessonNarrationAudio,
+    LessonSummaryDraft,
+    LessonVideoGenerationJob,
     Review,
 )
 from .ingestion import IngestionQueueError, queue_pdf_ingestion
 from .serializers import (
     CourseSerializer, CourseDetailSerializer, LessonSerializer,
     LessonUploadSerializer, LessonDetailSerializer, LessonCommentSerializer,
-    EnrollmentSerializer, ReviewSerializer
+    EnrollmentSerializer, ReviewSerializer, SummaryApprovalSerializer,
+    VideoGenerationRequestSerializer,
+)
+from .content_authoring import (
+    approve_summary_draft,
+    generate_assessment_draft,
+    generate_narration_audio,
+    generate_summary_draft,
 )
 from .services import (
     AssessmentRequiredError,
     complete_lesson,
 )
+from .video_generation import VideoGenerationError
+from .video_queue import VideoQueueError, queue_lesson_video
 
 
 class IsTeacher(BasePermission):
@@ -168,10 +181,20 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
     throttle_scope_by_action = {
         'upload': 'lesson_upload',
         'reprocess': 'lesson_reprocess',
+        'generate_summary': 'lesson_authoring',
+        'approve_summary': 'lesson_authoring',
+        'generate_assessment': 'lesson_authoring',
+        'generate_narration': 'lesson_authoring',
+        'generate_video': 'video_generation',
     }
 
     def get_permissions(self):
-        if self.action in ('upload', 'create', 'update', 'partial_update', 'destroy', 'reprocess'):
+        if self.action in (
+            'upload', 'create', 'update', 'partial_update', 'destroy',
+            'reprocess', 'authoring_status', 'generate_summary',
+            'approve_summary', 'generate_assessment', 'generate_narration',
+            'generate_video',
+        ):
             permission_classes = [IsTeacher]
         else:
             permission_classes = [IsAuthenticated]
@@ -197,6 +220,55 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         user = self.request.user
         if user.role != 'admin' and course.teacher_id != user.id:
             raise PermissionDenied('Bạn không có quyền quản lý khóa học này.')
+
+    def _managed_lesson(self):
+        lesson = self.get_object()
+        self._validate_course_owner(lesson.course)
+        return lesson
+
+    def _authoring_payload(self, lesson):
+        summary = LessonSummaryDraft.objects.filter(lesson=lesson).first()
+        narration = LessonNarrationAudio.objects.filter(lesson=lesson).first()
+        assessment = getattr(lesson, 'assessment', None)
+        video_job = LessonVideoGenerationJob.objects.filter(
+            lesson=lesson,
+        ).order_by('-created_at', '-id').first()
+        active_source = lesson.knowledge_sources.filter(
+            is_active=True, status='ready',
+        ).first()
+        return {
+            'lesson_id': lesson.id,
+            'lesson_title': lesson.title,
+            'pdf_url': lesson.uploaded_file.url if lesson.uploaded_file else None,
+            'extracted_chars': len(lesson.extracted_text or ''),
+            'rag_ready': active_source is not None,
+            'rag_source_version': active_source.version if active_source else None,
+            'summary': ({
+                'status': summary.status,
+                'text': summary.text,
+                'source_version': summary.source_version,
+            } if summary else None),
+            'narration': ({
+                'ready': bool(narration.audio_file),
+                'provider': narration.provider,
+                'voice': narration.voice,
+                'audio_url': narration.audio_file.url if narration.audio_file else None,
+            } if narration else None),
+            'assessment': ({
+                'id': assessment.id,
+                'is_published': assessment.is_published,
+                'question_count': assessment.questions.count(),
+            } if assessment else None),
+            'video': ({
+                'job_id': video_job.id,
+                'status': video_job.status,
+                'failure_code': video_job.failure_code,
+                'safe_error': video_job.safe_error,
+                'video_url': (
+                    video_job.output_file.url if video_job.output_file else None
+                ),
+            } if video_job else None),
+        }
 
     @staticmethod
     def _job_payload(job):
@@ -358,6 +430,83 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
             },
             'queue_created': created,
         }, status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=['get'], url_path='authoring-status')
+    def authoring_status(self, request, pk=None):
+        lesson = self._managed_lesson()
+        return Response(self._authoring_payload(lesson))
+
+    @action(detail=True, methods=['post'], url_path='generate-summary')
+    def generate_summary(self, request, pk=None):
+        lesson = self._managed_lesson()
+        try:
+            generate_summary_draft(actor=request.user, lesson=lesson)
+        except AIProviderError:
+            return Response(
+                {'detail': 'Provider tóm tắt tạm thời không khả dụng.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(self._authoring_payload(lesson), status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='approve-summary')
+    def approve_summary(self, request, pk=None):
+        lesson = self._managed_lesson()
+        serializer = SummaryApprovalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        approve_summary_draft(
+            actor=request.user,
+            lesson=lesson,
+            text=serializer.validated_data['text'],
+        )
+        return Response(self._authoring_payload(lesson))
+
+    @action(detail=True, methods=['post'], url_path='generate-assessment')
+    def generate_assessment(self, request, pk=None):
+        lesson = self._managed_lesson()
+        try:
+            generate_assessment_draft(actor=request.user, lesson=lesson)
+        except AIProviderError:
+            return Response(
+                {'detail': 'Provider tạo assessment tạm thời không khả dụng.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(self._authoring_payload(lesson), status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='generate-narration')
+    def generate_narration(self, request, pk=None):
+        lesson = self._managed_lesson()
+        try:
+            generate_narration_audio(actor=request.user, lesson=lesson)
+        except VideoGenerationError as exc:
+            return Response(
+                {'detail': str(exc), 'code': exc.code},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(self._authoring_payload(lesson), status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='generate-video')
+    def generate_video(self, request, pk=None):
+        lesson = self._managed_lesson()
+        serializer = VideoGenerationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            _, created = queue_lesson_video(
+                actor=request.user,
+                lesson=lesson,
+                portrait=serializer.validated_data['portrait'],
+                rights_confirmed=serializer.validated_data[
+                    'rights_and_approval_confirmed'
+                ],
+            )
+        except VideoQueueError as exc:
+            return Response(
+                {'detail': str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(
+            {**self._authoring_payload(lesson), 'queue_created': created},
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class LessonCommentViewSet(viewsets.ModelViewSet):
