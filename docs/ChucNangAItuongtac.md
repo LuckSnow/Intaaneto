@@ -105,10 +105,14 @@ hiển thị before/after; đây chỉ là association quan sát, không phải 
 
 ## 5. Giảng viên video ảo
 
-Adapter SadTalker local đã có dưới dạng management command thủ công. Nó nhận
-kịch bản đã duyệt, PCM WAV và JPEG/PNG có xác nhận quyền sử dụng, chạy
-`inference.py` không qua shell, có timeout, validate MP4 và lưu audit job. Không
-có HTTP trigger và không có automatic TTS.
+Teacher-owner có thể tạo summary draft từ source RAG ready, sửa và duyệt; tạo
+assessment 5 câu ở trạng thái draft để review đáp án trước khi publish. Summary
+đã duyệt có thể chuyển thành PCM WAV bằng `espeak-ng` local.
+
+Adapter SadTalker có management command và endpoint enqueue owner-scoped. Nó nhận
+kịch bản/WAV đã bind bằng checksum và JPEG/PNG có xác nhận quyền sử dụng, chạy
+`inference.py` không qua shell trên worker GPU queue riêng, có timeout, validate
+MP4 và lưu audit job.
 
 SadTalker là image + audio -> talking-head video, không tự sinh lời thoại hoặc
 giọng nói và không cần API key khi self-host. Technical GPU smoke đã tạo MP4 thật
@@ -118,8 +122,9 @@ lip-sync/tiếng Việt. Xem
 
 ## 6. Thành phần chưa triển khai
 
-- Production broker HA/monitoring và chuyển SadTalker sang worker có GPU riêng.
-- Automatic TTS, storyboard, slide/image generation và ghép cảnh.
+- Production broker HA/monitoring cho worker SadTalker GPU riêng.
+- Natural/neural TTS đã đánh giá chất lượng, storyboard, slide/image generation
+  và ghép cảnh. `espeak-ng` local hiện chỉ là baseline kỹ thuật.
 - WebSocket/realtime processing progress.
 - AI dialogue assessment ảnh hưởng điểm hoặc progression.
 - Grounded-answer/assessment evaluation đa lesson, holdout và hai người chấm.

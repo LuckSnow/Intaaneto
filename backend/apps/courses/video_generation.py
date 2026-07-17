@@ -374,7 +374,12 @@ def process_stored_video_job(*, job, provider=None):
     finally:
         if generated and generated.cleanup_dir:
             shutil.rmtree(generated.cleanup_dir, ignore_errors=True)
-        if job.portrait_file:
-            job.portrait_file.delete(save=False)
-            job.portrait_file = None
-            job.save(update_fields=['portrait_file'])
+        cleared_fields = []
+        for field_name in ('audio_file', 'portrait_file'):
+            field = getattr(job, field_name)
+            if field:
+                field.delete(save=False)
+                setattr(job, field_name, None)
+                cleared_fields.append(field_name)
+        if cleared_fields:
+            job.save(update_fields=cleared_fields)

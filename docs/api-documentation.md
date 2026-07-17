@@ -81,6 +81,16 @@ Teacher:
 - `GET /api/courses/lessons/{id}/processing_status/`.
 - `GET /api/courses/lessons/ingestion-statuses/?course={id}`: khôi phục trạng
   thái job gần nhất của tối đa 50 lesson trong course thuộc sở hữu.
+- `GET /api/courses/lessons/{id}/authoring-status/`: trạng thái PDF/RAG, summary,
+  narration, assessment và video job, owner/admin-only.
+- `POST /api/courses/lessons/{id}/generate-summary/`: tạo summary draft.
+- `POST /api/courses/lessons/{id}/approve-summary/`: duyệt text đã review.
+- `POST /api/courses/lessons/{id}/generate-assessment/`: tạo assessment 5 câu,
+  luôn unpublished để review/publish qua API assessment hiện có.
+- `POST /api/courses/lessons/{id}/generate-narration/`: tạo WAV local từ summary
+  hiện tại đã duyệt.
+- `POST /api/courses/lessons/{id}/generate-video/`: multipart `portrait` và
+  `rights_confirmed=true`; chỉ enqueue queue `video`, không render trong HTTP.
 
 Upload multipart gồm `course`, `title`, `description`, `order`, `is_preview` và
 `uploaded_file`. Backend kiểm tra ownership và file bounds/signature trước khi
@@ -104,6 +114,11 @@ với active/ready source mới được coi là sẵn sàng.
 Trang teacher dùng `ingestion-statuses` sau reload. Endpoint owner/admin-only,
 bounded và chỉ trả lesson ID/title, processing state, safe error cùng job state;
 không mở rộng scope sang course của teacher khác.
+
+Các action generation cần active/ready KnowledgeSource và throttle riêng. Provider
+failure trả thông báo an toàn; không trả prompt, raw source, key hoặc task ID.
+Summary chỉ learner-visible sau approve, assessment không tự publish. Video cần
+summary/narration checksum khớp và xác nhận quyền sử dụng portrait.
 
 ## Lesson assessment
 

@@ -201,7 +201,8 @@ Việc export phiếu hai người chấm chứa authoring answer key nên cần
 ## PoC video SadTalker
 
 SadTalker local không cần API key và không được cài chung vào backend mặc định.
-Adapter thủ công, giới hạn input, audit job, cấu hình runtime tách biệt và mẫu
+Adapter có management command và hàng đợi web owner-scoped, giới hạn input,
+audit job, cấu hình runtime tách biệt và mẫu
 biên bản smoke được mô tả tại [SADTALKER_POC.md](SADTALKER_POC.md). Runtime local
 đã pass technical GPU smoke; chưa có render bằng portrait/audio học liệu đã được
 duyệt thì không được ghi nhận video tutor là hoàn thành về nội dung/chất lượng.
@@ -210,11 +211,12 @@ Runtime tách biệt hiện tại có thể được nối vào backend bằng C
 
 ```bash
 SADTALKER_HOST_RUNTIME=/absolute/path/to/intaaneto-sadtalker \
-  docker compose -f docker-compose.yml -f docker-compose.sadtalker.yml up -d backend
+  docker compose -f docker-compose.yml -f docker-compose.sadtalker.yml up -d video_worker
 ```
 
 Không ghi đường dẫn này vào `VITE_*`. Override mount runtime read-only và chỉ cấp
-GPU cho backend; file tạm/output nằm trong media volume ghi được.
+GPU cho worker video một-at-a-time; file tạm/output nằm trong media volume ghi được.
+Worker mặc định tiếp tục xử lý PDF trên queue `celery` và không nhận job video.
 
 ## Email xác thực và Mailjet
 

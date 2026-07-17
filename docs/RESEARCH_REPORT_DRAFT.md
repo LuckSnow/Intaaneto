@@ -47,11 +47,16 @@ Nghiên cứu xây dựng hệ thống E-learning trên môi trường web tích
 - Failed attempt tạo weak objectives cho RAG reinforcement retrieval-only.
 - Blueprint importer kiểm tra teacher ownership, chỉ nhận lesson do corpus
   importer quản lý, không ghi đè attempt và chỉ publish khi có xác nhận review.
+- Với PDF/RAG ready, provider có thể tạo summary và assessment 5 câu dưới dạng
+  draft. Teacher phải sửa/duyệt summary và review đáp án trước khi publish;
+  output AI không tự quyết định nội dung learner hoặc điểm số.
 
 ### 3.4. Video PoC
 
-- Script/audio/portrait được phê duyệt ngoài luồng learner.
-- SadTalker chạy local qua command có timeout, input/output bounds và audit job.
+- Summary đã duyệt có thể tạo WAV bằng `espeak-ng` local; script/audio/portrait
+  được bind checksum và portrait bắt buộc xác nhận quyền sử dụng.
+- SadTalker chạy local qua command hoặc dedicated GPU queue, có timeout,
+  input/output bounds và audit job.
 - Video là enhancement tùy chọn; lỗi video không chặn text/RAG/assessment.
 
 ## 4. Kết quả đã đo
@@ -74,11 +79,11 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 Tại ngày 2026-07-17:
 
-- 225 backend tests pass trong isolated Django test settings, gồm một hành trình
+- 235 backend tests pass trong isolated Django test settings, gồm một hành trình
   tích hợp course draft → PDF/RAG index → assessment → enroll → progression.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
-- PostgreSQL migrations `courses.0005` và `ai_assistant.0005` đã áp dụng ở
+- PostgreSQL migrations `courses.0007` và `ai_assistant.0005` đã áp dụng ở
   development; migration sau đã backfill page range hợp lệ cho 40/40 PDF chunks.
 - Bundle chính đã giảm từ khoảng 997 kB xuống 465 kB nhờ tách Google Auth; build
   còn cảnh báo Browserslist data cũ.
@@ -165,8 +170,9 @@ asset đã được duyệt, đo tài nguyên và review định tính theo rubr
 - PDF parser và embedding đã chuyển sang DB job + Celery/Redis worker với retry
   hữu hạn; chưa có parser subprocess wall-clock limit, malware scan, broker HA
   hoặc monitoring production.
-- SadTalker đã có adapter tests và technical GPU render; chưa có render học liệu
-  bằng portrait/audio đã duyệt hoặc đánh giá chất lượng tiếng Việt.
+- Local TTS, SadTalker queue/adapter và technical GPU render đã chạy; chưa có
+  render học liệu bằng portrait/audio đã duyệt hoặc đánh giá chất lượng tiếng
+  Việt. Đây chưa phải bằng chứng giọng tự nhiên hay hiệu quả sư phạm.
 - Token localStorage và production settings vẫn cần security hardening; dependency
   audit sạch chỉ là bằng chứng tại một thời điểm và cần được chạy định kỳ.
 

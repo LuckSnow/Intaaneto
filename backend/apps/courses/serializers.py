@@ -46,6 +46,7 @@ class LessonUploadSerializer(serializers.ModelSerializer):
 
 class LessonDetailSerializer(serializers.ModelSerializer):
     """Full lesson detail including AI content for student view."""
+    content = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
     learning_content = serializers.SerializerMethodField()
     content_truncated = serializers.SerializerMethodField()
@@ -62,6 +63,9 @@ class LessonDetailSerializer(serializers.ModelSerializer):
     
     def get_comments_count(self, obj):
         return obj.comments.count()
+
+    def get_content(self, obj):
+        return (obj.content or '').strip()[:settings.LESSON_DISPLAY_CONTENT_MAX_CHARS]
 
     def get_learning_content(self, obj):
         text = obj.content.strip() if obj.content else (obj.extracted_text or '').strip()

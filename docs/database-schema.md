@@ -55,8 +55,15 @@ request; cross-owner/cross-lesson mutation bị chặn.
 ### `courses.LessonVideoGenerationJob`
 
 Audit record cho SadTalker local: lesson/requester/provider/status, approved
-script, input checksums, consent assertion, safe failure code, output file và
-timestamps. Check constraint yêu cầu rights/approval confirmation.
+script, stored audio/portrait, task ID, input checksums, consent assertion, safe
+failure, output và timestamps. Check constraint yêu cầu rights confirmation;
+partial unique constraint chỉ cho một job queued/running mỗi lesson.
+
+### `courses.LessonSummaryDraft` và `courses.LessonNarrationAudio`
+
+Summary one-to-one lưu draft/approved state, active-source checksum/version,
+provider/model và người duyệt. Narration one-to-one lưu WAV local cùng checksum
+summary/audio để video không dùng nhầm một phiên bản nội dung khác.
 
 ## Assessment và exercise
 
@@ -150,6 +157,8 @@ AssessmentAttempt ──< AssessmentReinforcementEvent
 Lesson ──< KnowledgeSource ──< KnowledgeChunk
 User ──< ChatSession ──< ChatMessage
 Lesson ──< LessonVideoGenerationJob
+Lesson ──1 LessonSummaryDraft
+Lesson ──1 LessonNarrationAudio
 ```
 
 ## Migration quan trọng
@@ -158,6 +167,8 @@ Lesson ──< LessonVideoGenerationJob
 - `ai_assistant.0004`: retrieval metadata.
 - `courses.0004`: enrollment mastery percentage.
 - `courses.0005`: SadTalker audit job.
+- `courses.0006`: durable PDF ingestion job.
+- `courses.0007`: reviewed summary, local narration và durable video queue fields.
 - `exercises.0002`: lesson assessment/attempt/answer và optional exercise lesson.
 - `exercises.0003`: reinforcement audit event và count constraint.
 - `forum.0004`: target/duplicate constraints cho reaction/report.

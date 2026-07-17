@@ -5,6 +5,7 @@ from __future__ import annotations
 from hashlib import sha256
 import uuid
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 
@@ -16,28 +17,57 @@ class VideoQueueError(Exception):
     """Safe queue submission failure."""
 
 
+def _read_job_inputs(*, portrait, narration):
+    portrait.seek(0)
+    portrait_bytes = portrait.read()
+    if (
+        not portrait_bytes
+        or len(portrait_bytes) > settings.SADTALKER_MAX_PORTRAIT_BYTES
+    ):
+        raise VideoQueueError("Ảnh chân dung vượt giới hạn.")
+
+    narration.audio_file.open("rb")
+    try:
+        audio_bytes = narration.audio_file.read(settings.SADTALKER_MAX_AUDIO_BYTES + 1)
+    finally:
+        narration.audio_file.close()
+    if not audio_bytes or len(audio_bytes) > settings.SADTALKER_MAX_AUDIO_BYTES:
+        raise VideoQueueError("Giọng đọc vượt giới hạn.")
+    return portrait_bytes, audio_bytes
+
+
+def _delete_job_inputs(job):
+    for field_name in ("audio_file", "portrait_file"):
+        field = getattr(job, field_name)
+        if field:
+            field.delete(save=False)
+            setattr(job, field_name, None)
+
+
 def queue_lesson_video(*, actor, lesson, portrait, rights_confirmed):
     authorize_video_generation(actor=actor, lesson=lesson)
     if not rights_confirmed:
-        raise VideoQueueError('Cần xác nhận quyền sử dụng và phê duyệt.')
+        raise VideoQueueError("Cần xác nhận quyền sử dụng và phê duyệt.")
     summary = validate_approved_script(lesson.ai_summary)
-    draft = getattr(lesson, 'summary_draft', None)
-    if draft is None or draft.status != 'approved' or draft.text != summary:
-        raise VideoQueueError('Hãy duyệt bản tóm tắt hiện tại trước khi tạo video.')
-    narration = getattr(lesson, 'narration_audio', None)
-    expected_checksum = sha256(summary.encode('utf-8')).hexdigest()
+    draft = getattr(lesson, "summary_draft", None)
+    if draft is None or draft.status != "approved" or draft.text != summary:
+        raise VideoQueueError("Hãy duyệt bản tóm tắt hiện tại trước khi tạo video.")
+    narration = getattr(lesson, "narration_audio", None)
+    expected_checksum = sha256(summary.encode("utf-8")).hexdigest()
     if narration is None or narration.summary_checksum != expected_checksum:
-        raise VideoQueueError('Hãy tạo lại giọng đọc từ bản tóm tắt đã duyệt.')
+        raise VideoQueueError("Hãy tạo lại giọng đọc từ bản tóm tắt đã duyệt.")
 
     existing = LessonVideoGenerationJob.objects.filter(
         lesson=lesson,
-        status__in=('queued', 'running'),
+        status__in=("queued", "running"),
     ).first()
     if existing:
         return existing, False
 
-    portrait.seek(0)
-    portrait_bytes = portrait.read()
+    portrait_bytes, audio_bytes = _read_job_inputs(
+        portrait=portrait,
+        narration=narration,
+    )
     portrait_checksum = sha256(portrait_bytes).hexdigest()
     task_id = uuid.uuid4()
     try:
@@ -52,18 +82,22 @@ def queue_lesson_video(*, actor, lesson, portrait, rights_confirmed):
                 portrait_checksum=portrait_checksum,
                 rights_and_approval_confirmed=True,
             )
-            job.audio_file.name = narration.audio_file.name
-            suffix = '.png' if portrait.name.lower().endswith('.png') else '.jpg'
+            job.audio_file.save(
+                f"lesson-{lesson.id}-job-{job.id}.wav",
+                ContentFile(audio_bytes),
+                save=False,
+            )
+            suffix = ".png" if portrait.name.lower().endswith(".png") else ".jpg"
             job.portrait_file.save(
-                f'lesson-{lesson.id}-job-{job.id}{suffix}',
+                f"lesson-{lesson.id}-job-{job.id}{suffix}",
                 ContentFile(portrait_bytes),
                 save=False,
             )
-            job.save(update_fields=['audio_file', 'portrait_file'])
+            job.save(update_fields=["audio_file", "portrait_file"])
     except IntegrityError:
         existing = LessonVideoGenerationJob.objects.filter(
             lesson=lesson,
-            status__in=('queued', 'running'),
+            status__in=("queued", "running"),
         ).first()
         if existing:
             return existing, False
@@ -71,16 +105,23 @@ def queue_lesson_video(*, actor, lesson, portrait, rights_confirmed):
 
     try:
         from .tasks import process_sadtalker_video_job
-        process_sadtalker_video_job.apply_async(args=[job.id], task_id=str(task_id), queue='video')
+
+        process_sadtalker_video_job.apply_async(
+            args=[job.id], task_id=str(task_id), queue="video"
+        )
     except Exception as exc:
-        job.status = 'failed'
-        job.failure_code = 'queue_unavailable'
-        job.safe_error = 'Hàng đợi video tạm thời không khả dụng.'
-        if job.portrait_file:
-            job.portrait_file.delete(save=False)
-            job.portrait_file = None
-        job.save(update_fields=[
-            'status', 'failure_code', 'safe_error', 'portrait_file',
-        ])
+        job.status = "failed"
+        job.failure_code = "queue_unavailable"
+        job.safe_error = "Hàng đợi video tạm thời không khả dụng."
+        _delete_job_inputs(job)
+        job.save(
+            update_fields=[
+                "status",
+                "failure_code",
+                "safe_error",
+                "audio_file",
+                "portrait_file",
+            ]
+        )
         raise VideoQueueError(job.safe_error) from exc
     return job, True

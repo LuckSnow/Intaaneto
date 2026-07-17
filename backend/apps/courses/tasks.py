@@ -147,10 +147,15 @@ def process_sadtalker_video_job(self, job_id):
         job.save(update_fields=[
             'status', 'failure_code', 'safe_error', 'completed_at',
         ])
-        if job.portrait_file:
-            job.portrait_file.delete(save=False)
-            job.portrait_file = None
-            job.save(update_fields=['portrait_file'])
+        cleared_fields = []
+        for field_name in ('audio_file', 'portrait_file'):
+            field = getattr(job, field_name)
+            if field:
+                field.delete(save=False)
+                setattr(job, field_name, None)
+                cleared_fields.append(field_name)
+        if cleared_fields:
+            job.save(update_fields=cleared_fields)
         return {'job_id': job.id, 'status': 'failed'}
     except VideoGenerationError as exc:
         job.refresh_from_db()
@@ -162,9 +167,14 @@ def process_sadtalker_video_job(self, job_id):
             job.save(update_fields=[
                 'status', 'failure_code', 'safe_error', 'completed_at',
             ])
-            if job.portrait_file:
-                job.portrait_file.delete(save=False)
-                job.portrait_file = None
-                job.save(update_fields=['portrait_file'])
+            cleared_fields = []
+            for field_name in ('audio_file', 'portrait_file'):
+                field = getattr(job, field_name)
+                if field:
+                    field.delete(save=False)
+                    setattr(job, field_name, None)
+                    cleared_fields.append(field_name)
+            if cleared_fields:
+                job.save(update_fields=cleared_fields)
         return {'job_id': job.id, 'status': 'failed'}
     return {'job_id': job.id, 'status': 'completed'}
