@@ -44,10 +44,12 @@ or weak evidence is distinguishable, and cross-course leakage tests pass.
 
 ## Slice 3 — Grounded answers and citations
 
-Status: Implemented on 2026-07-14. Lesson chat retrieves within its authorized
+Status: Implemented on 2026-07-14 and extended on 2026-07-17. Lesson chat retrieves within its authorized
 scope, avoids generation for weak/missing evidence, supplies bounded untrusted
 evidence to the provider, constructs citations in application code, persists
-safe retrieval metadata, and displays grounded/fallback evidence state. OpenAI
+safe retrieval metadata, restores the latest bounded authorized lesson session
+and database-owned citations after reload, and displays grounded/fallback
+evidence state. Revoked access hides persisted session data. OpenAI
 and Gemini generation adapters are selectable; a successful live-provider smoke
 remains an environment/quota-dependent check.
 
@@ -84,8 +86,12 @@ recorded with `0.75` pass rate and `1.00` expected-source recall. A second,
 authorized full-pipeline command now measures grounded/refusal contract,
 application-owned citation scope, a clearly labeled lexical marker proxy,
 latency, and reported tokens. It requires explicit provider-cost confirmation
-and omits raw questions/answers by default. A live-provider baseline, dataset
-expansion, holdout split, and human semantic/pedagogical review remain.
+and omits raw questions/answers by default. The first live Gemini baseline was
+recorded on 2026-07-17: contract pass `0.75`, citation scope `1.00`, refusal
+`1.00`, strict lexical proxy pass `0.50`, and warm mean latency `1515.62 ms`.
+Report schema 2 separates contract pass from exact-marker proxy so neither is
+misstated as semantic accuracy. Dataset expansion, holdout split, and human
+semantic/pedagogical review remain.
 
 - Version an evaluation set with answerability and expected sources.
 - Track retrieval recall/precision proxy, citation correctness, groundedness,
@@ -156,8 +162,9 @@ lip-sync/artifact review.
 
 ## Learning corpus A — Reviewed Markdown to draft lessons
 
-Status: Implemented on 2026-07-16 with eight focused tests and a database-free
-dry run against the checked-in documents.
+Status: Implemented on 2026-07-16 and extended on 2026-07-17. Eight corpus tests
+and eight separate assessment-blueprint tests pass; both commands have a
+database-free dry run against checked-in authoring data.
 
 - Compile two versioned Markdown sources into 2 courses and 15 bounded lessons.
 - Add lesson objectives and primary references without embedding assessment
@@ -169,9 +176,18 @@ dry run against the checked-in documents.
 Exit: the checked-in corpus validates reproducibly, imports without duplicates
 or unrelated derived state, and can be reviewed before publication/indexing.
 
-Next: author and teacher-review deterministic assessments for a representative
-subset of these corpus lessons before expanding the corpus. The generic weak-
-objective reinforcement path is already implemented.
+Three representative lessons now have curated assessment blueprints totaling 27
+questions, with three questions for each declared objective. They import as
+drafts through a separate owner-checked, atomic command and never enter RAG
+content. Next: a teacher must review/publish them and E2 needs independent raters
+and response cases; checked-in authoring is not human-study evidence. The generic
+weak-objective reinforcement path is already implemented.
+
+An E2 software baseline now covers 81 balanced response rows and 12 scoring
+profiles, including the 7/9 pass and 6/9 fail boundary at 70%. Production grading
+and the harness share the deterministic score calculator. Private `0600` review
+templates and a strict two-rater aggregate command are ready, but no reviewer
+ratings, adjudication, or agreement result may be claimed yet.
 
 ## MVP acceptance criteria
 

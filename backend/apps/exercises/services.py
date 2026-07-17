@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from django.db import transaction
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -7,6 +5,7 @@ from apps.courses.models import Enrollment
 from apps.courses.services import complete_lesson, recalculate_enrollment_mastery
 
 from .models import AssessmentAnswer, AssessmentAttempt
+from .scoring import calculate_assessment_score
 
 
 @transaction.atomic
@@ -62,17 +61,18 @@ def grade_assessment(*, assessment, user, submitted_answers):
                 weak_objectives.append(objective)
         answer_rows.append((question, selected_choice, is_correct))
 
-    score = (
-        Decimal(correct_answers * 100) / Decimal(len(questions))
-    ).quantize(Decimal('0.01'))
-    passed = score >= Decimal(assessment.pass_threshold)
+    scoring = calculate_assessment_score(
+        correct_answers=correct_answers,
+        total_questions=len(questions),
+        pass_threshold=assessment.pass_threshold,
+    )
     attempt = AssessmentAttempt.objects.create(
         assessment=assessment,
         user=user,
         assessment_version=assessment.version,
         threshold_snapshot=assessment.pass_threshold,
-        score=score,
-        passed=passed,
+        score=scoring.score,
+        passed=scoring.passed,
         total_questions=len(questions),
         correct_answers=correct_answers,
         weak_objectives=weak_objectives,
@@ -93,7 +93,7 @@ def grade_assessment(*, assessment, user, submitted_answers):
 
     mastery_percentage = recalculate_enrollment_mastery(enrollment)
     progression = None
-    if passed:
+    if scoring.passed:
         progression = complete_lesson(user=user, lesson=assessment.lesson)
 
     return attempt, mastery_percentage, progression

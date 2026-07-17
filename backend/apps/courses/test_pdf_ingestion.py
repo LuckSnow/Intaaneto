@@ -219,6 +219,8 @@ def test_owner_upload_extracts_and_indexes_pdf(api_client, teacher_user, owned_c
     assert lesson.extracted_text.startswith('--- Trang 1 ---')
     assert source.source_type == 'extracted_text'
     assert source.chunks.exists()
+    assert not source.chunks.filter(page_start__isnull=True).exists()
+    assert set(source.chunks.values_list('page_start', flat=True)) == {1}
     assert response.data['knowledge_source_id'] == source.id
 
 

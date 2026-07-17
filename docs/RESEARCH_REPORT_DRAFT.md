@@ -22,6 +22,8 @@ Nghiên cứu xây dựng hệ thống E-learning trên môi trường web tích
 
 - PDF do teacher-owner phê duyệt; kiểm tra signature, size, page count và text.
 - Hai nguồn Markdown mẫu: Mạng máy tính và Lập trình Web, compile thành 15 lesson.
+- Ba assessment blueprint đại diện gồm 27 câu nằm tách khỏi lesson/RAG; mỗi
+  objective có 3 câu và mặc định import ở trạng thái draft chờ teacher review.
 - Không index answer key, hidden tests, chat hoặc dữ liệu ngoài lesson.
 
 ### 3.2. RAG
@@ -43,6 +45,8 @@ Nghiên cứu xây dựng hệ thống E-learning trên môi trường web tích
 - Chỉ attempt đạt mới hoàn thành lesson và nhận next lesson.
 - Mastery tách khỏi content progress.
 - Failed attempt tạo weak objectives cho RAG reinforcement retrieval-only.
+- Blueprint importer kiểm tra teacher ownership, chỉ nhận lesson do corpus
+  importer quản lý, không ghi đè attempt và chỉ publish khi có xác nhận review.
 
 ### 3.4. Video PoC
 
@@ -70,12 +74,12 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 Tại ngày 2026-07-17:
 
-- 176 backend tests pass trong isolated Django test settings, gồm một hành trình
+- 197 backend tests pass trong isolated Django test settings, gồm một hành trình
   tích hợp course draft → PDF/RAG index → assessment → enroll → progression.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
 - PostgreSQL migration `courses.0005` đã áp dụng ở development.
-- Bundle chính đã giảm từ khoảng 997 kB xuống 461 kB nhờ tách Google Auth; build
+- Bundle chính đã giảm từ khoảng 997 kB xuống 465 kB nhờ tách Google Auth; build
   còn cảnh báo Browserslist data cũ.
 
 Các test bao phủ indexing atomic/idempotent, retrieval authorization, grounded
@@ -94,17 +98,28 @@ phải bằng chứng về tác động học tập.
 
 - Harness full-pipeline đã được implement với authorization, xác nhận provider
   cost, grounded/refusal contract, citation scope, lexical marker, latency và
-  token metrics. Chưa có live-provider baseline.
+  token metrics. Live Gemini baseline V1 trên 8 case đạt contract pass `0,75`,
+  citation scope `1,00`, refusal `1,00`; strict lexical proxy pass chỉ `0,50`.
+- Mean warm latency là `1.515,62 ms/case`, provider báo 2.283 token cho 4 call.
+  Hai answerable case bị threshold từ chối; hai output grounded khác cách diễn
+  đạt source marker. Không coi contract hoặc lexical proxy là answer accuracy.
 - Mở rộng dataset và tách development/holdout.
 - Chấm thủ công answer correctness, groundedness, citation correctness và
   refusal quality; lexical marker không thay thế semantic judgment.
 - Ghi model/config/version, latency và cost; không ghi secret/full prompt.
 
+Chi tiết cấu hình, per-case state không chứa raw answer và giới hạn được lưu tại
+`docs/RAG_GROUNDED_ANSWER_BASELINE_V1.md`.
+
 ### E2 — Assessment consistency
 
 - Protocol thực nghiệm, mẫu dữ liệu, quy trình hai người chấm và chỉ số agreement
-  đã được định nghĩa tại `docs/ASSESSMENT_EVALUATION_PROTOCOL.md`; thí nghiệm
-  thực tế chưa được chạy.
+  đã được định nghĩa tại `docs/ASSESSMENT_EVALUATION_PROTOCOL.md`.
+- Software baseline trên 3 assessment/27 câu/9 objective sinh 81 response row và
+  12 attempt profile. Fixture contract và pass-boundary accuracy đều `1,00`; 7/9
+  đạt `77,78` và pass, 6/9 đạt `66,67` và fail tại threshold 70%.
+- Kết quả trên chỉ chứng minh scoring consistency. Hai template review private
+  đã sẵn sàng nhưng chưa có rating, adjudication hoặc human agreement.
 - Teacher tạo bộ câu hỏi/rubric theo learning objective cho lesson đại diện.
 - So sánh deterministic score với đánh giá hội thoại chỉ ở chế độ recommendation.
 - Có ít nhất hai người chấm và đo agreement trước khi AI grade ảnh hưởng learner.

@@ -189,6 +189,20 @@ Response ổn định:
 ```
 
 Nếu evidence yếu/chưa index, backend fallback và không gọi generation provider.
+
+Khôi phục phiên gần nhất của một lesson:
+
+```http
+GET /api/ai/chat/history/?lesson_id=121
+```
+
+Response trả `session_id`, `lesson_id` và danh sách `messages` gần nhất đã được
+giới hạn. Mỗi assistant message có `grounded`, `retrieval_status` và `citations`.
+Excerpt/source của citation được dựng lại từ database trong đúng lesson và đúng
+source version đã ghi nhận, không lấy text từ metadata. Nếu enrollment bị thu
+hồi, cả history và session detail trả 404; lesson chưa có phiên trả danh sách
+rỗng với `session_id: null`.
+
 Các action khác: `POST /api/ai/chat/get_hint/` (exercise đã authorize) và
 `POST /api/ai/chat/explain_code/`.
 

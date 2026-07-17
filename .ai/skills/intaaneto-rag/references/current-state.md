@@ -1,6 +1,6 @@
 # Current state
 
-Last repository inspection: 2026-07-16.
+Last repository inspection: 2026-07-17.
 
 This is a living factual snapshot, not a roadmap. Verify it against code before
 relying on it and update it after material implementation changes.
@@ -95,9 +95,12 @@ relying on it and update it after material implementation changes.
   selected chunk IDs/scores, and latency) through migration
   `ai_assistant.0004`. They do not persist embeddings, full prompts, provider
   errors, or citation excerpts.
-- The lesson chat UI keeps the server-owned session ID while the page is open and
-  displays grounded/fallback status plus expandable source excerpts. React text
-  rendering is used for excerpts; no raw HTML is injected.
+- The lesson chat UI restores the latest bounded server-owned session for the
+  authorized lesson after reload and displays grounded/fallback status plus
+  expandable source excerpts. Persisted chunk references are rehydrated only
+  from database chunks belonging to that lesson and matching the recorded
+  source/version; revoked enrollment hides both history and session detail.
+  React text rendering is used for excerpts; no raw HTML is injected.
 - The first live run of the versioned eight-case Vietnamese retrieval dataset
   completed against PostgreSQL exact cosine and active demo source v1 on
   2026-07-16. Pass/status accuracy was `0.75`, expected-source recall was `1.00`,
@@ -107,7 +110,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. One hundred and seventy-five backend tests passed on 2026-07-17 in the
+  regression coverage. One hundred and ninety-seven backend tests passed on 2026-07-17 in the
   Docker backend, including nine Slice 1 tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -115,10 +118,13 @@ relying on it and update it after material implementation changes.
   compatible active-source selection, enrolled/owner/admin access, outsider and
   other-teacher denial before embedding, cross-course isolation, bounds, and
   provider failures.
-- Seven Slice 3 cases cover grounded API contracts, weak/not-indexed fallback
+- Seven original Slice 3 cases cover grounded API contracts, weak/not-indexed fallback
   without generation, prompt-injection placement, application-owned citations,
   retrieval/provider failure redaction, persisted metadata, and immutable chat
   session lesson scope.
+- Four chat-history cases cover the explicit empty contract, latest-session
+  restoration, database-owned citation hydration with cross-lesson tampering
+  rejection, and enrollment-revocation denial for history/session detail.
 - Six generation-provider cases cover OpenAI/Gemini selection, Gemini's
   OpenAI-compatible request contract, missing server-side keys, and an unknown
   provider failing closed.
@@ -213,6 +219,23 @@ relying on it and update it after material implementation changes.
   assessments, chats, or answer keys; indexing remains a separate explicit
   teacher operation. Docker mounts the authoring documents read-only, and a
   database-free dry run validates the real corpus.
+- A separate `import_corpus_assessments` command now validates and imports three
+  curated draft assessments with 27 multiple-choice questions for representative
+  network-model, network-security, and web-security lessons. Each of the nine
+  declared objectives has three questions. Answer keys remain in the exercises
+  authoring module and are never appended to RAG lesson content. The command
+  requires the active verified teacher-owner, accepts only importer-managed text
+  lessons, defaults to draft, requires explicit `--publish-reviewed`, is atomic
+  and idempotent, and refuses to overwrite different/manual assessment state or
+  learner attempts. Eight focused tests cover blueprint/corpus alignment,
+  database-free dry run, draft creation, explicit publication, role/ownership,
+  rollback, idempotency, and attempt preservation. A real dry run validates all
+  3 assessments/27 questions; teacher content review is still required before
+  publication.
+- The development PostgreSQL database was populated through both importers on
+  2026-07-17 under the verified demo teacher: 2 draft courses, 15 draft lessons,
+  3 draft assessments, 27 questions, zero published corpus records, and zero
+  corpus knowledge sources. A second assessment import created no duplicates.
 - Legacy coding exercises now have an optional lesson relationship for migration
   compatibility, while learner list/detail/submission and AI `get_hint` queries
   share the same published, lesson-scoped owner/enrollment boundary. Hint prompts
@@ -274,9 +297,14 @@ relying on it and update it after material implementation changes.
   provider-cost confirmation, omits raw questions/answers by default, and
   reports grounded/refusal contract, application-owned citation scope, a
   labeled lexical-marker proxy, latency, and provider-reported token totals.
-  Four tests cover metrics, unsafe citations/marker misses, cost confirmation,
-  and authorization before evaluation. No live generation baseline has yet been
-  recorded; semantic and pedagogical claims still require human review.
+  Report schema 2 separates contract pass from strict lexical-proxy pass; five
+  tests cover metrics, that separation, unsafe citations/marker misses, cost
+  confirmation, and authorization before evaluation. A live Gemini
+  `gemini-3.1-flash-lite` baseline was recorded on 2026-07-17 over the eight-case
+  demo dataset: contract pass `0.75`, citation scope `1.00`, refusal `1.00`,
+  strict lexical-proxy pass `0.50`, warm mean latency `1515.62 ms`, and 2,283
+  provider-reported tokens across four generation calls. Raw answers were not
+  committed; semantic and pedagogical claims still require human review.
 - Rollback-only PostgreSQL smoke tests persisted and ranked pgvector chunks with
   exact cosine distance. A live FastEmbed smoke ranked the intended RAG and
   Python chunks first (`0.494` and `0.756`) and marked the unsupported weather
@@ -302,17 +330,30 @@ relying on it and update it after material implementation changes.
   imports or subscribes to Firestore.
 - Frontend lint and a production build passed after the lesson-progression UI
   update and dependency hardening on 2026-07-16. `npm audit` reports zero known
-  vulnerabilities. The main JavaScript chunk fell from about 997 kB to 461 kB;
+  vulnerabilities. The main JavaScript chunk fell from about 997 kB to 465 kB;
   the build still warns about stale Browserslist data.
 - The E2 assessment-consistency protocol now defines sampling, two independent
   human raters, agreement metrics, privacy boundaries, and a recommendation-only
-  boundary for any future dialogue grader. No human study has been run yet.
+  boundary for any future dialogue grader. A database-verified E2 software
+  harness now generates 81 balanced synthetic response rows and 12 pass-boundary
+  profiles across the 3 corpus assessments, using the same pure score calculator
+  as production grading. The first run reported fixture-contract and boundary
+  accuracy `1.00`; it creates no attempts and omits response cases by default.
+  Explicitly confirmed local review export creates `0600` files with authoring
+  answer keys outside Git, while the two-rater aggregator validates complete
+  pseudonymous sheets and returns agreement/kappa/clarity aggregates without raw
+  ratings, identities, answers, or notes. Two blank review templates exist in
+  the development private media volume. Eight focused tests cover shared score
+  boundaries, balanced/safe output, sensitive template handling, aggregate-only
+  agreement, incomplete/same-rater rejection, database scope, explicit export
+  confirmation, and changed/non-owner denial. No human study or agreement result
+  has been run yet.
 
 ## Not implemented as of the inspection
 
-- No reranking or recorded comprehensive answer-generation RAG baseline yet.
-  The full-pipeline evaluation harness exists, but still needs a deliberate live
-  provider run, expanded dataset and human semantic/pedagogical review. Citation
+- No reranking or comprehensive multi-lesson answer-generation RAG evaluation
+  yet. The first live demo baseline exists, but still needs an expanded dataset,
+  holdout split and human semantic/pedagogical review. Citation
   objects are returned and shown for
   the current response, while only safe retrieval identifiers and scores are
   persisted; restoring citation excerpts after a page reload is not implemented.
@@ -325,8 +366,6 @@ relying on it and update it after material implementation changes.
 - PDF upload currently performs extraction and local embedding inside the HTTP
   request. Durable background execution, parser wall-clock isolation, structured
   per-chunk page fields, and orphan-file cleanup are not implemented yet.
-- Chat history restoration in the lesson UI is not implemented; the current page
-  keeps one server-owned session until navigation or reload.
 - No validated teacher competency test or scoring rubric is implemented. A future
   assessment may provide evidence to the admin review, but must not automatically
   grant a privileged role without an explicitly accepted policy.

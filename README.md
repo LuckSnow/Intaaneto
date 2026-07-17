@@ -40,8 +40,8 @@ Teacher tạo course draft
   được duyệt. Technical smoke trên GPU đã pass nhưng không thay thế bước này.
 - Celery/Redis durable ingestion, parser process isolation, malware scanning và
   object storage production.
-- Kết luận về độ chính xác/chất lượng sư phạm của RAG. Retrieval mới có baseline
-  nhỏ; grounded-answer harness chưa có live-provider/human-review baseline.
+- Kết luận về độ chính xác/chất lượng sư phạm của RAG. Retrieval và grounded
+  answer đã có live baseline nhỏ; chưa có multi-lesson holdout/human review.
 - Cấu hình Docker Compose hiện tại là development, không phải production.
 
 ## Kiến trúc cốt lõi
@@ -107,8 +107,10 @@ docker compose exec backend python manage.py seed_demo_data
 ```
 
 Hai tài liệu `docs/computer-networks.md` và `docs/web-programming.md` có thể được
-compile thành 2 course/15 lesson draft bằng importer đã kiểm thử. Import không tự
-publish, index, tạo assessment hoặc answer key; xem [docs/SETUP.md](docs/SETUP.md).
+compile thành 2 course/15 lesson draft bằng importer đã kiểm thử. Import lesson
+không tự publish/index hoặc nhúng answer key. Một command riêng có thể tạo 3
+assessment draft/27 câu tách khỏi RAG để teacher review; xem
+[docs/SETUP.md](docs/SETUP.md).
 
 ## Cấu hình AI
 
@@ -139,9 +141,9 @@ docker compose exec frontend npm run lint
 docker compose exec frontend npm run build
 ```
 
-Baseline ngày 2026-07-17: 176 backend tests pass; Django check và migration drift
+Baseline ngày 2026-07-17: 197 backend tests pass; Django check và migration drift
 check pass; frontend lint/build pass; `npm audit` báo 0 lỗ hổng đã biết. Bundle
-JavaScript chính còn khoảng 461 kB và Google Auth được tách thành các chunk tải
+JavaScript chính còn khoảng 465 kB và Google Auth được tách thành các chunk tải
 khi cần. Build vẫn cảnh báo Browserslist data cũ. Frontend chưa có test runner
 tự động riêng.
 
@@ -151,7 +153,9 @@ tự động riêng.
 - [API core](docs/api-documentation.md)
 - [Database schema](docs/database-schema.md)
 - [Grounded-answer evaluation](docs/RAG_GROUNDED_ANSWER_EVALUATION.md)
+- [Grounded-answer baseline V1](docs/RAG_GROUNDED_ANSWER_BASELINE_V1.md)
 - [Protocol đánh giá assessment/progression](docs/ASSESSMENT_EVALUATION_PROTOCOL.md)
+- [Assessment software baseline V1](docs/ASSESSMENT_SOFTWARE_BASELINE_V1.md)
 - [Retrieval baseline v1](docs/RAG_RETRIEVAL_BASELINE_V1.md)
 - [SadTalker PoC](docs/SADTALKER_POC.md)
 - [Bản thảo báo cáo nghiên cứu](docs/RESEARCH_REPORT_DRAFT.md)

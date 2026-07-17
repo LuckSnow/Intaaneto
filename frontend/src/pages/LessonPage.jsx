@@ -35,6 +35,7 @@ export default function LessonPage() {
   const [chatMessages, setChatMessages] = useState([])
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
+  const [chatHistoryLoading, setChatHistoryLoading] = useState(false)
   const [chatSessionId, setChatSessionId] = useState(null)
   const chatEndRef = useRef(null)
 
@@ -56,6 +57,37 @@ export default function LessonPage() {
   useEffect(() => {
     fetchLesson()
   }, [id])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    let cancelled = false
+    const fetchChatHistory = async () => {
+      setChatHistoryLoading(true)
+      try {
+        const data = await aiService.getLessonChatHistory(Number(id))
+        if (cancelled) return
+        setChatSessionId(data.session_id)
+        setChatMessages((data.messages || []).map((message) => ({
+          id: message.id,
+          role: message.role,
+          content: message.content,
+          citations: message.citations || [],
+          grounded: message.grounded,
+          retrievalStatus: message.retrieval_status,
+        })))
+      } catch {
+        // Lesson loading owns the visible access error. Chat history failure
+        // must not replace the lesson or invent an empty server state.
+      } finally {
+        if (!cancelled) setChatHistoryLoading(false)
+      }
+    }
+    fetchChatHistory()
+    return () => {
+      cancelled = true
+    }
+  }, [id, isAuthenticated])
 
   useEffect(() => {
     setChatMessages([])
@@ -234,7 +266,7 @@ export default function LessonPage() {
 
   // AI Chat
   const handleSendChat = async () => {
-    if (!chatInput.trim() || chatLoading) return
+    if (!chatInput.trim() || chatLoading || chatHistoryLoading) return
     const question = chatInput.trim()
     setChatInput('')
     setChatMessages((prev) => [...prev, { role: 'user', content: question }])
@@ -273,7 +305,7 @@ export default function LessonPage() {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chatMessages])
+  }, [chatMessages, chatLoading])
 
   if (loading) {
     return (
@@ -477,7 +509,12 @@ export default function LessonPage() {
 
                   {/* Chat messages */}
                   <div className="h-80 overflow-y-auto mb-4 space-y-3 pr-2 custom-scrollbar">
-                    {chatMessages.length === 0 && (
+                    {chatHistoryLoading && (
+                      <p className="py-10 text-center text-sm text-white/50" role="status">
+                        Đang khôi phục cuộc trò chuyện...
+                      </p>
+                    )}
+                    {!chatHistoryLoading && chatMessages.length === 0 && (
                       <div className="text-center py-10 text-white/40">
                         <BookOpen className="mx-auto mb-3 h-8 w-8" aria-hidden="true" />
                         <p>Đặt câu hỏi về nội dung đã được index của bài học.</p>
@@ -485,7 +522,7 @@ export default function LessonPage() {
                     )}
                     {chatMessages.map((msg, i) => (
                       <div
-                        key={i}
+                        key={msg.id || `${msg.role}-${i}`}
                         className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
@@ -536,7 +573,12 @@ export default function LessonPage() {
                                     <div className="flex items-center gap-1.5 text-xs font-medium text-white/80">
                                       <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
                                       <span>
-                                        {citation.lesson_title} · Đoạn {citation.ordinal + 1}
+                                        {citation.lesson_title} ·{' '}
+                                        {citation.location?.page_start
+                                          ? citation.location.page_start === citation.location.page_end
+                                            ? `Trang ${citation.location.page_start}`
+                                            : `Trang ${citation.location.page_start}–${citation.location.page_end}`
+                                          : `Đoạn ${citation.ordinal + 1}`}
                                       </span>
                                     </div>
                                     <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-white/60">
@@ -571,11 +613,12 @@ export default function LessonPage() {
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendChat()}
                       placeholder="Hỏi AI về bài giảng này..."
+                      disabled={chatHistoryLoading}
                       className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-orange-500/50 transition"
                     />
                     <Button
                       onClick={handleSendChat}
-                      disabled={chatLoading || !chatInput.trim()}
+                      disabled={chatLoading || chatHistoryLoading || !chatInput.trim()}
                       className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl px-5 border-0"
                       aria-label="Gửi câu hỏi"
                     >
@@ -715,7 +758,12 @@ export default function LessonPage() {
                                       className="rounded-lg border border-white/10 bg-black/10 p-3"
                                     >
                                       <p className="text-xs font-medium text-orange-200">
-                                        {citation.lesson_title} · Đoạn {citation.ordinal + 1}
+                                        {citation.lesson_title} ·{' '}
+                                        {citation.location?.page_start
+                                          ? citation.location.page_start === citation.location.page_end
+                                            ? `Trang ${citation.location.page_start}`
+                                            : `Trang ${citation.location.page_start}–${citation.location.page_end}`
+                                          : `Đoạn ${citation.ordinal + 1}`}
                                       </p>
                                       <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/70">
                                         {citation.excerpt}

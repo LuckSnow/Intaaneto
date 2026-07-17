@@ -27,6 +27,10 @@ database/provider.
 
 ## Cách đọc số liệu
 
+- `contract_pass_rate`: contract grounded/fallback, citation scope và refusal
+  cùng đạt; không đo semantic correctness.
+- `strict_lexical_proxy_pass_rate`: contract đạt và answerable case còn chứa
+  nguyên source marker; đây là proxy nghiêm, không phải answer accuracy.
 - `grounded_contract_accuracy`: case answerable được grounded và case unsupported
   được fallback đúng contract.
 - `citation_scope_accuracy`: citation thuộc lesson và tập chunk ứng dụng đã chọn.
@@ -39,3 +43,6 @@ Khi ghi baseline vào báo cáo, lưu dataset/model/provider/config/date và agg
 metrics. Chấm thủ công correctness, groundedness, refusal clarity theo rubric và
 ít nhất hai người chấm nếu muốn tuyên bố agreement. Không ghi key, full prompt,
 embedding hoặc lỗi nội bộ của provider.
+
+Baseline live đầu tiên được ghi tại
+[RAG_GROUNDED_ANSWER_BASELINE_V1.md](RAG_GROUNDED_ANSWER_BASELINE_V1.md).

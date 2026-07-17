@@ -24,6 +24,7 @@ báo làm điểm năng lực người học.
 - Mỗi objective có ít nhất 3 câu hỏi đã được giáo viên duyệt; gồm câu nhớ, hiểu
   và vận dụng đơn giản nếu học liệu hỗ trợ.
 - Tạo tối thiểu 30 response case, cân bằng giữa đúng, sai phổ biến và bỏ trống.
+  Dataset E2 V1 hiện sinh 81 row tổng hợp: 27 row cho mỗi loại.
 - Tách tập dùng để chỉnh câu hỏi khỏi tập dùng để báo cáo kết quả cuối.
 - Ghi rõ course, lesson, assessment version, ngưỡng đạt và ngày xuất dữ liệu.
 - Chỉ dùng ID giả danh trong file nghiên cứu; không xuất email, chat, access
@@ -73,6 +74,41 @@ Lưu dữ liệu thí nghiệm ngoài repository nếu chứa response thật. C
 6. Nếu bổ sung dialogue grader, chạy nó sau khi đã khóa nhãn người chấm. Kết quả
    chỉ là recommendation và không cập nhật score, completion hoặc progression.
 7. Lặp lại một mẫu nhỏ sau ít nhất 7 ngày để kiểm tra độ ổn định nội-người-chấm.
+
+Với baseline hiện tại, software case và question-quality review được tách riêng:
+81 response row kiểm tra deterministic label/boundary; mỗi reviewer chỉ chấm 27
+question item một lần cho answer-key validity, objective alignment và clarity.
+Blank row là contract từ chối incomplete submission, không phải scored attempt.
+
+## 4.1. Command và dữ liệu review local
+
+Chạy baseline trên assessment đã import, mặc định không in 81 case:
+
+```bash
+docker compose exec backend python manage.py evaluate_corpus_assessments \
+  --teacher-id TEACHER_ID
+```
+
+Export mỗi phiếu riêng cần cờ xác nhận vì chứa answer key. File phải ở ngoài Git,
+chỉ reviewer tương ứng được đọc:
+
+```bash
+docker compose exec backend python manage.py evaluate_corpus_assessments \
+  --teacher-id TEACHER_ID \
+  --export-review-template /app/media/private-research/e2/reviewer-a.json \
+  --rater-id reviewer_a --confirm-answer-key-export
+```
+
+Sau khi hai reviewer hoàn thành file riêng, tổng hợp aggregate:
+
+```bash
+docker compose exec backend python manage.py summarize_assessment_reviews \
+  --rater-a /app/media/private-research/e2/reviewer-a.json \
+  --rater-b /app/media/private-research/e2/reviewer-b.json
+```
+
+Không dùng cùng một người cho cả hai pseudonym và không điền rating hộ reviewer.
+Nguồn baseline phần mềm: [ASSESSMENT_SOFTWARE_BASELINE_V1.md](ASSESSMENT_SOFTWARE_BASELINE_V1.md).
 
 ## 5. Chỉ số báo cáo
 

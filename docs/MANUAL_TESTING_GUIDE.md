@@ -254,6 +254,27 @@ Sau khi đã có attempt:
 - Không xóa assessment.
 - Nếu cần bộ câu hỏi mới, ghi nhận đây là nhu cầu versioning tiếp theo.
 
+### 6.4 Assessment draft của learning corpus
+
+Nếu đã nhập hai course Markdown, có thể tạo 3 assessment draft/27 câu bằng:
+
+```bash
+docker compose exec backend python manage.py import_corpus_assessments --dry-run
+docker compose exec backend python manage.py import_corpus_assessments --teacher-id TEACHER_ID
+```
+
+Mở `/teacher/assessments`, kiểm tra ba lesson `tong-quan-va-mo-hinh-mang`,
+`an-toan-mang`, `bao-mat-web`. Với mỗi lesson, xác nhận có 9 câu và mỗi objective
+có 3 câu. Không publish trước khi một giảng viên đọc câu hỏi, lựa chọn, đáp án và
+explanation. Sau review có thể publish trên UI hoặc chạy lại với
+`--publish-reviewed`. Chạy command lần hai không tạo duplicate; assessment đã có
+attempt hoặc đã bị chỉnh khác blueprint phải được giữ nguyên và command từ chối.
+
+Trước khi publish, chạy `evaluate_corpus_assessments --teacher-id TEACHER_ID` và
+xác nhận 81 synthetic response case, 12 boundary profile, fixture/boundary
+accuracy đều `1.0`. Đây chỉ là software consistency. Hai reviewer thật phải hoàn
+thành phiếu riêng trước khi ghi answer-key/objective agreement vào báo cáo.
+
 ## 7. Kiểm tra đăng ký, xác thực email và đăng nhập
 
 ### 7.1 Đăng ký student
@@ -479,6 +500,16 @@ Mong đợi:
   gọi embedding/generation.
 - Trong cùng chat session, không được đổi sang lesson khác bằng client-supplied
   lesson ID.
+
+### 12.4 Khôi phục lịch sử sau reload
+
+- Gửi ít nhất một câu hỏi có citation rồi reload trang lesson.
+- Mong đợi phiên gần nhất, nội dung chat, grounded/fallback badge và citation
+  excerpt xuất hiện lại; có thể hỏi tiếp trong cùng `session_id`.
+- Trong DevTools, `GET /api/ai/chat/history/?lesson_id=...` chỉ trả số message
+  gần nhất theo giới hạn backend và không trả raw retrieval metadata/embedding.
+- Hủy enrollment của learner bằng admin rồi gọi lại history hoặc session detail:
+  mong đợi 404 và không thấy nội dung chat đã lưu.
 
 ## 13. Kiểm tra assessment, mastery và chuyển bài
 
@@ -737,10 +768,10 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `175` tests pass, gồm một integration test teacher PDF → assessment
+- Backend: `197` tests pass, gồm một integration test teacher PDF → assessment
   → learner progression không gọi mạng/LLM.
 - Frontend: lint pass, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
-- Bundle chính khoảng 461 kB; Google Auth được tải theo nhu cầu. Build còn cảnh
+- Bundle chính khoảng 465 kB; Google Auth được tải theo nhu cầu. Build còn cảnh
   báo Browserslist data cũ.
 - Frontend chưa có test runner tự động riêng.
 
@@ -749,14 +780,16 @@ Kết quả baseline tại thời điểm viết tài liệu:
 Không đánh `PASS` cho các mục sau chỉ vì model hoặc UI placeholder tồn tại:
 
 - AI đánh giá kiến thức bằng hội thoại và rubric đã được kiểm chứng.
-- Phân bố learning objective, lịch sử theo thời gian và xuất báo cáo CSV.
+- Báo cáo lịch sử/time-series dài hạn; objective distribution và CSV scoped đã có.
 - Code execution và tự chấm coding exercise.
 - Durable Celery/Redis background ingestion.
 - Parser wall-clock isolation và malware scanning.
 - Cloudflare R2/object storage production.
-- TTS tự động và bằng chứng render SadTalker thật trên runtime GPU mục tiêu.
+- TTS tự động và render SadTalker bằng portrait/audio học liệu đã được duyệt;
+  technical GPU smoke đã có nhưng chưa phải quality evidence.
 - Tự động sinh/tóm tắt bài giảng trong luồng PDF hiện tại.
-- Comprehensive grounded-answer/refusal/cost evaluation.
+- Grounded-answer evaluation đa lesson/holdout có hai người chấm; baseline demo
+  live V1 đã có nhưng chưa phải comprehensive quality evidence.
 
 ## 21. Mẫu báo lỗi hoặc đề xuất cải thiện
 

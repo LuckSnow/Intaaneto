@@ -274,8 +274,10 @@ def test_grounded_answer_evaluation_reports_contract_and_safe_default_output(
         )
 
     assert report['evaluation_scope'] == 'grounded_answer_contract'
+    assert report['report_schema_version'] == 2
     assert report['metrics']['case_count'] == 3
-    assert report['metrics']['pass_rate'] == 1.0
+    assert report['metrics']['contract_pass_rate'] == 1.0
+    assert report['metrics']['strict_lexical_proxy_pass_rate'] == 1.0
     assert report['metrics']['grounded_contract_accuracy'] == 1.0
     assert report['metrics']['citation_scope_accuracy'] == 1.0
     assert report['metrics']['expected_marker_recall'] == 1.0
@@ -319,12 +321,45 @@ def test_grounded_answer_evaluation_flags_unselected_citation_and_marker_miss(
             include_answers=True,
         )
 
-    assert report['metrics']['pass_rate'] == 0.0
+    assert report['metrics']['contract_pass_rate'] == 0.0
+    assert report['metrics']['strict_lexical_proxy_pass_rate'] == 0.0
     assert report['metrics']['citation_scope_accuracy'] == 0.0
     assert report['metrics']['expected_marker_recall'] == 0.0
     assert report['metrics']['refusal_accuracy'] is None
     assert report['cases'][0]['answer'] == bad_answer.answer
     assert report['cases'][0]['question'] == dataset.cases[0].question
+
+
+@pytest.mark.django_db
+def test_grounded_answer_contract_pass_is_independent_from_lexical_proxy(
+    student_user, evaluation_lesson
+):
+    paraphrase = _grounded_result(
+        evaluation_lesson,
+        'Ứng dụng chịu trách nhiệm tạo nguồn dẫn từ đoạn đã truy xuất.',
+        11,
+    )
+    dataset = RetrievalEvaluationDataset(
+        dataset_id='one-case',
+        version='1.0.0',
+        lesson_slug=evaluation_lesson.slug,
+        cases=(_evaluation_dataset(evaluation_lesson.slug).cases[0],),
+    )
+
+    with patch(
+        'apps.ai_assistant.rag_evaluation.answer_lesson_question',
+        return_value=paraphrase,
+    ):
+        report = evaluate_grounded_answers(
+            actor=student_user,
+            lesson=evaluation_lesson,
+            dataset=dataset,
+        )
+
+    assert report['metrics']['contract_pass_rate'] == 1.0
+    assert report['metrics']['strict_lexical_proxy_pass_rate'] == 0.0
+    assert report['cases'][0]['contract_passed'] is True
+    assert report['cases'][0]['strict_lexical_proxy_passed'] is False
 
 
 def test_grounded_answer_command_requires_explicit_cost_confirmation():

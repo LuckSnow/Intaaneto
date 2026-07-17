@@ -1,6 +1,6 @@
 # Mạng Máy Tính (Computer Networks)
 
-> Bản thảo học liệu Intaaneto · Phiên bản biên tập: 2026-07-16. Nội dung cần được giảng viên duyệt trước khi xuất bản và lập chỉ mục cho AI Tutor.
+> Bản thảo học liệu Intaaneto · Phiên bản biên tập: 2026-07-17. Nội dung cần được giảng viên duyệt trước khi xuất bản và lập chỉ mục cho AI Tutor.
 
 ## Tổng Quan
 
@@ -234,14 +234,19 @@ Mạng hiện đại sử dụng **CIDR** thay cho cơ chế classful để bi�
 6. **Zero-day Exploits**: Unknown vulnerabilities
 
 ### Security Measures:
-1. **Firewall**: Hardware và software firewalls
-2. **Encryption**: SSL/TLS, VPN, IPSec
-3. **Authentication**: Passwords, 2FA, biometrics
-4. **Access Control**: RBAC, ACLs
-5. **IDS/IPS**: Intrusion Detection/Prevention Systems
-6. **Antivirus/Antimalware**: Endpoint protection
-7. **Network Segmentation**: VLANs, subnets
-8. **Regular Updates**: Patches và updates
+1. **Firewall**: Lọc và kiểm soát lưu lượng theo chính sách ở biên hoặc trên máy chủ
+2. **Encryption**: SSL/TLS, VPN và IPSec bảo vệ tính bí mật/toàn vẹn khi truyền dữ liệu
+3. **Authentication**: Passwords, 2FA và biometrics xác minh danh tính
+4. **Access Control**: RBAC và ACL giới hạn tài nguyên mà danh tính được phép sử dụng
+5. **IDS/IPS**: Phát hiện hoặc ngăn chặn dấu hiệu xâm nhập
+6. **Antivirus/Antimalware**: Bảo vệ endpoint trước mã độc đã biết
+7. **Network Segmentation**: VLAN và subnet cô lập vùng mạng, hạn chế di chuyển ngang khi có sự cố
+8. **Regular Updates**: Patches và updates khắc phục lỗ hổng đã biết
+
+Không có biện pháp đơn lẻ nào chặn được mọi mối đe dọa. Phòng vệ theo lớp kết hợp
+kiểm soát ở danh tính, endpoint, đường truyền và phân đoạn mạng. Ví dụ, với nguy
+cơ mã độc trên máy trạm, antimalware và cập nhật giúp giảm rủi ro tại endpoint;
+phân đoạn mạng tiếp tục giới hạn phạm vi ảnh hưởng nếu một máy vẫn bị xâm nhập.
 
 ## Wireless Networks
 

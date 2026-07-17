@@ -18,6 +18,7 @@ from .rag_services import (
 
 
 DATASET_SCHEMA_VERSION = 1
+GROUNDED_REPORT_SCHEMA_VERSION = 2
 DEFAULT_DATASET_PATH = (
     Path(__file__).parent / 'fixtures' / 'retrieval_evaluation_vi_v1.json'
 )
@@ -239,7 +240,8 @@ def evaluate_grounded_answers(
     answerable_count = 0
     refusal_matches = 0
     unsupported_count = 0
-    passed_count = 0
+    contract_passed_count = 0
+    strict_lexical_proxy_passed_count = 0
     total_latency_ms = 0
     total_tokens = 0
     token_measurements = 0
@@ -297,16 +299,16 @@ def evaluate_grounded_answers(
             )
             refusal_matches += int(refusal_match)
 
-        passed = (
+        contract_passed = (
             contract_match
             and citation_match
-            and (
-                expected_marker_hit
-                if case.answerable
-                else refusal_match
-            )
+            and (True if case.answerable else refusal_match)
         )
-        passed_count += int(passed)
+        strict_lexical_proxy_passed = contract_passed and (
+            expected_marker_hit if case.answerable else True
+        )
+        contract_passed_count += int(contract_passed)
+        strict_lexical_proxy_passed_count += int(strict_lexical_proxy_passed)
         result = {
             'id': case.case_id,
             'tags': list(case.tags),
@@ -320,7 +322,8 @@ def evaluate_grounded_answers(
             'refusal_match': refusal_match,
             'latency_ms': latency_ms,
             'tokens_used': answer.tokens_used,
-            'passed': passed,
+            'contract_passed': contract_passed,
+            'strict_lexical_proxy_passed': strict_lexical_proxy_passed,
         }
         if include_answers:
             result['question'] = case.question
@@ -329,6 +332,7 @@ def evaluate_grounded_answers(
 
     case_count = len(dataset.cases)
     return {
+        'report_schema_version': GROUNDED_REPORT_SCHEMA_VERSION,
         'dataset': {
             'id': dataset.dataset_id,
             'version': dataset.version,
@@ -350,7 +354,12 @@ def evaluate_grounded_answers(
         },
         'metrics': {
             'case_count': case_count,
-            'pass_rate': round(passed_count / case_count, 4),
+            'contract_pass_rate': round(
+                contract_passed_count / case_count, 4
+            ),
+            'strict_lexical_proxy_pass_rate': round(
+                strict_lexical_proxy_passed_count / case_count, 4
+            ),
             'grounded_contract_accuracy': round(
                 contract_matches / case_count, 4
             ),
@@ -367,6 +376,7 @@ def evaluate_grounded_answers(
         },
         'limitations': [
             'expected_marker_recall_is_a_strict_lexical_proxy',
+            'contract_pass_rate_does_not_measure_semantic_correctness',
             'human_review_is_required_for_semantic_and_pedagogical_quality',
         ],
         'cases': results,

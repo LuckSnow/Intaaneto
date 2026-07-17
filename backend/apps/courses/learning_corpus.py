@@ -66,7 +66,7 @@ COURSE_DEFINITIONS = (
         slug='hoc-lieu-mang-may-tinh',
         title='Nền tảng Mạng máy tính',
         source_file='computer-networks.md',
-        revision='2026-07-16',
+        revision='2026-07-17',
         description=(
             'Giáo trình nhập môn về mô hình mạng, địa chỉ IP, giao thức, thiết bị, '
             'an toàn, hiệu năng và xử lý sự cố mạng.'
@@ -181,7 +181,7 @@ COURSE_DEFINITIONS = (
         slug='hoc-lieu-lap-trinh-web',
         title='Nền tảng Lập trình Web',
         source_file='web-programming.md',
-        revision='2026-07-16',
+        revision='2026-07-17',
         description=(
             'Giáo trình nhập môn về frontend, backend, cơ sở dữ liệu, kiến trúc, '
             'giao thức, bảo mật, hiệu năng và lộ trình phát triển web.'

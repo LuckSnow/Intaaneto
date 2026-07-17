@@ -49,6 +49,8 @@ def retrieved_chunk(
     score,
     source_id=7,
     source_version=2,
+    page_start=None,
+    page_end=None,
 ):
     return RetrievedChunk(
         chunk_id=chunk_id,
@@ -61,6 +63,8 @@ def retrieved_chunk(
         start_offset=ordinal * 100,
         end_offset=(ordinal * 100) + len(text),
         score=score,
+        page_start=page_start,
+        page_end=page_end,
     )
 
 
@@ -117,6 +121,8 @@ def test_grounded_answer_uses_only_sufficient_evidence_and_builds_citations(
     assert answer.citations[0]['location'] == {
         'start_offset': 0,
         'end_offset': len(malicious_text),
+        'page_start': None,
+        'page_end': None,
     }
     assert answer.retrieval_metadata['retrieval']['selected_chunks'] == [
         {'chunk_id': 31, 'score': 0.81}
@@ -132,6 +138,42 @@ def test_grounded_answer_uses_only_sufficient_evidence_and_builds_citations(
         'role': 'user',
         'content': 'RAG hoạt động thế nào?',
     }
+
+
+@pytest.mark.django_db
+def test_grounded_pdf_citation_includes_structured_page_range(
+    teacher_user, answerable_lesson
+):
+    chunk = retrieved_chunk(
+        chunk_id=35,
+        lesson_id=answerable_lesson.id,
+        ordinal=2,
+        text='Bằng chứng kéo dài qua hai trang.',
+        score=0.9,
+        page_start=4,
+        page_end=5,
+    )
+    retrieval = LessonRetrievalResult(
+        lesson_id=answerable_lesson.id,
+        status='ready',
+        chunks=(chunk,),
+        source_id=7,
+        source_version=2,
+    )
+
+    with patch(
+        'apps.ai_assistant.rag_answering.retrieve_lesson_evidence',
+        return_value=retrieval,
+    ):
+        answer = answer_lesson_question(
+            actor=teacher_user,
+            lesson=answerable_lesson,
+            messages=[{'role': 'user', 'content': 'Bằng chứng ở trang nào?'}],
+            generation_provider=RecordingGenerationProvider(),
+        )
+
+    assert answer.citations[0]['location']['page_start'] == 4
+    assert answer.citations[0]['location']['page_end'] == 5
 
 
 @pytest.mark.django_db

@@ -6,7 +6,7 @@ from apps.courses.models import Course, Enrollment, Lesson
 from apps.exercises.models import Exercise
 from apps.users.models import User
 
-from .models import ChatMessage, ChatSession
+from .models import ChatMessage, ChatSession, KnowledgeChunk, KnowledgeSource
 from .rag_answering import GroundedAnswer, WEAK_EVIDENCE_FALLBACK
 from .rag_services import LessonRetrievalError
 from .services import AIProviderError
@@ -220,6 +220,185 @@ def test_existing_session_cannot_change_lesson_scope(
 
     assert response.status_code == 400
     mock_answer.assert_not_called()
+
+
+def _create_knowledge_chunk(lesson, *, text, version=1):
+    source = KnowledgeSource.objects.create(
+        lesson=lesson,
+        source_type='lesson_content',
+        version=version,
+        content_checksum=f'checksum-{lesson.id}-{version}',
+        normalized_text=text,
+        status='ready',
+        is_active=True,
+        embedding_provider='test',
+        embedding_model='test-model',
+        embedding_revision='v1',
+        embedding_dimension=3,
+        chunker_version='test-v1',
+        chunk_size=500,
+        chunk_overlap=50,
+    )
+    return KnowledgeChunk.objects.create(
+        source=source,
+        ordinal=0,
+        text=text,
+        start_offset=0,
+        end_offset=len(text),
+        char_count=len(text),
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+
+@pytest.mark.django_db
+def test_lesson_chat_history_restores_latest_messages_and_database_citations(
+    authenticated_client, authorized_lesson, student_user
+):
+    old_session = ChatSession.objects.create(
+        user=student_user,
+        title='Phiên cũ',
+        context={'lesson_id': authorized_lesson.id},
+    )
+    ChatMessage.objects.create(session=old_session, role='user', content='Câu cũ')
+
+    session = ChatSession.objects.create(
+        user=student_user,
+        title='Phiên mới',
+        context={'lesson_id': authorized_lesson.id},
+    )
+    chunk = _create_knowledge_chunk(
+        authorized_lesson,
+        text='HTML tạo cấu trúc có ngữ nghĩa cho trang web.',
+    )
+    user_message = ChatMessage.objects.create(
+        session=session,
+        role='user',
+        content='HTML dùng để làm gì?',
+    )
+    assistant_message = ChatMessage.objects.create(
+        session=session,
+        role='assistant',
+        content='HTML tạo cấu trúc trang web.',
+        retrieval_metadata={
+            'grounded': True,
+            'retrieval': {
+                'status': 'ready',
+                'source_id': chunk.source_id,
+                'source_version': chunk.source.version,
+                'selected_chunks': [{'chunk_id': chunk.id, 'score': 0.91}],
+            },
+        },
+    )
+
+    response = authenticated_client.get(
+        '/api/ai/chat/history/',
+        {'lesson_id': authorized_lesson.id},
+    )
+
+    assert response.status_code == 200
+    assert response.data['session_id'] == session.id
+    assert [item['id'] for item in response.data['messages']] == [
+        user_message.id,
+        assistant_message.id,
+    ]
+    restored = response.data['messages'][1]
+    assert restored['grounded'] is True
+    assert restored['retrieval_status'] == 'ready'
+    assert restored['citations'][0]['excerpt'] == chunk.text
+    assert restored['citations'][0]['source_id'] == chunk.source_id
+    assert restored['citations'][0]['score'] == 0.91
+    assert restored['citations'][0]['location']['page_start'] is None
+
+
+@pytest.mark.django_db
+def test_lesson_chat_history_omits_forged_cross_lesson_chunk(
+    authenticated_client, authorized_lesson, student_user
+):
+    other_lesson = Lesson.objects.create(
+        course=authorized_lesson.course,
+        title='CSS',
+        slug='css-history-isolation',
+        content='CSS định dạng giao diện.',
+        is_published=True,
+    )
+    foreign_chunk = _create_knowledge_chunk(
+        other_lesson,
+        text='Nội dung không thuộc bài HTML.',
+    )
+    session = ChatSession.objects.create(
+        user=student_user,
+        context={'lesson_id': authorized_lesson.id},
+    )
+    ChatMessage.objects.create(
+        session=session,
+        role='assistant',
+        content='Nội dung giả mạo.',
+        retrieval_metadata={
+            'grounded': True,
+            'retrieval': {
+                'status': 'ready',
+                'source_id': foreign_chunk.source_id,
+                'source_version': foreign_chunk.source.version,
+                'selected_chunks': [
+                    {'chunk_id': foreign_chunk.id, 'score': 0.99},
+                ],
+            },
+        },
+    )
+
+    response = authenticated_client.get(
+        '/api/ai/chat/history/',
+        {'lesson_id': authorized_lesson.id},
+    )
+
+    restored = response.data['messages'][0]
+    assert restored['citations'] == []
+    assert restored['grounded'] is False
+
+
+@pytest.mark.django_db
+def test_revoked_enrollment_hides_history_and_session_detail(
+    authenticated_client, authorized_lesson, student_user
+):
+    session = ChatSession.objects.create(
+        user=student_user,
+        context={'lesson_id': authorized_lesson.id},
+    )
+    ChatMessage.objects.create(
+        session=session,
+        role='user',
+        content='Nội dung riêng của phiên học.',
+    )
+    Enrollment.objects.filter(
+        user=student_user,
+        course=authorized_lesson.course,
+    ).delete()
+
+    history_response = authenticated_client.get(
+        '/api/ai/chat/history/',
+        {'lesson_id': authorized_lesson.id},
+    )
+    detail_response = authenticated_client.get(f'/api/ai/chat/{session.id}/')
+
+    assert history_response.status_code == 404
+    assert detail_response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_lesson_chat_history_returns_explicit_empty_contract(
+    authenticated_client, authorized_lesson
+):
+    response = authenticated_client.get(
+        '/api/ai/chat/history/',
+        {'lesson_id': authorized_lesson.id},
+    )
+
+    assert response.status_code == 200
+    assert response.data == {
+        'session_id': None,
+        'lesson_id': authorized_lesson.id,
+        'messages': [],
+    }
 
 
 @pytest.mark.django_db

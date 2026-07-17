@@ -117,6 +117,47 @@ Chạy lại không có `--publish` sẽ giữ nguyên bài đã xuất bản, k
 Không đưa đáp án bài đánh giá vào các file học liệu vì nội dung này sẽ được RAG
 lập chỉ mục và hiển thị làm nguồn trích dẫn.
 
+### Nhập assessment blueprint tách khỏi RAG
+
+Repository có 3 assessment draft/27 câu cho ba lesson đại diện: mô hình mạng,
+an toàn mạng và bảo mật web. Mỗi learning objective có đúng 3 câu; answer key nằm
+trong module exercises và không được ghép vào lesson content. Kiểm tra blueprint
+không đọc database:
+
+```bash
+docker compose exec backend python manage.py import_corpus_assessments --dry-run
+```
+
+Sau khi đã nhập corpus bằng đúng teacher-owner, tạo assessment ở trạng thái draft:
+
+```bash
+docker compose exec backend python manage.py import_corpus_assessments --teacher-id 45
+```
+
+Command idempotent, chạy trong transaction và từ chối lesson khác owner, lesson
+không do corpus importer quản lý, assessment đã bị sửa hoặc assessment có attempt
+khác blueprint. Nó không in answer key. Giảng viên phải đọc từng câu trên trang
+`/teacher/assessments`; chỉ sau khi review mới dùng cờ xác nhận rõ ràng:
+
+```bash
+docker compose exec backend python manage.py import_corpus_assessments \
+  --teacher-id 45 --publish-reviewed
+```
+
+Không dùng cờ này chỉ để làm cho demo “đủ trạng thái”; published assessment sẽ
+trở thành gate progression của learner.
+
+Chạy software baseline E2 mà không tạo attempt hoặc in answer key:
+
+```bash
+docker compose exec backend python manage.py evaluate_corpus_assessments \
+  --teacher-id 45
+```
+
+Việc export phiếu hai người chấm chứa authoring answer key nên cần cờ xác nhận,
+được ghi `0600` vào private media volume và tuyệt đối không commit. Quy trình đầy
+đủ nằm trong [ASSESSMENT_EVALUATION_PROTOCOL.md](ASSESSMENT_EVALUATION_PROTOCOL.md).
+
 ## PoC video SadTalker
 
 SadTalker local không cần API key và không được cài chung vào backend mặc định.

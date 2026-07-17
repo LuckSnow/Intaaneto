@@ -1,6 +1,6 @@
 # Lập Trình Web (Web Programming)
 
-> Bản thảo học liệu Intaaneto · Phiên bản biên tập: 2026-07-16. Nội dung cần được giảng viên duyệt trước khi xuất bản và lập chỉ mục cho AI Tutor.
+> Bản thảo học liệu Intaaneto · Phiên bản biên tập: 2026-07-17. Nội dung cần được giảng viên duyệt trước khi xuất bản và lập chỉ mục cho AI Tutor.
 
 ## Tổng Quan
 
@@ -93,10 +93,10 @@ Mô hình truyền thống với client gửi request và server trả về resp
 ## Web Security
 
 ### Các Mối Đe Dọa Phổ Biến:
-1. **XSS (Cross-Site Scripting)**: Injection của malicious scripts
-2. **CSRF (Cross-Site Request Forgery)**: Thực thi unauthorized commands
-3. **SQL Injection**: Injection của malicious SQL code
-4. **Man-in-the-Middle Attack**: Chặn communication giữa client-server
+1. **XSS (Cross-Site Scripting)**: Dữ liệu không tin cậy trở thành script chạy trong trình duyệt của người dùng
+2. **CSRF (Cross-Site Request Forgery)**: Lừa trình duyệt đã đăng nhập gửi một yêu cầu thay đổi trạng thái ngoài ý muốn
+3. **SQL Injection**: Dữ liệu đầu vào làm thay đổi cấu trúc câu truy vấn SQL
+4. **Man-in-the-Middle Attack**: Kẻ tấn công chặn hoặc sửa communication giữa client-server
 
 ### Best Practices:
 - Sử dụng HTTPS cho mọi connection
@@ -104,6 +104,16 @@ Mô hình truyền thống với client gửi request và server trả về resp
 - Sử dụng parameterized queries
 - Implement authentication và authorization đúng cách
 - Regular security updates và patches
+
+Mỗi loại rủi ro cần control đúng ngữ cảnh. Truy vấn tham số hóa tách dữ liệu khỏi
+cấu trúc SQL để phòng SQL injection. Khi đưa dữ liệu không tin cậy vào HTML,
+ứng dụng vẫn phải mã hóa đầu ra theo đúng ngữ cảnh để phòng XSS; input validation
+không thay thế bước này. Với CSRF, ứng dụng dùng CSRF token và thuộc tính cookie
+phù hợp như `SameSite` cho các yêu cầu thay đổi trạng thái.
+
+**Authentication** xác minh người dùng là ai, còn **authorization** quyết định
+người đó được phép làm gì trên một tài nguyên cụ thể. Một người đã đăng nhập vẫn
+phải bị từ chối nếu cố sửa khóa học thuộc quyền sở hữu của giảng viên khác.
 
 ## Web Performance Optimization
 

@@ -53,6 +53,10 @@ cần một database riêng chỉ vì có RAG. Hai tài liệu Markdown mẫu đ
 deterministic thành 2 course/15 lesson dạng nháp. Việc publish và index là hai
 thao tác phê duyệt riêng.
 
+Ba lesson đại diện có assessment blueprint tách riêng gồm 27 câu, đúng 3 câu cho
+mỗi objective. Import mặc định tạo draft, kiểm tra teacher-owner và không ghi đè
+attempt; answer key không được nối vào lesson content/RAG.
+
 PDF là định dạng upload duy nhất. DOCX, PPT và PPTX không thuộc phạm vi ingestion
 hiện tại. Extraction/indexing vẫn chạy đồng bộ trong request và chưa có parser
 process isolation hoặc durable background retry.
@@ -65,9 +69,11 @@ Nếu lesson chưa index hoặc bằng chứng yếu, hệ thống không gọi 
 fallback. Retrieved document text được coi là dữ liệu không tin cậy, không phải
 system instruction.
 
-Chat hiện chưa khôi phục lịch sử/citation excerpt đầy đủ sau khi reload. Bộ đánh
-giá v1 mới đo retrieval trên 8 case; chưa đủ để kết luận chất lượng câu trả lời
-tổng quát.
+Chat khôi phục phiên lesson gần nhất và citation excerpt sau reload trong giới
+hạn backend. Citation được dựng lại từ chunk thuộc đúng lesson/source version;
+quyền bị thu hồi sẽ ẩn history/session. Retrieval và grounded-answer đều có live
+baseline trên 8 case; citation scope/refusal đạt contract trong tập demo nhưng
+chưa đủ để kết luận chất lượng tổng quát.
 
 ## 4. Đánh giá và tiến trình học
 
@@ -102,8 +108,9 @@ kịch bản đã duyệt, PCM WAV và JPEG/PNG có xác nhận quyền sử d�
 có HTTP trigger và không có automatic TTS.
 
 SadTalker là image + audio -> talking-head video, không tự sinh lời thoại hoặc
-giọng nói và không cần API key khi self-host. Test fake provider chứng minh
-contract adapter, chưa chứng minh render thật hoặc chất lượng lip-sync. Xem
+giọng nói và không cần API key khi self-host. Technical GPU smoke đã tạo MP4 thật
+trên NVIDIA T1200; vẫn chưa có portrait/audio học liệu được duyệt hoặc đánh giá
+lip-sync/tiếng Việt. Xem
 [SADTALKER_POC.md](SADTALKER_POC.md).
 
 ## 6. Thành phần chưa triển khai
@@ -112,7 +119,7 @@ contract adapter, chưa chứng minh render thật hoặc chất lượng lip-sy
 - Automatic TTS, storyboard, slide/image generation và ghép cảnh.
 - WebSocket/realtime processing progress.
 - AI dialogue assessment ảnh hưởng điểm hoặc progression.
-- Comprehensive grounded-answer, refusal, cost và assessment evaluation.
+- Grounded-answer/assessment evaluation đa lesson, holdout và hai người chấm.
 - Production object storage, media retention/deletion và malware scanning.
 
 Các thành phần này chỉ là roadmap; không được dùng trong demo hoặc báo cáo như
