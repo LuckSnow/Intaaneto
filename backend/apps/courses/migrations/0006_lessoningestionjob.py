@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'ordering': ['-created_at', '-id'],
-                'indexes': [models.Index(fields=['lesson', '-created_at'], name='courses_les_lesson__76d3f2_idx'), models.Index(fields=['status', '-created_at'], name='courses_les_status_4986fc_idx')],
+                'indexes': [models.Index(fields=['lesson', '-created_at'], name='courses_les_lesson__685cc1_idx'), models.Index(fields=['status', '-created_at'], name='courses_les_status_12c9ea_idx')],
                 'constraints': [models.UniqueConstraint(condition=models.Q(('status__in', ('queued', 'running'))), fields=('lesson',), name='unique_active_ingestion_job_per_lesson')],
             },
         ),

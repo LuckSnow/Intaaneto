@@ -17,8 +17,10 @@ relying on it and update it after material implementation changes.
   `get_hint` actions.
 - `AIService` builds a Vietnamese tutoring system prompt and can add caller-
   supplied lesson, exercise, or code context.
-- PDF-only lesson ingestion is implemented synchronously through the teacher
-  upload and reprocess endpoints. The backend allowlists `.pdf`, checks MIME and
+- PDF-only lesson ingestion is implemented through durable database jobs and a
+  Celery worker backed by Redis/AOF in development Compose. Upload/reprocess
+  authorize and validate bounded file metadata/signature before returning `202`;
+  the worker rechecks current ownership, then allowlists `.pdf`, checks MIME and
   `%PDF-` signature, bounds bytes/pages/extracted characters, rejects encrypted,
   malformed, and text-empty files, preserves page markers in extracted text,
   normalizes Unicode and removes database-unsafe NUL/control characters, and
@@ -30,11 +32,16 @@ relying on it and update it after material implementation changes.
   from normalized page markers, retains original page numbers when empty pages
   were skipped, and supports chunks spanning pages. The migration backfilled all
   40 existing development PDF chunks with valid ranges on 2026-07-17.
-- PDF ingestion authorizes the owning teacher or admin before extraction and
-  embedding. A complete index is activated only after extraction and all
-  embeddings succeed; failures persist a bounded safe status without activating
-  partial knowledge. The request is deliberately synchronous for this first
-  tested slice and does not invoke Groq, D-ID, Celery, Redis, or R2.
+- PDF ingestion authorizes the owning teacher or admin both before enqueue and
+  before extraction/embedding in the worker. `LessonIngestionJob` enforces one
+  queued/running job per lesson, records bounded attempts/status/failure/source
+  metadata, and omits raw text, exception details and broker task IDs from the
+  polling API. Tasks use late acknowledgement, one-at-a-time prefetch, a lease,
+  bounded exponential retry for transient indexing failures, and idempotent
+  source activation. Broker failure and terminal processing failure persist safe
+  failed states instead of leaving false pending work. The worker runs as UID/GID
+  10001 and shares media/model-cache volumes; this path does not invoke Groq,
+  D-ID or R2.
 - AI generation now uses a provider adapter with the supported OpenAI client,
   configurable model/timeout, bounded history, and explicit provider failures.
 - AI Tutor generation can now select `openai` or `gemini` through
@@ -116,7 +123,7 @@ relying on it and update it after material implementation changes.
   cases correctly returned weak evidence. The measured result is recorded in
   `docs/RAG_RETRIEVAL_BASELINE_V1.md`; no threshold/model setting was changed.
 - The test suite uses isolated SQLite settings and includes authorization/chat
-  regression coverage. Two hundred and one backend tests passed on 2026-07-17 in the
+  regression coverage. Two hundred and nine backend tests passed on 2026-07-17 in the
   Docker backend, including eleven Slice 1/index-location tests for deterministic
   normalization/chunking, unchanged and changed indexing, provider/DB failure
   rollback, a concurrent lesson-edit guard, owner denial, and admin access. A
@@ -137,10 +144,16 @@ relying on it and update it after material implementation changes.
 - Five demo-seed cases cover idempotency, the attempt-preserving assessment,
   exclusion of private/RAG-derived state, environment-only passwords, collision
   safety, and removal of the legacy fixed seed password.
-- Fourteen PDF-ingestion cases cover real PDF extraction with page markers, empty,
+- Fifteen PDF-ingestion cases cover real PDF extraction with page markers, empty,
   encrypted, oversized, spoofed and non-PDF rejection, owner authorization before processing,
   NUL/control-character sanitization, upload-to-active-index, embedding failure
   without partial activation, and idempotent reprocessing.
+- Eight durable-ingestion cases cover active-job deduplication, broker outage,
+  bounded transient retry, non-retryable invalid input, authorization revocation
+  before worker execution, deleted-job delivery, bounded polling metadata, and
+  owner-scoped status restoration after a frontend reload.
+  A live Redis broker smoke on 2026-07-17 delivered an idempotent completed job
+  to the non-root Celery worker in about 18 ms; the temporary row was removed.
 - Lesson completion now returns the next authorized, published, usable lesson,
   updates enrollment progress and resume position, and skips PDF lessons without
   readable content or an active ready RAG source. The lesson page shows a
@@ -368,9 +381,8 @@ relying on it and update it after material implementation changes.
   queries only vectors matching the active source's model/revision/dimension.
 - The local model cache is not baked into the backend image. First use downloads
   about 0.22 GB and therefore still needs deployment cache/network planning.
-- No Redis/Celery services in `docker-compose.yml`.
-- PDF upload currently performs extraction and local embedding inside the HTTP
-  request. Durable background execution, parser wall-clock isolation, and
+- PDF parsing now runs outside the HTTP process, but an explicit parser wall-clock
+  subprocess limit, malware scanning, production broker HA/monitoring, and
   orphan-file cleanup are not implemented yet.
 - No validated teacher competency test or scoring rubric is implemented. A future
   assessment may provide evidence to the admin review, but must not automatically
@@ -415,8 +427,8 @@ relying on it and update it after material implementation changes.
 ## Session handoff — start here
 
 - Product priority remains RAG. Slices 0 through 3 are complete; Slice 4
-  now has a tested synchronous PDF-only upload-to-index path plus structured,
-  backfilled page-location persistence. Durable background jobs remain deferred.
+  now has a tested PDF-only upload-to-index worker, durable DB job state,
+  Redis-backed bounded retry, and structured/backfilled page locations.
 - For the live smoke, configure one generation provider, use an enrolled learner
   and an indexed lesson, ask one answerable and one unsupported question, and
   confirm citations/fallback in the UI without exposing provider or retrieval

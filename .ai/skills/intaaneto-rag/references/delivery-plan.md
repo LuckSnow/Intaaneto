@@ -63,11 +63,13 @@ and API contract tests pass.
 
 ## Slice 4 — Upload ingestion
 
-Status: In progress. A synchronous PDF-only upload-to-index path with ownership,
-bounded validation, safe failures, and idempotent retry tests was implemented on
-2026-07-15. On 2026-07-17 structured per-chunk PDF page ranges were added,
+Status: Implemented for the development prototype. The initial synchronous
+PDF-only path landed on 2026-07-15. On 2026-07-17 structured per-chunk PDF page ranges were added,
 backfilled in PostgreSQL, propagated through retrieval/chat/reinforcement
-citations, and rendered in the lesson UI. Durable background execution remains.
+citations, and rendered in the lesson UI. Upload/reprocess now create constrained
+database jobs and return `202`; a non-root Celery worker consumes Redis/AOF jobs,
+rechecks authorization, retries transient failures within a hard bound, and
+persists safe polling state. A live broker/worker idempotency smoke passed.
 
 - Accept only PDF uploads; DOCX, PPT, and PPTX are deliberately out of scope.
 - Validate the allowlisted file type, content signature, structure, and size.
@@ -77,6 +79,10 @@ citations, and rendered in the lesson UI. Durable background execution remains.
 
 Exit: upload-to-query works for representative PDF fixtures, retries do not
 duplicate data, and malformed/encrypted/empty files fail safely.
+
+The exit criteria are met. Parser subprocess wall-clock isolation, malware
+scanning, orphan cleanup, and production broker HA/monitoring remain deployment
+hardening rather than claims of this development prototype.
 
 ## Slice 5 — Evaluate and harden
 

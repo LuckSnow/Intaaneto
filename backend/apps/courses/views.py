@@ -8,7 +8,14 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from config.throttling import ActionScopedThrottleMixin
 
-from .models import Course, Lesson, Enrollment, Review, LessonComment
+from .models import (
+    Course,
+    Enrollment,
+    Lesson,
+    LessonComment,
+    LessonIngestionJob,
+    Review,
+)
 from .ingestion import IngestionQueueError, queue_pdf_ingestion
 from .serializers import (
     CourseSerializer, CourseDetailSerializer, LessonSerializer,
@@ -191,6 +198,17 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         if user.role != 'admin' and course.teacher_id != user.id:
             raise PermissionDenied('Bạn không có quyền quản lý khóa học này.')
 
+    @staticmethod
+    def _job_payload(job):
+        return {
+            'id': job.id,
+            'status': job.status,
+            'attempts': job.attempts,
+            'failure_code': job.failure_code,
+            'knowledge_source_id': job.knowledge_source_id,
+            'index_created': job.index_created,
+        }
+
     def perform_create(self, serializer):
         self._validate_course_owner(serializer.validated_data['course'])
         serializer.save()
@@ -271,18 +289,47 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
             'ai_video_url': lesson.ai_video_url,
             'ai_summary': lesson.ai_summary[:200] if lesson.ai_summary else '',
             'error': lesson.processing_error,
-            'ingestion_job': (
-                {
-                    'id': job.id,
-                    'status': job.status,
-                    'attempts': job.attempts,
-                    'failure_code': job.failure_code,
-                    'knowledge_source_id': job.knowledge_source_id,
-                    'index_created': job.index_created,
-                }
-                if job else None
-            ),
+            'ingestion_job': self._job_payload(job) if job else None,
         })
+
+    @action(
+        detail=False,
+        methods=['get'],
+        permission_classes=[IsTeacher],
+        url_path='ingestion-statuses',
+    )
+    def ingestion_statuses(self, request):
+        """Return each lesson's latest bounded job state for one owned course."""
+
+        raw_course_id = request.query_params.get('course')
+        if not raw_course_id or not raw_course_id.isdigit():
+            return Response(
+                {'course': 'course phải là ID hợp lệ.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        course = get_object_or_404(Course, pk=int(raw_course_id))
+        self._validate_course_owner(course)
+        jobs = (
+            LessonIngestionJob.objects.filter(lesson__course=course)
+            .select_related('lesson')
+            .order_by('lesson_id', '-created_at', '-id')
+        )
+        latest = []
+        seen_lessons = set()
+        for job in jobs[:200]:
+            if job.lesson_id in seen_lessons:
+                continue
+            seen_lessons.add(job.lesson_id)
+            latest.append({
+                'lesson_id': job.lesson_id,
+                'lesson_title': job.lesson.title,
+                'processing_status': job.lesson.processing_status,
+                'error': job.lesson.processing_error,
+                'ingestion_job': self._job_payload(job),
+            })
+            if len(latest) >= 50:
+                break
+        return Response({'results': latest})
 
     @action(detail=True, methods=['post'])
     def reprocess(self, request, pk=None):

@@ -79,10 +79,31 @@ Teacher:
 - `POST /api/courses/lessons/upload/`: multipart PDF-only.
 - `POST /api/courses/lessons/{id}/reprocess/`.
 - `GET /api/courses/lessons/{id}/processing_status/`.
+- `GET /api/courses/lessons/ingestion-statuses/?course={id}`: khôi phục trạng
+  thái job gần nhất của tối đa 50 lesson trong course thuộc sở hữu.
 
 Upload multipart gồm `course`, `title`, `description`, `order`, `is_preview` và
-`uploaded_file`. Backend kiểm tra ownership trước extraction/embedding; success
-chỉ trả khi source active/ready hoàn chỉnh.
+`uploaded_file`. Backend kiểm tra ownership và file bounds/signature trước khi
+tạo job. Upload/reprocess trả `202 Accepted`:
+
+```json
+{
+  "message": "PDF đã được tiếp nhận để xử lý.",
+  "lesson": { "id": 121, "processing_status": "pending" },
+  "ingestion_job": { "id": 9, "status": "queued", "attempts": 0 },
+  "queue_created": true
+}
+```
+
+Worker kiểm tra lại ownership trước extraction/embedding. Client poll endpoint
+status; response có `status`, safe `error` và `ingestion_job` gồm ID, status,
+attempt count, bounded failure code, source ID và `index_created`. Celery task ID,
+broker error, raw text và exception không được trả. Chỉ trạng thái `completed`
+với active/ready source mới được coi là sẵn sàng.
+
+Trang teacher dùng `ingestion-statuses` sau reload. Endpoint owner/admin-only,
+bounded và chỉ trả lesson ID/title, processing state, safe error cùng job state;
+không mở rộng scope sang course của teacher khác.
 
 ## Lesson assessment
 

@@ -112,6 +112,13 @@ Session thuộc user và giữ bounded lesson context. Message lưu role/content
 token/latency tùy provider và bounded retrieval metadata; không lưu embedding,
 full prompt, provider error hoặc citation excerpt.
 
+### `courses.LessonIngestionJob`
+
+Trạng thái durable cho PDF worker: lesson/requester, server-owned task UUID,
+queued/running/completed/failed, bounded attempt count, safe failure code/error,
+source kết quả và timestamps. Conditional unique constraint chỉ cho một job
+queued/running trên mỗi lesson. Polling API không trả task UUID hoặc requester.
+
 ## Forum
 
 `Tag`, `Post`, nested `Comment`, `Reaction`, `Report`, `Follow` hỗ trợ cộng đồng.

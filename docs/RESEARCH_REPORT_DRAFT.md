@@ -74,7 +74,7 @@ Hai case unsupported fallback đúng. Không hạ threshold chỉ dựa trên t�
 
 Tại ngày 2026-07-17:
 
-- 201 backend tests pass trong isolated Django test settings, gồm một hành trình
+- 209 backend tests pass trong isolated Django test settings, gồm một hành trình
   tích hợp course draft → PDF/RAG index → assessment → enroll → progression.
 - Django system check pass; migration drift check pass.
 - Frontend ESLint, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
@@ -155,7 +155,9 @@ asset đã được duyệt, đo tài nguyên và review định tính theo rubr
 - Assessment hiện là trắc nghiệm teacher-authored, chưa phải AI dialogue grading.
 - Progress/mastery phản ánh quy tắc sản phẩm, không tự động đồng nghĩa với năng
   lực thực tế hoặc tác động giáo dục.
-- PDF parser và embedding chạy đồng bộ; chưa có durable worker/rate limit đầy đủ.
+- PDF parser và embedding đã chuyển sang DB job + Celery/Redis worker với retry
+  hữu hạn; chưa có parser subprocess wall-clock limit, malware scan, broker HA
+  hoặc monitoring production.
 - SadTalker đã có adapter tests và technical GPU render; chưa có render học liệu
   bằng portrait/audio đã duyệt hoặc đánh giá chất lượng tiếng Việt.
 - Token localStorage và production settings vẫn cần security hardening; dependency

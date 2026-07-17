@@ -65,6 +65,13 @@ export const courseService = {
     return response.data
   },
 
+  getIngestionStatuses: async (courseId) => {
+    const response = await api.get('/courses/lessons/ingestion-statuses/', {
+      params: { course: courseId },
+    })
+    return response.data.results || []
+  },
+
   // Reprocess failed lesson
   reprocessLesson: async (id) => {
     const response = await api.post(`/courses/lessons/${id}/reprocess/`)

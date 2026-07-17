@@ -22,14 +22,16 @@ sách tính năng dự kiến.
 - Teacher application/admin approval, email verification và teacher login có
   boundary backend; CSV/objective/reinforcement reports chỉ theo course sở hữu.
 - SadTalker adapter có consent/bounds/audit; technical GPU smoke đã tạo MP4.
-- Docker Compose development cho PostgreSQL, backend, frontend và Adminer.
+- Docker Compose development cho PostgreSQL, Redis, backend, non-root Celery
+  ingestion worker, frontend và Adminer.
 - Bộ test backend cô lập bằng SQLite; lint/build frontend đã chạy được ở lần kiểm
   tra gần nhất.
 
 ## Chưa có hoặc chưa hoàn thiện
 
-- Ingestion/indexing vẫn đồng bộ; chưa có Celery/Redis durable worker, parser
-  process isolation, malware scanning hoặc object storage production.
+- Ingestion/indexing đã chạy qua DB job + Celery/Redis worker; chưa có parser
+  subprocess wall-clock isolation, malware scanning, broker HA/monitoring hoặc
+  object storage production.
 - Chưa có reranker/ANN và multi-lesson holdout/human evaluation đủ để kết luận
   chất lượng RAG hay tác động giáo dục.
 - AI dialogue grading chưa ảnh hưởng điểm; baseline tin cậy vẫn là trắc nghiệm

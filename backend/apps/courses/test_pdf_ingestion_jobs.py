@@ -5,6 +5,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from apps.ai_assistant.models import KnowledgeSource
+from apps.users.models import User
 
 from .ingestion import IngestionQueueError, queue_pdf_ingestion
 from .models import Course, Lesson, LessonIngestionJob
@@ -174,3 +175,89 @@ def test_worker_discards_job_deleted_before_delivery():
 
     assert result.successful()
     assert result.result == {'job_id': 999999, 'status': 'discarded'}
+
+
+@pytest.mark.django_db
+def test_processing_status_exposes_bounded_job_state_without_task_identifier(
+    api_client, teacher_user, queued_lesson
+):
+    api_client.force_authenticate(teacher_user)
+    job = LessonIngestionJob.objects.create(
+        lesson=queued_lesson,
+        requested_by=teacher_user,
+        task_id=uuid.uuid4(),
+        status='failed',
+        attempts=2,
+        failure_code='processing_failed',
+        safe_error='Lỗi an toàn',
+    )
+    queued_lesson.processing_status = 'failed'
+    queued_lesson.processing_error = job.safe_error
+    queued_lesson.save(update_fields=['processing_status', 'processing_error'])
+
+    response = api_client.get(
+        f'/api/courses/lessons/{queued_lesson.id}/processing_status/'
+    )
+
+    assert response.status_code == 200
+    assert response.data['status'] == 'failed'
+    assert response.data['error'] == 'Lỗi an toàn'
+    assert response.data['ingestion_job'] == {
+        'id': job.id,
+        'status': 'failed',
+        'attempts': 2,
+        'failure_code': 'processing_failed',
+        'knowledge_source_id': None,
+        'index_created': None,
+    }
+    assert str(job.task_id) not in str(response.data)
+
+
+@pytest.mark.django_db
+def test_teacher_restores_only_owned_course_ingestion_statuses(
+    api_client, teacher_user, queued_lesson
+):
+    job = LessonIngestionJob.objects.create(
+        lesson=queued_lesson,
+        requested_by=teacher_user,
+        task_id=uuid.uuid4(),
+        status='completed',
+        attempts=1,
+    )
+    api_client.force_authenticate(teacher_user)
+
+    response = api_client.get(
+        '/api/courses/lessons/ingestion-statuses/',
+        {'course': queued_lesson.course_id},
+    )
+
+    assert response.status_code == 200
+    assert response.data['results'] == [{
+        'lesson_id': queued_lesson.id,
+        'lesson_title': queued_lesson.title,
+        'processing_status': queued_lesson.processing_status,
+        'error': '',
+        'ingestion_job': {
+            'id': job.id,
+            'status': 'completed',
+            'attempts': 1,
+            'failure_code': '',
+            'knowledge_source_id': None,
+            'index_created': None,
+        },
+    }]
+    assert str(job.task_id) not in str(response.data)
+
+    outsider = User.objects.create_user(
+        email='ingestion-outsider@example.invalid',
+        username='ingestion-outsider',
+        password='LocalTestOnly-123!',
+        role='teacher',
+        is_verified=True,
+    )
+    api_client.force_authenticate(outsider)
+    denied = api_client.get(
+        '/api/courses/lessons/ingestion-statuses/',
+        {'course': queued_lesson.course_id},
+    )
+    assert denied.status_code == 403

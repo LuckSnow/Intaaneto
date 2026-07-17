@@ -72,6 +72,33 @@ export default function TeacherUpload() {
     }
   }, [activeUploadLessonIds])
 
+  useEffect(() => {
+    if (!selectedCourse) {
+      setUploadedLessons([])
+      return undefined
+    }
+    let cancelled = false
+    const restoreStatuses = async () => {
+      try {
+        const items = await courseService.getIngestionStatuses(selectedCourse)
+        if (!cancelled) {
+          setUploadedLessons(items.map((item) => ({
+            id: item.lesson_id,
+            title: item.lesson_title,
+            status: item.processing_status,
+            error: item.error || '',
+          })))
+        }
+      } catch {
+        if (!cancelled) toast.error('Không thể tải trạng thái xử lý PDF')
+      }
+    }
+    restoreStatuses()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedCourse])
+
   const fetchCourses = async () => {
     try {
       const data = await courseService.getManagedCourses()

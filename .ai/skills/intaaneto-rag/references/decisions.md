@@ -151,9 +151,8 @@ affected files or migration.
 - Reason: One format covers the required learning-material workflow while
   keeping parser validation, page metadata, fixtures, and security testing small
   enough for a focused vertical slice.
-- Implementation note: Slice 4 replaced the legacy PDF/PPTX upload contract with
-  a synchronous PDF-only upload-to-index path. Production job durability remains
-  a separate concern recorded in `current-state.md`.
+- Implementation note: Slice 4 replaced the legacy PDF/PPTX upload contract and
+  later moved extraction/indexing to the bounded job design in RAG-019.
 
 ## RAG-013 — Evaluate retrieval before tuning it
 
@@ -255,3 +254,21 @@ affected files or migration.
 - Constraint: SadTalker is not TTS and requires no API key. A fake-provider test
   proves the adapter contract only; the thesis cannot claim real video quality
   until a recorded run uses reviewed checkpoints and consented inputs.
+
+## RAG-019 — PDF ingestion uses durable DB state plus Celery/Redis
+
+- Status: Implemented for development Compose
+- Date: 2026-07-17
+- Affected: course ingestion job/model/task/API/tests, Celery configuration,
+  Redis/worker Compose services, teacher upload polling UI, setup and API docs
+- Decision: Persist one active ingestion job per lesson before dispatch. Return
+  `202 Accepted`, process PDF extraction/embedding in a non-root Celery worker,
+  reauthorize ownership in the worker, retry only safe transient failures within
+  a fixed bound, and use lesson/job database state—not Celery results—as the
+  product polling contract.
+- Reason: PDF parsing and local embedding must not hold open an HTTP request;
+  broker/process failures must be observable and retryable without duplicating
+  active sources or exposing exception/broker metadata.
+- Constraint: Redis/AOF in development is evidence of broker delivery, not a
+  production HA guarantee. Parser wall-clock isolation, malware scanning,
+  monitoring, orphan cleanup and production object storage remain separate.

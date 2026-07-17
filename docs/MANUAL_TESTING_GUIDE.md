@@ -399,9 +399,12 @@ Mong đợi:
 
 Mong đợi:
 
-- UI hiển thị trạng thái đang upload/index thật, không giả phần trăm.
-- Request chờ vì ingestion hiện chạy đồng bộ.
-- Thành công: lesson có `processing_status = completed`.
+- Upload trả nhanh `202`; UI hiển thị trạng thái từ polling thật, không giả phần trăm.
+- `docker compose ps` cho thấy `redis` healthy và `worker` đang chạy.
+- Trạng thái đi qua `pending/extracting` rồi `completed`; refresh trang lesson
+  không làm job chạy trùng.
+- Django Admin → `Courses > Lesson ingestion jobs` có một job completed, attempt
+  count hữu hạn và source kết quả; không có raw text/embedding.
 - Django Admin → `AI Assistant > Knowledge sources` có source `ready`, active.
 - Lesson mở được và có nút vào AI Tutor.
 - Chunk của source PDF có `page_start/page_end`; hỏi câu nằm trong PDF thì UI
@@ -433,6 +436,9 @@ Mong đợi:
   khi parse/embed.
 - Reprocess cùng PDF thành công: không tạo duplicate active source/chunk.
 - Nội dung thay đổi hợp lệ: tạo source version mới và chỉ một version active.
+- Bấm reprocess khi job đang queued/running: không tạo active job thứ hai.
+- Dừng `redis`, thử upload: API trả 503 an toàn và lesson/job thành `failed`,
+  không nằm `pending` vô hạn. Khởi động Redis/worker rồi dùng `Thử lại`.
 
 Có thể kiểm tra metadata, không in raw content:
 
@@ -770,7 +776,7 @@ docker compose exec frontend npm run build
 
 Kết quả baseline tại thời điểm viết tài liệu:
 
-- Backend: `201` tests pass, gồm một integration test teacher PDF → assessment
+- Backend: `209` tests pass, gồm một integration test teacher PDF → assessment
   → learner progression không gọi mạng/LLM.
 - Frontend: lint pass, production build pass và `npm audit` báo 0 lỗ hổng đã biết.
 - Bundle chính khoảng 465 kB; Google Auth được tải theo nhu cầu. Build còn cảnh
@@ -784,8 +790,8 @@ Không đánh `PASS` cho các mục sau chỉ vì model hoặc UI placeholder t�
 - AI đánh giá kiến thức bằng hội thoại và rubric đã được kiểm chứng.
 - Báo cáo lịch sử/time-series dài hạn; objective distribution và CSV scoped đã có.
 - Code execution và tự chấm coding exercise.
-- Durable Celery/Redis background ingestion.
 - Parser wall-clock isolation và malware scanning.
+- Production Redis/broker HA, monitoring và dead-letter operations.
 - Cloudflare R2/object storage production.
 - TTS tự động và render SadTalker bằng portrait/audio học liệu đã được duyệt;
   technical GPU smoke đã có nhưng chưa phải quality evidence.

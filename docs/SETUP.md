@@ -18,8 +18,18 @@ cho `cp`. Có thể để trống `OPENAI_API_KEY` khi chỉ kiểm tra web; end
 không hoạt động cho tới khi có khóa hợp lệ. Không đặt khóa bí mật vào biến
 `VITE_*` vì các biến đó được đóng gói vào trình duyệt.
 
-Compose khởi động theo thứ tự `db -> backend khỏe mạnh -> frontend`. Backend tự
-chạy các migration đã commit khi container khởi động. Tạo tài khoản quản trị bằng:
+Compose khởi động PostgreSQL và Redis trước, sau đó backend, Celery ingestion
+worker và frontend. Backend tự chạy các migration đã commit khi container khởi
+động. Xác minh cả broker/worker:
+
+```bash
+docker compose ps
+docker compose logs --tail=50 worker
+```
+
+`redis` phải healthy; worker phải kết nối `redis://redis:6379/0`, đăng ký
+`apps.courses.tasks.process_pdf_lesson_job` và chạy bằng user `appuser`, không
+phải root. Tạo tài khoản quản trị bằng:
 
 ```bash
 docker compose exec backend python manage.py createsuperuser
@@ -27,6 +37,36 @@ docker compose exec backend python manage.py createsuperuser
 
 Nhập email, username, full name và một mật khẩu mạnh riêng trên từng máy. Không
 dùng hoặc ghi một mật khẩu quản trị mặc định trong repository.
+
+## Vận hành hàng đợi PDF
+
+Upload/reprocess chỉ được coi là tiếp nhận khi API trả `202`. Trạng thái nguồn
+sự thật nằm trong `Lesson.processing_status` và `LessonIngestionJob`; không dùng
+Celery result backend. Kiểm tra nhanh:
+
+```bash
+docker compose ps
+docker compose exec worker celery -A config inspect ping
+docker compose logs --tail=100 worker
+```
+
+Trong Django Admin, mở `Courses > Lesson ingestion jobs`. Một lesson chỉ có tối
+đa một job `queued/running`. `attempts`, `failure_code`, source kết quả và thời
+điểm dùng để chẩn đoán; task UUID là nội bộ và không xuất hiện trong API.
+
+Nếu Redis/worker tạm dừng:
+
+1. Chạy `docker compose up -d redis worker` và kiểm tra worker báo `ready`.
+2. Job đã được broker nhận sẽ tiếp tục theo late acknowledgement/visibility
+   timeout. Không tự sửa `running` thành `completed` trong database.
+3. Job enqueue thất bại được đánh dấu `failed`, không nằm pending giả. Sau khi
+   broker khỏe, teacher dùng nút `Thử lại`; indexing idempotent không nhân đôi
+   active source.
+
+Không chạy `redis-cli FLUSHALL`, purge queue hoặc xóa volume khi còn job thật.
+Development worker để `concurrency=1` nhằm giới hạn RAM/model load; chỉ tăng sau
+khi đo resource. Redis AOF/DB job giúp khôi phục prototype nhưng không thay thế
+broker HA, monitoring, backup đồng bộ PostgreSQL/media và quy trình production.
 
 ## Tạo dữ liệu mẫu dùng chung
 

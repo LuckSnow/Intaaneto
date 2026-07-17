@@ -1,6 +1,6 @@
 # Current security risks
 
-Last repository audit: 2026-07-16. These are observed risks, not proof of
+Last repository audit: 2026-07-17. These are observed risks, not proof of
 exploitation. Re-check code and tests before changing status.
 
 ## P0 — Resolve before exposing the application
@@ -10,9 +10,10 @@ exploitation. Re-check code and tests before changing status.
 
 ## P1 — Resolve during the first stabilization/RAG slices
 
-- PDF extraction and local embedding run synchronously in the upload request;
-  this removes the daemon-thread loss mode but still lacks parser wall-clock
-  isolation and a durable background job boundary for production workloads.
+- PDF extraction now runs in a bounded-retry Celery worker rather than the HTTP
+  request, but the parser still lacks subprocess wall-clock isolation and
+  malware scanning. Redis/AOF and one development worker are not production
+  broker HA, monitoring, or disaster recovery.
 
 ## Operational gaps
 
@@ -29,15 +30,16 @@ exploitation. Re-check code and tests before changing status.
 - Docker Compose uses development mode and hard-coded database credentials.
 - Compose is a development configuration with bind mounts and Django/Vite
   development servers; it is not a production deployment definition.
-- Frontend dependency installation has reported known vulnerabilities and needs
-  a reviewed dependency audit before production exposure.
-- Lesson indexing, filtered retrieval, and grounded lesson answers are
-  implemented. R2, durable background jobs, Celery, and Redis are not implemented.
+- The reviewed frontend dependency audit reported zero known vulnerabilities on
+  2026-07-17; this point-in-time result still needs periodic review.
+- Lesson indexing, filtered retrieval, grounded answers, and durable database
+  jobs backed by Celery/Redis are implemented for development. R2/object storage,
+  production broker HA/monitoring, orphan cleanup, and parser isolation are not.
 - Free-tier Gemini generation may permit provider product-improvement use of
   submitted prompts/responses; do not send sensitive, confidential, or personal
   lesson/student data until an appropriate provider/data-processing tier is used.
 
-## Resolved with regression tests through 2026-07-15
+## Resolved with regression tests through 2026-07-17
 
 - User API no longer exposes global CRUD; role and active status are read-only,
   registration always creates a learner, and direct self-upgrade has been
@@ -71,6 +73,11 @@ exploitation. Re-check code and tests before changing status.
   inputs, rejects the removed document formats, authorizes ownership before
   extraction/embedding, and never activates partial chunks after an indexing
   failure. The old daemon-thread upload endpoint path is no longer used.
+- PDF upload/reprocess persists one active database job per lesson and returns
+  `202`; the non-root worker reauthorizes ownership, retries only bounded
+  transient failures, records safe terminal state, and does not expose broker
+  task identifiers. Broker outage, duplicate delivery, deleted jobs, revoked
+  authorization, and owner-scoped status restoration have regression coverage.
 - JWT refresh rotation and logout blacklisting are enabled through SimpleJWT's
   blacklist app and covered by API tests. The frontend stores a rotated refresh
   token, validates the current user during app startup, and does not attempt a

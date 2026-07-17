@@ -58,8 +58,9 @@ mỗi objective. Import mặc định tạo draft, kiểm tra teacher-owner và 
 attempt; answer key không được nối vào lesson content/RAG.
 
 PDF là định dạng upload duy nhất. DOCX, PPT và PPTX không thuộc phạm vi ingestion
-hiện tại. Extraction/indexing vẫn chạy đồng bộ trong request và chưa có parser
-process isolation hoặc durable background retry.
+hiện tại. Upload/reprocess trả `202`, lưu job trong database và Celery worker xử
+lý qua Redis với reauthorization, retry hữu hạn và polling trạng thái thật.
+Parser subprocess wall-clock isolation và production broker HA chưa có.
 
 ## 3. AI Tutor
 
@@ -115,7 +116,7 @@ lip-sync/tiếng Việt. Xem
 
 ## 6. Thành phần chưa triển khai
 
-- Celery/Redis durable job queue và worker video/ingestion production.
+- Production broker HA/monitoring và chuyển SadTalker sang worker có GPU riêng.
 - Automatic TTS, storyboard, slide/image generation và ghép cảnh.
 - WebSocket/realtime processing progress.
 - AI dialogue assessment ảnh hưởng điểm hoặc progression.
