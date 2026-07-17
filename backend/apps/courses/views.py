@@ -227,6 +227,11 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         return lesson
 
     def _authoring_payload(self, lesson):
+        def media_url(field):
+            if not field:
+                return None
+            return self.request.build_absolute_uri(field.url)
+
         summary = LessonSummaryDraft.objects.filter(lesson=lesson).first()
         narration = LessonNarrationAudio.objects.filter(lesson=lesson).first()
         assessment = getattr(lesson, 'assessment', None)
@@ -239,7 +244,7 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         return {
             'lesson_id': lesson.id,
             'lesson_title': lesson.title,
-            'pdf_url': lesson.uploaded_file.url if lesson.uploaded_file else None,
+            'pdf_url': media_url(lesson.uploaded_file),
             'extracted_chars': len(lesson.extracted_text or ''),
             'rag_ready': active_source is not None,
             'rag_source_version': active_source.version if active_source else None,
@@ -252,7 +257,7 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
                 'ready': bool(narration.audio_file),
                 'provider': narration.provider,
                 'voice': narration.voice,
-                'audio_url': narration.audio_file.url if narration.audio_file else None,
+                'audio_url': media_url(narration.audio_file),
             } if narration else None),
             'assessment': ({
                 'id': assessment.id,
@@ -265,7 +270,7 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
                 'failure_code': video_job.failure_code,
                 'safe_error': video_job.safe_error,
                 'video_url': (
-                    video_job.output_file.url if video_job.output_file else None
+                    media_url(video_job.output_file)
                 ),
             } if video_job else None),
         }

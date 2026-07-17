@@ -11,7 +11,6 @@ from apps.ai_assistant.models import KnowledgeSource
 from apps.exercises.models import LessonAssessment
 from apps.users.models import User
 
-from .content_authoring import generate_narration_audio
 from .models import (
     Course,
     Lesson,
@@ -202,7 +201,7 @@ def test_generated_assessment_is_unpublished_reviewable_draft(
 
 @pytest.mark.django_db
 def test_local_tts_is_bound_to_approved_summary_checksum(
-    settings, teacher_user, authoring_lesson, tmp_path
+    api_client, teacher_user, authoring_lesson
 ):
     authoring_lesson.ai_summary = "Nội dung PHP đã được duyệt."
     authoring_lesson.save(update_fields=["ai_summary"])
@@ -212,12 +211,17 @@ def test_local_tts_is_bound_to_approved_summary_checksum(
         output_path = Path(command[command.index("-w") + 1])
         output_path.write_bytes(_wav_bytes())
 
+    api_client.force_authenticate(teacher_user)
     with patch("apps.courses.content_authoring.subprocess.run", side_effect=fake_run):
-        narration = generate_narration_audio(
-            actor=teacher_user,
-            lesson=authoring_lesson,
+        response = api_client.post(
+            f"/api/courses/lessons/{authoring_lesson.id}/generate-narration/"
         )
+    narration = LessonNarrationAudio.objects.get(lesson=authoring_lesson)
 
+    assert response.status_code == 201
+    assert response.data["narration"]["audio_url"].startswith(
+        "http://testserver/media/"
+    )
     assert narration.provider == "espeak-ng-local"
     assert len(narration.summary_checksum) == 64
     assert narration.audio_file.name.endswith(".wav")
