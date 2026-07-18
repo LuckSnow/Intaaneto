@@ -122,6 +122,8 @@ class RetrievedChunk:
     start_offset: int
     end_offset: int
     score: float
+    page_start: int | None = None
+    page_end: int | None = None
 
 
 @dataclass(frozen=True)
@@ -208,6 +210,38 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[TextChunk]:
         cursor = next_cursor
 
     return chunks
+
+
+PDF_PAGE_MARKER_PATTERN = re.compile(r'^--- Trang ([1-9]\d*) ---$', re.MULTILINE)
+
+
+def pdf_page_ranges(text: str, chunks: Sequence[TextChunk]):
+    """Map normalized extracted-text offsets to original PDF page ranges."""
+
+    markers = [
+        (match.start(), int(match.group(1)))
+        for match in PDF_PAGE_MARKER_PATTERN.finditer(text)
+    ]
+    if not markers:
+        return [(None, None) for _chunk in chunks]
+
+    page_intervals = [
+        (
+            marker_offset,
+            markers[index + 1][0] if index + 1 < len(markers) else len(text),
+            page_number,
+        )
+        for index, (marker_offset, page_number) in enumerate(markers)
+    ]
+    ranges = []
+    for chunk in chunks:
+        pages = [
+            page_number
+            for interval_start, interval_end, page_number in page_intervals
+            if interval_start < chunk.end_offset and interval_end > chunk.start_offset
+        ]
+        ranges.append((pages[0], pages[-1]) if pages else (None, None))
+    return ranges
 
 
 def _authorized_lesson(actor, lesson_id: int) -> Lesson:
@@ -311,6 +345,11 @@ def index_lesson(
         raise LessonIndexingError('Lesson exceeds the configured chunk limit')
 
     embeddings = _embed_chunks(provider, chunks)
+    page_ranges = (
+        pdf_page_ranges(normalized.text, chunks)
+        if normalized.source_type == 'extracted_text'
+        else [(None, None) for _chunk in chunks]
+    )
 
     with transaction.atomic():
         locked_lesson = Lesson.objects.select_for_update().get(pk=lesson.pk)
@@ -349,8 +388,10 @@ def index_lesson(
                 end_offset=chunk.end_offset,
                 char_count=len(chunk.text),
                 embedding=embedding,
+                page_start=page_range[0],
+                page_end=page_range[1],
             )
-            for chunk, embedding in zip(chunks, embeddings)
+            for chunk, embedding, page_range in zip(chunks, embeddings, page_ranges)
         ])
 
         KnowledgeSource.objects.filter(
@@ -488,6 +529,8 @@ def retrieve_lesson_evidence(
             start_offset=chunk.start_offset,
             end_offset=chunk.end_offset,
             score=round(score, 6),
+            page_start=chunk.page_start,
+            page_end=chunk.page_end,
         )
         for chunk, score in ranked
     )

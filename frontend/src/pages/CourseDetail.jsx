@@ -13,6 +13,7 @@ export default function CourseDetail() {
   const [loading, setLoading] = useState(true)
   const [enrolling, setEnrolling] = useState(false)
   const [isEnrolled, setIsEnrolled] = useState(false)
+  const [enrollment, setEnrollment] = useState(null)
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -23,10 +24,12 @@ export default function CourseDetail() {
         // Check if user is enrolled (if authenticated)
         if (isAuthenticated) {
           try {
-            await api.get(`/courses/${id}/progress/`)
+            const progressResponse = await api.get(`/courses/${id}/progress/`)
             setIsEnrolled(true)
+            setEnrollment(progressResponse.data)
           } catch (error) {
             setIsEnrolled(false)
+            setEnrollment(null)
           }
         }
       } catch (error) {
@@ -69,7 +72,7 @@ export default function CourseDetail() {
       return
     }
     if (course.lessons && course.lessons.length > 0) {
-      navigate(`/lessons/${course.lessons[0].id}`)
+      navigate(`/lessons/${enrollment?.last_accessed_lesson || course.lessons[0].id}`)
     }
   }
 
@@ -182,9 +185,12 @@ export default function CourseDetail() {
           {course.lessons && course.lessons.length > 0 ? (
             <div className="space-y-3">
               {course.lessons.map((lesson, index) => (
-                <div
+                <button
+                  type="button"
                   key={lesson.id}
-                  className="bg-gray-50 border border-gray-100 rounded-xl p-4 hover:bg-orange-50 hover:border-orange-200 transition-all"
+                  disabled={!isEnrolled}
+                  onClick={() => navigate(`/lessons/${lesson.id}`)}
+                  className="w-full text-left bg-gray-50 border border-gray-100 rounded-xl p-4 transition-colors enabled:hover:bg-orange-50 enabled:hover:border-orange-200 enabled:cursor-pointer disabled:cursor-not-allowed"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm">
@@ -200,7 +206,7 @@ export default function CourseDetail() {
                       <span className="text-gray-300 text-sm">🔒</span>
                     )}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ) : (

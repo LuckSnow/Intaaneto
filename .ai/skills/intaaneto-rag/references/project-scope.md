@@ -15,8 +15,8 @@ work in summarizing lessons and grading basic periodic assessments.
 
 - Implement lecturer/learner authorization, course management, and academic
   document storage.
-- Research extraction and normalization of learning files into an AI knowledge
-  base.
+- Research extraction and normalization of PDF learning files into an AI
+  knowledge base. DOCX, PPT, and PPTX uploads are outside the project target.
 - Build an AI Tutor that summarizes lessons, answers grounded questions,
   evaluates understanding through dialogue, and supports interactive video.
 - Track learning progress from AI-assisted assessment results.
@@ -66,4 +66,3 @@ The first complete research loop should demonstrate:
 5. The system records an explainable score/result and applies a progression rule.
 6. Evaluation reports retrieval quality, answer groundedness, assessment
    consistency, latency, and relevant limitations.
-

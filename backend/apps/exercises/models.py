@@ -1,6 +1,9 @@
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
+
+from apps.courses.models import Lesson
 
 User = get_user_model()
 
@@ -14,6 +17,13 @@ class Exercise(models.Model):
         ('hard', 'Khó'),
     ]
     
+    lesson = models.ForeignKey(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='exercises',
+        null=True,
+        blank=True,
+    )
     title = models.CharField(_('title'), max_length=255)
     description = models.TextField(_('description'))
     instructions = models.TextField(_('instructions'))
@@ -84,3 +94,214 @@ class Submission(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.exercise.title} ({self.status})"
+
+
+class LessonAssessment(models.Model):
+    """Deterministically graded knowledge check for one lesson."""
+
+    lesson = models.OneToOneField(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='assessment',
+    )
+    title = models.CharField(_('title'), max_length=255)
+    instructions = models.TextField(_('instructions'), blank=True, max_length=2000)
+    pass_threshold = models.PositiveSmallIntegerField(
+        _('pass threshold'),
+        default=70,
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+    )
+    version = models.PositiveIntegerField(_('version'), default=1)
+    is_published = models.BooleanField(_('published'), default=False)
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+
+    class Meta:
+        verbose_name = _('lesson assessment')
+        verbose_name_plural = _('lesson assessments')
+        ordering = ['lesson__course_id', 'lesson__order', 'id']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(pass_threshold__gte=1, pass_threshold__lte=100),
+                name='assessment_threshold_between_1_and_100',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.lesson}: {self.title}'
+
+
+class AssessmentQuestion(models.Model):
+    """Teacher-authored multiple-choice question tied to a learning objective."""
+
+    assessment = models.ForeignKey(
+        LessonAssessment,
+        on_delete=models.CASCADE,
+        related_name='questions',
+    )
+    prompt = models.TextField(_('prompt'), max_length=2000)
+    choices = models.JSONField(_('choices'), default=list)
+    correct_choice = models.PositiveSmallIntegerField(_('correct choice'))
+    learning_objective = models.CharField(
+        _('learning objective'),
+        max_length=255,
+        blank=True,
+    )
+    explanation = models.TextField(_('explanation'), max_length=2000, blank=True)
+    order = models.PositiveIntegerField(_('order'), default=0)
+
+    class Meta:
+        verbose_name = _('assessment question')
+        verbose_name_plural = _('assessment questions')
+        ordering = ['order', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['assessment', 'order'],
+                name='unique_assessment_question_order',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.assessment.title} #{self.order}'
+
+
+class AssessmentAttempt(models.Model):
+    """Immutable server-owned assessment result used for mastery reporting."""
+
+    assessment = models.ForeignKey(
+        LessonAssessment,
+        on_delete=models.PROTECT,
+        related_name='attempts',
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='assessment_attempts',
+    )
+    assessment_version = models.PositiveIntegerField()
+    threshold_snapshot = models.PositiveSmallIntegerField()
+    score = models.DecimalField(max_digits=5, decimal_places=2)
+    passed = models.BooleanField(default=False)
+    total_questions = models.PositiveIntegerField()
+    correct_answers = models.PositiveIntegerField()
+    weak_objectives = models.JSONField(default=list, blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-submitted_at', '-id']
+        indexes = [
+            models.Index(fields=['user', 'assessment', '-submitted_at']),
+            models.Index(fields=['assessment', 'passed']),
+        ]
+
+    def __str__(self):
+        return f'{self.user_id} - {self.assessment_id}: {self.score}'
+
+
+class AssessmentAnswer(models.Model):
+    """Auditable answer snapshot that remains stable when questions change."""
+
+    attempt = models.ForeignKey(
+        AssessmentAttempt,
+        on_delete=models.CASCADE,
+        related_name='answers',
+    )
+    question = models.ForeignKey(
+        AssessmentQuestion,
+        on_delete=models.SET_NULL,
+        related_name='attempt_answers',
+        null=True,
+        blank=True,
+    )
+    prompt_snapshot = models.TextField(max_length=2000)
+    choices_snapshot = models.JSONField(default=list)
+    learning_objective_snapshot = models.CharField(max_length=255, blank=True)
+    selected_choice = models.PositiveSmallIntegerField()
+    correct_choice_snapshot = models.PositiveSmallIntegerField()
+    is_correct = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['attempt', 'question'],
+                condition=models.Q(question__isnull=False),
+                name='unique_attempt_question_answer',
+            ),
+        ]
+
+
+class AssessmentReinforcementEvent(models.Model):
+    """Minimal audit evidence that a learner requested a review packet."""
+
+    STATUS_CHOICES = [
+        ('ready', 'Ready'),
+        ('partial', 'Partial'),
+        ('weak_evidence', 'Weak evidence'),
+        ('not_indexed', 'Not indexed'),
+    ]
+
+    attempt = models.ForeignKey(
+        AssessmentAttempt,
+        on_delete=models.CASCADE,
+        related_name='reinforcement_events',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    objective_count = models.PositiveSmallIntegerField()
+    ready_objective_count = models.PositiveSmallIntegerField(default=0)
+    evidence_count = models.PositiveIntegerField(default=0)
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['requested_at', 'id']
+        indexes = [
+            models.Index(fields=['attempt', 'requested_at']),
+            models.Index(fields=['status', 'requested_at']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(ready_objective_count__lte=models.F('objective_count')),
+                name='reinforcement_ready_objectives_lte_total',
+            ),
+        ]
+
+
+class DialogueKnowledgeCheckEvent(models.Model):
+    """Minimal audit record for recommendation-only AI knowledge checks."""
+
+    OUTCOME_CHOICES = [
+        ('demonstrated', 'Demonstrated'),
+        ('partial', 'Partial'),
+        ('not_demonstrated', 'Not demonstrated'),
+        ('unavailable', 'Unavailable'),
+    ]
+
+    attempt = models.ForeignKey(
+        AssessmentAttempt,
+        on_delete=models.PROTECT,
+        related_name='dialogue_check_events',
+    )
+    question = models.ForeignKey(
+        AssessmentQuestion,
+        on_delete=models.SET_NULL,
+        related_name='dialogue_check_events',
+        null=True,
+        blank=True,
+    )
+    assessment_version = models.PositiveIntegerField()
+    learning_objective_snapshot = models.CharField(max_length=255)
+    outcome = models.CharField(max_length=24, choices=OUTCOME_CHOICES)
+    answer_digest = models.CharField(max_length=64)
+    evidence_chunk_ids = models.JSONField(default=list, blank=True)
+    generation_provider = models.CharField(max_length=32, blank=True)
+    generation_model = models.CharField(max_length=100, blank=True)
+    tokens_used = models.PositiveIntegerField(null=True, blank=True)
+    latency_ms = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['attempt', '-created_at']),
+            models.Index(fields=['outcome', '-created_at']),
+        ]

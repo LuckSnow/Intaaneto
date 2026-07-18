@@ -1,6 +1,6 @@
 # Trạng thái dự án Intaaneto
 
-Cập nhật: 2026-07-13. Đây là ảnh chụp trạng thái code đã kiểm tra, không phải danh
+Cập nhật: 2026-07-17. Đây là ảnh chụp trạng thái code đã kiểm tra, không phải danh
 sách tính năng dự kiến.
 
 ## Đã có
@@ -11,36 +11,46 @@ sách tính năng dự kiến.
 - Phân quyền course/lesson cơ bản theo learner enrollment, teacher owner và admin.
 - Student API không trả `solution_code` và hidden test cases.
 - AI generation đi qua provider adapter; lesson chat có scope backend kiểm tra,
-  history giới hạn và response contract ổn định.
-- Docker Compose development cho PostgreSQL, backend, frontend và Adminer.
+  retrieval pgvector, grounded fallback, citation application-owned, history
+  giới hạn/khôi phục sau reload và response contract ổn định.
+- PDF-only ingestion có bounds/signature/page/text validation, normalization,
+  deterministic chunk/version và atomic activation.
+- Assessment trắc nghiệm teacher-authored được backend chấm deterministic; pass
+  gate progression, weak objective dẫn tới reinforcement và dashboard/report.
+- Hai corpus Markdown compile thành 2 course/15 lesson draft; 3 assessment
+  blueprint/27 câu được giữ tách khỏi RAG và import ở trạng thái draft.
+- Teacher application/admin approval, email verification và teacher login có
+  boundary backend; CSV/objective/reinforcement reports chỉ theo course sở hữu.
+- SadTalker adapter có consent/bounds/audit; technical GPU smoke đã tạo MP4.
+- Docker Compose development cho PostgreSQL, Redis, backend, non-root Celery
+  ingestion worker, frontend và Adminer.
 - Bộ test backend cô lập bằng SQLite; lint/build frontend đã chạy được ở lần kiểm
   tra gần nhất.
 
 ## Chưa có hoặc chưa hoàn thiện
 
-- RAG thật: chưa có document/chunk/vector model, embedding service, vector store,
-  retrieval/reranking, ingestion job, citation thật hoặc evaluation dataset.
-- Chat hiện chỉ dùng lesson summary/content giới hạn làm context; response chủ
-  động trả `grounded=false` và citation rỗng.
-- Exercise chưa gắn trực tiếp với course/lesson nên authorization cho hint chưa
-  thể hoàn chỉnh.
-- Upload parsing chạy bằng daemon thread, chưa có durable job queue; validation
-  loại file/content còn thiếu.
-- Chưa có rate limiting và security regression coverage đầy đủ.
-- Avatar, giọng nói, video tương tác và báo cáo đánh giá AI chưa phải tính năng
-  hoàn chỉnh.
+- Ingestion/indexing đã chạy qua DB job + Celery/Redis worker; chưa có parser
+  subprocess wall-clock isolation, malware scanning, broker HA/monitoring hoặc
+  object storage production.
+- Chưa có reranker/ANN và multi-lesson holdout/human evaluation đủ để kết luận
+  chất lượng RAG hay tác động giáo dục.
+- AI dialogue grading chưa ảnh hưởng điểm; baseline tin cậy vẫn là trắc nghiệm
+  deterministic do teacher duyệt.
+- SadTalker chưa có automatic TTS và chưa có render học liệu bằng portrait/audio
+  đã duyệt kèm đánh giá tiếng Việt/lip-sync.
+- Frontend chưa có test runner tự động riêng; Docker Compose là development.
 - Một số frontend pages vẫn là prototype/placeholder; không nên xem các app model
   và endpoint tồn tại là bằng chứng UI end-to-end đã hoàn tất.
 
 ## Ưu tiên thực hiện
 
-1. Ổn định môi trường chạy và giữ test/lint/build xanh.
-2. Xây vertical slice RAG đầu tiên: nguồn lesson được teacher phê duyệt -> extract
-   giới hạn -> chunk/version idempotent -> embedding -> retrieval đã filter quyền
-   -> answer có citation hoặc grounded fallback.
-3. Bổ sung negative tests cho learner không enroll, course khác, forged scope,
-   prompt injection và citation membership.
-4. Sau RAG MVP mới mở rộng chấm bài đối thoại, analytics, voice/avatar/video.
+1. Teacher review/publish các assessment corpus draft và chạy E2 với response
+   cases cùng hai người chấm độc lập.
+2. Mở rộng RAG evaluation sang nhiều lesson, tách holdout và human review trước
+   khi tune threshold/model.
+3. Bổ sung durable background processing và production storage/security.
+4. Chạy SadTalker với asset tiếng Việt có quyền sử dụng và ghi rubric tài nguyên,
+   lip-sync, artifact; video vẫn là enhancement tùy chọn.
 
 ## Tiêu chí không được tuyên bố sớm
 

@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
+import { getPostLoginPath } from '../utils/authNavigation'
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { login, googleLogin, isLoading } = useAuthStore()
   const [needVerification, setNeedVerification] = useState(false)
   const [verifyEmail, setVerifyEmail] = useState('')
@@ -19,9 +21,9 @@ export default function Login() {
     e.preventDefault()
     setNeedVerification(false)
     try {
-      await login(formData)
+      const data = await login(formData)
       toast.success('Đăng nhập thành công!')
-      navigate('/dashboard')
+      navigate(getPostLoginPath(data.user, location.state?.from), { replace: true })
     } catch (error) {
       const errorData = error.response?.data
       if (errorData) {
@@ -64,9 +66,15 @@ export default function Login() {
             </h2>
             <p className="mt-3 text-center text-sm text-white/80">
               Hoặc{' '}
-              <a href="/register" className="text-orange-400 hover:text-orange-300 font-semibold transition-colors">
+              <Link to="/register" className="text-orange-400 hover:text-orange-300 font-semibold transition-colors">
                 đăng ký tài khoản mới
-              </a>
+              </Link>
+            </p>
+            <p className="mt-3 text-center text-sm text-white/80">
+              Bạn là giáo viên?{' '}
+              <Link to="/teacher/login" className="font-semibold text-orange-300 underline-offset-4 hover:underline">
+                Mở cổng giáo viên
+              </Link>
             </p>
           </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -140,9 +148,9 @@ export default function Login() {
             className="w-full py-3 rounded-full bg-white hover:bg-gray-100 text-gray-900 font-bold shadow-lg border-0 transition-all duration-300 flex items-center justify-center space-x-2"
             onClick={async () => {
               try {
-                await googleLogin()
+                const data = await googleLogin()
                 toast.success('Đăng nhập Google thành công!')
-                navigate('/dashboard')
+                navigate(getPostLoginPath(data.user, location.state?.from), { replace: true })
               } catch (error) {
                 if (error.code === 'auth/popup-closed-by-user') {
                   return // user đóng popup, không cần báo lỗi

@@ -1,0 +1,58 @@
+services:
+  backend:
+    gpus: all
+    volumes:
+      - type: bind
+        source: ${SADTALKER_HOST_RUNTIME:?Set SADTALKER_HOST_RUNTIME to the isolated runtime directory}
+        target: /opt/intaaneto-sadtalker
+        read_only: true
+    environment:
+      SADTALKER_ENABLED: "True"
+      SADTALKER_ROOT: /opt/intaaneto-sadtalker/SadTalker
+      SADTALKER_PYTHON_EXECUTABLE: /opt/intaaneto-sadtalker/env/bin/python
+      SADTALKER_WORK_ROOT: /app/media/sadtalker-work
+      SADTALKER_TIMEOUT_SECONDS: ${SADTALKER_TIMEOUT_SECONDS:-1800}
+
+  video_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: intaaneto_video_worker
+    command: >-
+      sh -c "chown -R appuser:appuser /app/media /home/appuser/.cache &&
+      exec celery -A config worker --loglevel=INFO --concurrency=1
+      --queues=video --uid=appuser --gid=appuser"
+    env_file:
+      - path: ./backend/.env
+        required: false
+    volumes:
+      - ./backend:/app
+      - media_files:/app/media
+      - model_cache:/home/appuser/.cache
+      - type: bind
+        source: ${SADTALKER_HOST_RUNTIME:?Set SADTALKER_HOST_RUNTIME to the isolated runtime directory}
+        target: /opt/intaaneto-sadtalker
+        read_only: true
+    environment:
+      DEBUG: "True"
+      DB_NAME: intaaneto_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      HOME: /home/appuser
+      SADTALKER_ENABLED: "True"
+      SADTALKER_ROOT: /opt/intaaneto-sadtalker/SadTalker
+      SADTALKER_PYTHON_EXECUTABLE: /opt/intaaneto-sadtalker/env/bin/python
+      SADTALKER_WORK_ROOT: /app/media/sadtalker-work
+      SADTALKER_TIMEOUT_SECONDS: ${SADTALKER_TIMEOUT_SECONDS:-1800}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    gpus: all
+    networks:
+      - intaaneto_network

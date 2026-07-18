@@ -19,6 +19,20 @@ services:
     networks:
       - intaaneto_network
 
+  redis:
+    image: redis:7.2.7-alpine
+    container_name: intaaneto_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - intaaneto_network
+
   # Django Backend
   backend:
     build:
@@ -31,8 +45,10 @@ services:
         required: false
     volumes:
       - ./backend:/app
+      - ./docs:/project-docs:ro
       - media_files:/app/media
       - static_files:/app/staticfiles
+      - model_cache:/root/.cache
     ports:
       - "8000:8000"
     environment:
@@ -42,10 +58,13 @@ services:
       - DB_PASSWORD=postgres
       - DB_HOST=db
       - DB_PORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/0
       - FIREBASE_PROJECT_ID=intaaneto-e2f0f
       - FRONTEND_URL=http://localhost:5173
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/docs/', timeout=3)\""]
@@ -53,6 +72,41 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+    networks:
+      - intaaneto_network
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: intaaneto_worker
+    command: >-
+      sh -c "chown -R appuser:appuser /app/media /home/appuser/.cache &&
+      exec celery -A config worker --loglevel=INFO --concurrency=1
+      --queues=celery --uid=appuser --gid=appuser"
+    env_file:
+      - path: ./backend/.env
+        required: false
+    volumes:
+      - ./backend:/app
+      - ./docs:/project-docs:ro
+      - media_files:/app/media
+      - model_cache:/home/appuser/.cache
+    environment:
+      - DEBUG=True
+      - DB_NAME=intaaneto_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - HOME=/home/appuser
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - intaaneto_network
 
@@ -92,6 +146,8 @@ volumes:
   postgres_data:
   media_files:
   static_files:
+  redis_data:
+  model_cache:
 
 networks:
   intaaneto_network:

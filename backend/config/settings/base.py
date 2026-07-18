@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_yasg',
     'social_django',
@@ -136,6 +137,39 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'auth_register': config('THROTTLE_AUTH_REGISTER', default='5/hour'),
+        'auth_login': config('THROTTLE_AUTH_LOGIN', default='10/minute'),
+        'auth_verify': config('THROTTLE_AUTH_VERIFY', default='20/hour'),
+        'auth_resend': config('THROTTLE_AUTH_RESEND', default='5/hour'),
+        'teacher_application': config(
+            'THROTTLE_TEACHER_APPLICATION', default='3/day'
+        ),
+        'lesson_upload': config('THROTTLE_LESSON_UPLOAD', default='5/hour'),
+        'lesson_reprocess': config(
+            'THROTTLE_LESSON_REPROCESS', default='10/hour'
+        ),
+        'ai_chat': config('THROTTLE_AI_CHAT', default='30/minute'),
+        'ai_hint': config('THROTTLE_AI_HINT', default='20/minute'),
+        'assessment_submit': config(
+            'THROTTLE_ASSESSMENT_SUBMIT', default='20/hour'
+        ),
+        'assessment_reinforcement': config(
+            'THROTTLE_ASSESSMENT_REINFORCEMENT', default='20/hour'
+        ),
+        'assessment_dialogue': config(
+            'THROTTLE_ASSESSMENT_DIALOGUE', default='10/hour'
+        ),
+        'lesson_authoring': config(
+            'THROTTLE_LESSON_AUTHORING', default='10/hour'
+        ),
+        'video_generation': config(
+            'THROTTLE_VIDEO_GENERATION', default='3/hour'
+        ),
+    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_FILTER_BACKENDS': [
@@ -184,6 +218,18 @@ GEMINI_GENERATION_MODEL = config(
 )
 AI_REQUEST_TIMEOUT_SECONDS = config('AI_REQUEST_TIMEOUT_SECONDS', default=30, cast=int)
 AI_MAX_HISTORY_MESSAGES = config('AI_MAX_HISTORY_MESSAGES', default=12, cast=int)
+AI_AUTHORING_MAX_SOURCE_CHARS = config(
+    'AI_AUTHORING_MAX_SOURCE_CHARS', default=12000, cast=int
+)
+
+# Local narration used before optional SadTalker rendering.
+TTS_ESPEAK_EXECUTABLE = config('TTS_ESPEAK_EXECUTABLE', default='espeak-ng')
+TTS_ESPEAK_VOICE = config('TTS_ESPEAK_VOICE', default='vi')
+TTS_ESPEAK_SPEED = config('TTS_ESPEAK_SPEED', default=155, cast=int)
+TTS_TIMEOUT_SECONDS = config('TTS_TIMEOUT_SECONDS', default=30, cast=int)
+LESSON_DISPLAY_CONTENT_MAX_CHARS = config(
+    'LESSON_DISPLAY_CONTENT_MAX_CHARS', default=20000, cast=int
+)
 
 # RAG lesson indexing
 RAG_EMBEDDING_MODEL = config(
@@ -217,6 +263,46 @@ RAG_CITATION_EXCERPT_CHARS = config(
     default=320,
     cast=int,
 )
+RAG_REINFORCEMENT_MAX_OBJECTIVES = config(
+    'RAG_REINFORCEMENT_MAX_OBJECTIVES',
+    default=5,
+    cast=int,
+)
+RAG_REINFORCEMENT_TOP_K = config(
+    'RAG_REINFORCEMENT_TOP_K',
+    default=2,
+    cast=int,
+)
+
+# Optional local SadTalker research adapter (manual management command only)
+SADTALKER_ENABLED = config('SADTALKER_ENABLED', default=False, cast=bool)
+SADTALKER_ROOT = config('SADTALKER_ROOT', default='')
+SADTALKER_PYTHON_EXECUTABLE = config(
+    'SADTALKER_PYTHON_EXECUTABLE',
+    default='python',
+)
+SADTALKER_WORK_ROOT = config(
+    'SADTALKER_WORK_ROOT',
+    default=str(BASE_DIR / 'media' / 'sadtalker-work'),
+)
+SADTALKER_TIMEOUT_SECONDS = config(
+    'SADTALKER_TIMEOUT_SECONDS', default=900, cast=int
+)
+SADTALKER_MAX_AUDIO_BYTES = config(
+    'SADTALKER_MAX_AUDIO_BYTES', default=25 * 1024 * 1024, cast=int
+)
+SADTALKER_MAX_AUDIO_SECONDS = config(
+    'SADTALKER_MAX_AUDIO_SECONDS', default=600, cast=int
+)
+SADTALKER_MAX_PORTRAIT_BYTES = config(
+    'SADTALKER_MAX_PORTRAIT_BYTES', default=10 * 1024 * 1024, cast=int
+)
+SADTALKER_MAX_PORTRAIT_PIXELS = config(
+    'SADTALKER_MAX_PORTRAIT_PIXELS', default=16_000_000, cast=int
+)
+SADTALKER_MAX_OUTPUT_BYTES = config(
+    'SADTALKER_MAX_OUTPUT_BYTES', default=250 * 1024 * 1024, cast=int
+)
 
 # Groq API Key (Llama)
 GROQ_API_KEY = config('GROQ_API_KEY', default='')
@@ -235,6 +321,40 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 # File Upload Settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
+LESSON_PDF_MAX_BYTES = config('LESSON_PDF_MAX_BYTES', default=20 * 1024 * 1024, cast=int)
+LESSON_PDF_MAX_PAGES = config('LESSON_PDF_MAX_PAGES', default=100, cast=int)
+LESSON_PDF_MAX_EXTRACTED_CHARS = config(
+    'LESSON_PDF_MAX_EXTRACTED_CHARS',
+    default=250000,
+    cast=int,
+)
+
+# Durable PDF ingestion worker. Results are persisted in application tables,
+# not in Celery's result backend.
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://redis:6379/0')
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_TASK_PUBLISH_RETRY = False
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_CONNECTION_TIMEOUT = config(
+    'CELERY_BROKER_CONNECTION_TIMEOUT', default=3, cast=int
+)
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'visibility_timeout': config(
+        'CELERY_VISIBILITY_TIMEOUT_SECONDS', default=3600, cast=int
+    ),
+}
+LESSON_INGESTION_MAX_RETRIES = config(
+    'LESSON_INGESTION_MAX_RETRIES', default=2, cast=int
+)
+LESSON_INGESTION_RETRY_BASE_SECONDS = config(
+    'LESSON_INGESTION_RETRY_BASE_SECONDS', default=10, cast=int
+)
+LESSON_INGESTION_LEASE_SECONDS = config(
+    'LESSON_INGESTION_LEASE_SECONDS', default=1800, cast=int
+)
 
 # Email Configuration - Mailjet via Anymail
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='anymail.backends.mailjet.EmailBackend')
@@ -244,6 +364,11 @@ ANYMAIL = {
 }
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@intaaneto.com')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
+EMAIL_VERIFICATION_TOKEN_TTL_HOURS = config(
+    'EMAIL_VERIFICATION_TOKEN_TTL_HOURS',
+    default=24,
+    cast=int,
+)
 
 # Frontend URL for email links
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')

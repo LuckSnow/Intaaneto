@@ -1,5 +1,40 @@
 from django.contrib import admin
-from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
+from .models import (
+    Course,
+    Enrollment,
+    Lesson,
+    LessonComment,
+    LessonIngestionJob,
+    LessonNarrationAudio,
+    LessonProgress,
+    LessonSummaryDraft,
+    LessonVideoGenerationJob,
+    Review,
+)
+
+
+@admin.register(LessonIngestionJob)
+class LessonIngestionJobAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'lesson', 'requested_by', 'status', 'attempts', 'created_at',
+    ]
+    list_filter = ['status', 'failure_code', 'created_at']
+    search_fields = ['lesson__title', 'requested_by__full_name']
+    raw_id_fields = ['lesson', 'requested_by', 'knowledge_source']
+    readonly_fields = [
+        'lesson', 'requested_by', 'knowledge_source', 'status', 'task_id',
+        'attempts', 'index_created', 'failure_code', 'safe_error', 'created_at',
+        'started_at', 'completed_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 class LessonInline(admin.TabularInline):
@@ -41,7 +76,10 @@ class LessonAdmin(admin.ModelAdmin):
 
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):
-    list_display = ['user', 'course', 'progress_percentage', 'enrolled_at', 'completed_at']
+    list_display = [
+        'user', 'course', 'progress_percentage', 'mastery_percentage',
+        'enrolled_at', 'completed_at',
+    ]
     list_filter = ['enrolled_at', 'completed_at']
     search_fields = ['user__full_name', 'course__title']
     raw_id_fields = ['user', 'course', 'last_accessed_lesson']
@@ -73,3 +111,69 @@ class LessonCommentAdmin(admin.ModelAdmin):
     def short_content(self, obj):
         return obj.content[:60] + '...' if len(obj.content) > 60 else obj.content
     short_content.short_description = 'Content'
+
+
+@admin.register(LessonVideoGenerationJob)
+class LessonVideoGenerationJobAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'lesson', 'requested_by', 'provider', 'status', 'created_at',
+    ]
+    list_filter = ['provider', 'status', 'created_at']
+    search_fields = ['lesson__title', 'requested_by__full_name']
+    raw_id_fields = ['lesson', 'requested_by']
+    readonly_fields = [
+        'lesson', 'requested_by', 'provider', 'status', 'approved_script',
+        'script_checksum', 'audio_checksum', 'portrait_checksum',
+        'rights_and_approval_confirmed', 'audio_file', 'portrait_file',
+        'task_id', 'output_file', 'failure_code', 'safe_error',
+        'created_at', 'started_at', 'completed_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(LessonSummaryDraft)
+class LessonSummaryDraftAdmin(admin.ModelAdmin):
+    list_display = ['lesson', 'status', 'source_version', 'generated_by', 'updated_at']
+    list_filter = ['status', 'provider', 'updated_at']
+    raw_id_fields = ['lesson', 'generated_by', 'approved_by']
+    readonly_fields = [
+        'lesson', 'text', 'status', 'source_checksum', 'source_version',
+        'provider', 'model', 'generated_by', 'approved_by', 'created_at',
+        'updated_at', 'approved_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(LessonNarrationAudio)
+class LessonNarrationAudioAdmin(admin.ModelAdmin):
+    list_display = ['lesson', 'provider', 'voice', 'generated_by', 'created_at']
+    raw_id_fields = ['lesson', 'generated_by']
+    readonly_fields = [
+        'lesson', 'summary_checksum', 'audio_file', 'audio_checksum',
+        'provider', 'voice', 'generated_by', 'created_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

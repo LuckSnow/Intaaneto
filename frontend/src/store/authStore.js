@@ -1,11 +1,35 @@
 import { create } from 'zustand'
 import { authService } from '../services/authService'
+import {
+  clearAuthSession,
+  getStoredAccessToken,
+  getStoredUser,
+  storeCurrentUser,
+} from '../utils/authStorage'
+
+const hasStoredAccessToken = !!getStoredAccessToken()
 
 export const useAuthStore = create((set) => ({
-  user: JSON.parse(localStorage.getItem('user')) || null,
-  isAuthenticated: !!localStorage.getItem('access_token'),
+  user: getStoredUser(),
+  isAuthenticated: hasStoredAccessToken,
+  isInitializing: hasStoredAccessToken,
   isLoading: false,
   error: null,
+
+  initializeAuth: async () => {
+    if (!getStoredAccessToken()) {
+      set({ user: null, isAuthenticated: false, isInitializing: false })
+      return
+    }
+    try {
+      const user = await authService.getCurrentUser()
+      storeCurrentUser(user)
+      set({ user, isAuthenticated: true, isInitializing: false })
+    } catch {
+      clearAuthSession()
+      set({ user: null, isAuthenticated: false, isInitializing: false })
+    }
+  },
 
   googleLogin: async () => {
     set({ isLoading: true, error: null })
@@ -45,6 +69,25 @@ export const useAuthStore = create((set) => ({
     }
   },
 
+  teacherLogin: async (credentials) => {
+    set({ isLoading: true, error: null })
+    try {
+      const data = await authService.teacherLogin(credentials)
+      set({
+        user: data.user,
+        isAuthenticated: true,
+        isLoading: false,
+      })
+      return data
+    } catch (error) {
+      set({
+        error: error.response?.data?.error || 'Teacher login failed',
+        isLoading: false,
+      })
+      throw error
+    }
+  },
+
   register: async (userData) => {
     set({ isLoading: true, error: null })
     try {
@@ -75,7 +118,7 @@ export const useAuthStore = create((set) => ({
 
   updateUser: (userData) => {
     set({ user: userData })
-    localStorage.setItem('user', JSON.stringify(userData))
+    storeCurrentUser(userData)
   },
 
   clearError: () => set({ error: null }),

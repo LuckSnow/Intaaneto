@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
+import { useAuthStore } from '../store/authStore'
+import { getDefaultAuthenticatedPath } from '../utils/authNavigation'
 
 export default function Landing() {
+  const { isAuthenticated, user } = useAuthStore()
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -39,12 +42,12 @@ export default function Landing() {
             </p>
             {/* CTA Button */}
             <div className="mt-16">
-              <a 
-                href="/register" 
+              <Link
+                to={isAuthenticated ? getDefaultAuthenticatedPath(user) : '/register'}
                 className="inline-block px-12 py-4 rounded-full bg-white text-gray-900 hover:bg-gray-100 transition-all font-bold text-lg shadow-2xl hover:shadow-3xl transform hover:scale-105"
               >
-                Bắt đầu học ngay
-              </a>
+                {isAuthenticated ? 'Tiếp tục học' : 'Bắt đầu học ngay'}
+              </Link>
             </div>
           </div>
 

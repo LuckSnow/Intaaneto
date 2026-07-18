@@ -19,6 +19,14 @@ export const aiService = {
     return response.data
   },
 
+  // Restore the latest authorized chat for one lesson
+  getLessonChatHistory: async (lessonId) => {
+    const response = await api.get('/ai/chat/history/', {
+      params: { lesson_id: lessonId },
+    })
+    return response.data
+  },
+
   // Explain code
   explainCode: async (codeData) => {
     const response = await api.post('/ai/chat/explain_code/', codeData)

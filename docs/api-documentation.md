@@ -1,203 +1,322 @@
-# API Documentation
+# Intaaneto core API
 
-## Authentication
+Cập nhật: 2026-07-16. Swagger runtime tại `/api/docs/` là danh sách endpoint đầy
+đủ; tài liệu này mô tả các contract cốt lõi đã được kiểm thử.
 
-Tất cả các protected endpoints yêu cầu JWT token trong header:
-```
+Protected endpoint dùng:
+
+```http
 Authorization: Bearer <access_token>
+Content-Type: application/json
 ```
 
-### Register
-```
+Không đưa token/key thật vào issue, ảnh chụp hoặc repository.
+
+## Authentication và role
+
+### Đăng ký learner
+
+```http
 POST /api/auth/register/
 ```
 
-**Request Body:**
 ```json
 {
   "email": "student@example.com",
   "username": "student01",
   "full_name": "Nguyễn Văn A",
-  "role": "student",
-  "password": "SecurePass123",
-  "password_confirm": "SecurePass123"
+  "password": "SecurePass123!",
+  "password_confirm": "SecurePass123!"
 }
 ```
 
-**Response:**
+Registration luôn tạo role `student`, `is_verified=false` và **không trả JWT**.
+Response cho biết email verification có gửi được hay không. Các endpoint tiếp:
+
+- `POST /api/auth/verify_email/` với `{ "token": "..." }`.
+- `POST /api/auth/resend_verification/` với `{ "email": "..." }`; response
+  không tiết lộ tài khoản có tồn tại hay đã verify.
+- `POST /api/auth/login/` cho tài khoản active/verified.
+- `POST /api/auth/teacher_login/` chỉ trả token cho teacher/admin.
+- `POST /api/auth/logout/` với `{ "refresh_token": "..." }` để blacklist.
+- `POST /api/auth/token/refresh/` với `{ "refresh": "..." }`.
+- `GET /api/auth/users/me/` và `PATCH /api/auth/users/update_profile/`.
+
+Login thành công:
+
 ```json
 {
-  "user": {
-    "id": 1,
-    "email": "student@example.com",
-    "username": "student01",
-    "full_name": "Nguyễn Văn A",
-    "role": "student"
-  },
-  "tokens": {
-    "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-    "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
-  }
+  "user": { "id": 1, "email": "student@example.com", "role": "student" },
+  "tokens": { "access": "...", "refresh": "..." }
 }
 ```
 
-### Login
-```
-POST /api/auth/login/
-```
+Learner xin nâng role qua `GET|POST /api/auth/users/teacher_application/`.
+Chỉ admin xử lý qua `POST /api/auth/users/review_teacher_application/`; client
+không được ghi status/reviewer hoặc tự đổi role.
 
-**Request Body:**
+## Course và lesson
+
+Public:
+
+- `GET /api/courses/`: chỉ course published.
+- `GET /api/courses/{id}/`: chỉ course published và lesson published metadata.
+
+Learner:
+
+- `POST /api/courses/{id}/enroll/`.
+- `GET /api/courses/{id}/progress/`.
+- `GET /api/courses/lessons/{id}/`: enrolled lesson hoặc published preview.
+- `POST /api/courses/lessons/{id}/complete/`.
+
+Teacher:
+
+- `GET /api/courses/managed/`: course draft/published thuộc sở hữu.
+- `POST /api/courses/`, `PATCH|DELETE /api/courses/{id}/`: owner-only. Course
+  mới phải draft; chỉ publish khi có lesson usable; course có lesson/enrollment
+  không thể xóa cascade.
+- `GET /api/courses/lessons/?course={course_id}`: lesson được phép quản lý/đọc.
+- `POST /api/courses/lessons/upload/`: multipart PDF-only.
+- `POST /api/courses/lessons/{id}/reprocess/`.
+- `GET /api/courses/lessons/{id}/processing_status/`.
+- `GET /api/courses/lessons/ingestion-statuses/?course={id}`: khôi phục trạng
+  thái job gần nhất của tối đa 50 lesson trong course thuộc sở hữu.
+- `GET /api/courses/lessons/{id}/authoring-status/`: trạng thái PDF/RAG, summary,
+  narration, assessment và video job, owner/admin-only.
+- `POST /api/courses/lessons/{id}/generate-summary/`: tạo summary draft.
+- `POST /api/courses/lessons/{id}/approve-summary/`: duyệt text đã review.
+- `POST /api/courses/lessons/{id}/generate-assessment/`: tạo assessment 5 câu,
+  luôn unpublished để review/publish qua API assessment hiện có.
+- `POST /api/courses/lessons/{id}/generate-narration/`: tạo WAV local từ summary
+  hiện tại đã duyệt.
+- `POST /api/courses/lessons/{id}/generate-video/`: multipart `portrait` và
+  `rights_confirmed=true`; chỉ enqueue queue `video`, không render trong HTTP.
+
+Upload multipart gồm `course`, `title`, `description`, `order`, `is_preview` và
+`uploaded_file`. Backend kiểm tra ownership và file bounds/signature trước khi
+tạo job. Upload/reprocess trả `202 Accepted`:
+
 ```json
 {
-  "email": "student@example.com",
-  "password": "SecurePass123"
+  "message": "PDF đã được tiếp nhận để xử lý.",
+  "lesson": { "id": 121, "processing_status": "pending" },
+  "ingestion_job": { "id": 9, "status": "queued", "attempts": 0 },
+  "queue_created": true
 }
 ```
 
-### Get Current User
-```
-GET /api/auth/users/me/
-Authorization: Bearer <token>
+Worker kiểm tra lại ownership trước extraction/embedding. Client poll endpoint
+status; response có `status`, safe `error` và `ingestion_job` gồm ID, status,
+attempt count, bounded failure code, source ID và `index_created`. Celery task ID,
+broker error, raw text và exception không được trả. Chỉ trạng thái `completed`
+với active/ready source mới được coi là sẵn sàng.
+
+Trang teacher dùng `ingestion-statuses` sau reload. Endpoint owner/admin-only,
+bounded và chỉ trả lesson ID/title, processing state, safe error cùng job state;
+không mở rộng scope sang course của teacher khác.
+
+Các action generation cần active/ready KnowledgeSource và throttle riêng. Provider
+failure trả thông báo an toàn; không trả prompt, raw source, key hoặc task ID.
+Summary chỉ learner-visible sau approve, assessment không tự publish. Video cần
+summary/narration checksum khớp và xác nhận quyền sử dụng portrait.
+
+## Lesson assessment
+
+`POST /api/exercises/assessments/{id}/dialogue-check/` nhận:
+
+```json
+{"question_id": 12, "answer": "Retrieval tìm bằng chứng liên quan..."}
 ```
 
-## Courses
+Chỉ learner đang enroll và đã pass assessment version hiện tại được gọi. Backend
+kiểm tra question thuộc assessment, retrieval trong đúng lesson rồi trả
+`recommendation_only`, outcome, feedback, next step và citations. Weak evidence
+trả `unavailable` mà không gọi generation provider. Action không nhận hoặc thay
+đổi score/pass/mastery/progress. Audit chỉ lưu HMAC answer và bounded metadata,
+không lưu raw answer, rubric, feedback hoặc answer key.
 
-### Get All Courses
-```
-GET /api/courses/
+Teacher owner dùng:
+
+- `GET /api/exercises/assessments/?lesson={lesson_id}`.
+- `POST /api/exercises/assessments/`.
+- `PATCH|DELETE /api/exercises/assessments/{id}/` khi chưa có attempt.
+
+```json
+{
+  "lesson": 121,
+  "title": "Kiểm tra bài 1",
+  "instructions": "Chọn đáp án đúng.",
+  "pass_threshold": 70,
+  "is_published": true,
+  "questions": [
+    {
+      "prompt": "RAG tìm bằng chứng ở bước nào?",
+      "choices": ["Retrieval", "Rendering"],
+      "correct_choice": 0,
+      "learning_objective": "Nhận biết retrieval",
+      "explanation": "Retrieval tìm đoạn liên quan.",
+      "order": 1
+    }
+  ]
+}
 ```
 
-**Query Parameters:**
-- `difficulty`: beginner, intermediate, advanced
-- `search`: Search in title/description
+Tối đa 50 câu, mỗi câu 2–6 lựa chọn và learning objective bắt buộc. Learner GET
+chỉ thấy assessment published trong course đã enroll, không có `correct_choice`
+hoặc `explanation`.
 
-### Get Course Detail
-```
-GET /api/courses/{id}/
-```
+Learner submit:
 
-### Enroll in Course
-```
-POST /api/courses/{id}/enroll/
-Authorization: Bearer <token>
+```http
+POST /api/exercises/assessments/{id}/submit/
 ```
 
-### Get My Progress
-```
-GET /api/courses/{id}/progress/
-Authorization: Bearer <token>
+```json
+{
+  "answers": [
+    { "question_id": 10, "selected_choice": 0 }
+  ]
+}
 ```
 
-## AI Assistant
+Response chứa server-owned `score`, `passed`, `weak_objectives`, mastery,
+progress và `next_lesson`. Không gửi/không tin score hoặc pass từ client.
+Reinforcement dùng:
 
-### Send Message
+```http
+POST /api/exercises/assessments/{id}/reinforcement/
 ```
+
+```json
+{ "attempt_id": 42 }
+```
+
+Khi packet được tạo thành công, backend lưu audit event tối thiểu gồm attempt,
+status, số objective/evidence và thời điểm. Event không lưu prompt, citation text
+hoặc nội dung chat; lỗi retrieval không tạo event thành công giả.
+
+## Grounded AI Tutor
+
+```http
 POST /api/ai/chat/send_message/
-Authorization: Bearer <token>
 ```
 
-**Request Body:**
+Phiên mới:
+
+```json
+{ "lesson_id": 121, "message": "RAG là gì?" }
+```
+
+Tiếp tục phiên (lesson scope không thể thay đổi):
+
+```json
+{ "session_id": 7, "message": "Giải thích retrieval rõ hơn." }
+```
+
+Response ổn định:
+
 ```json
 {
-  "message": "Em không hiểu về CSS flexbox",
-  "session_id": 1,
-  "context": {
-    "lesson": "CSS Layout",
-    "course": "HTML & CSS Basics"
+  "session_id": 7,
+  "answer": "...",
+  "grounded": true,
+  "citations": [
+    {
+      "id": "knowledge-chunk-15",
+      "lesson_id": 121,
+      "source_version": 1,
+      "location": {
+        "start_offset": 0,
+        "end_offset": 420,
+        "page_start": 2,
+        "page_end": 3
+      },
+      "excerpt": "..."
+    }
+  ],
+  "retrieval": {
+    "status": "ready",
+    "source_version": 1,
+    "candidate_count": 5,
+    "evidence_count": 2
   }
 }
 ```
 
-### Explain Code
-```
-POST /api/ai/chat/explain_code/
-Authorization: Bearer <token>
+Nếu evidence yếu/chưa index, backend fallback và không gọi generation provider.
+Với source PDF, `page_start/page_end` giữ số trang gốc; chunk đi qua ranh giới
+trang trả một range. Lesson text thông thường trả hai giá trị này là `null`.
+
+Khôi phục phiên gần nhất của một lesson:
+
+```http
+GET /api/ai/chat/history/?lesson_id=121
 ```
 
-**Request Body:**
-```json
-{
-  "code": "function greeting(name) {\n  return 'Hello ' + name;\n}",
-  "language": "javascript"
-}
+Response trả `session_id`, `lesson_id` và danh sách `messages` gần nhất đã được
+giới hạn. Mỗi assistant message có `grounded`, `retrieval_status` và `citations`.
+Excerpt/source của citation được dựng lại từ database trong đúng lesson và đúng
+source version đã ghi nhận, không lấy text từ metadata. Nếu enrollment bị thu
+hồi, cả history và session detail trả 404; lesson chưa có phiên trả danh sách
+rỗng với `session_id: null`.
+
+Các action khác: `POST /api/ai/chat/get_hint/` (exercise đã authorize) và
+`POST /api/ai/chat/explain_code/`.
+
+## Báo cáo tiến độ
+
+```http
+GET /api/analytics/progress_report/
 ```
 
-### Get Hint
-```
-POST /api/ai/chat/get_hint/
-Authorization: Bearer <token>
+- Learner nhận dữ liệu của chính mình.
+- Teacher nhận aggregate course thuộc sở hữu; có thể dùng `course_id`, `limit`,
+  `offset` để lấy roster bounded.
+- Không trả email, answer key, chat hoặc attempt version cũ.
+
+```http
+GET /api/analytics/progress-export/?course_id={course_id}
 ```
 
-**Request Body:**
-```json
-{
-  "exercise_id": 5,
-  "student_code": "// Code hiện tại của học sinh"
-}
+Chỉ teacher sở hữu course hoặc admin được tải CSV. Export bị giới hạn 5.000 học
+viên, không chứa email/chat/answer và escape text có thể trở thành spreadsheet
+formula. Learner nhận 403; course ngoài scope nhận 404.
+
+```http
+GET /api/analytics/objective-report/?course_id={course_id}&limit=100
 ```
 
-## Forum
+Teacher sở hữu course hoặc admin nhận aggregate theo `learning_objective` từ lần
+làm mới nhất của mỗi learner trên mỗi assessment phiên bản hiện hành. Response
+gồm learner count, số learner cần ôn, answer count, correct count/rate; không trả
+danh tính, lựa chọn hay đáp án. `limit` từ 1–200, mặc định 100.
 
-### Get Posts
-```
-GET /api/forum/posts/
-```
-
-**Query Parameters:**
-- `category`: question, discussion, showcase, announcement
-- `search`: Search in title/content
-
-### Create Post
-```
-POST /api/forum/posts/
-Authorization: Bearer <token>
+```http
+GET /api/analytics/reinforcement-outcomes/?course_id={course_id}&limit=1000
 ```
 
-**Request Body:**
-```json
-{
-  "title": "Làm thế nào để tạo button đẹp?",
-  "content": "Em muốn tạo button có hiệu ứng hover...",
-  "category": "question",
-  "tags": ["css", "button", "styling"]
-}
-```
+Báo cáo ghép exposure có evidence đầu tiên của mỗi failed attempt với attempt
+tiếp theo của cùng learner/assessment/version. Chỉ trả aggregate before/after,
+change, pass conversion và pending follow-up; không trả user/attempt ID. Đây là
+quan sát theo cặp attempt, không phải causal effect hoặc số learner độc lập.
+`limit` tối đa 5.000; response có `truncated`.
 
-### Like Post
-```
-POST /api/forum/posts/{id}/like/
-Authorization: Bearer <token>
-```
+## Forum, lesson comments và reviews
 
-## Error Responses
+- `/api/forum/posts/`, `/comments/`, `/tags/`, `/follows/`, `/reports/`.
+- `/api/courses/lesson-comments/` và `/api/courses/reviews/`.
 
-### 400 Bad Request
-```json
-{
-  "error": "Invalid input",
-  "details": {
-    "email": ["This field is required"]
-  }
-}
-```
+Mutation yêu cầu authentication và object ownership hoặc role-admin theo action.
+Public forum author object không chứa email/phone/profile riêng tư.
 
-### 401 Unauthorized
-```json
-{
-  "error": "Invalid credentials"
-}
-```
+## Trạng thái lỗi quan trọng
 
-### 404 Not Found
-```json
-{
-  "error": "Resource not found"
-}
-```
-
-### 500 Server Error
-```json
-{
-  "error": "Internal server error"
-}
-```
+- `400`: payload/target/answer set không hợp lệ.
+- `401`: chưa xác thực hoặc token hết hạn.
+- `403`: đã xác thực nhưng sai role/quyền action.
+- `404`: object ngoài authorized queryset (tránh object discovery).
+- `409`: assessment đã có attempt, course không rỗng, duplicate workflow state.
+- `413`: progress export vượt giới hạn 5.000 học viên.
+- `429`: vượt scoped throttle.
+- `502/503`: generation hoặc knowledge service tạm không khả dụng; response không
+  chứa key/provider diagnostics.

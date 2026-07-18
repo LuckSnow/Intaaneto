@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { Button } from '@/components/ui/button'
 import api from '../services/api'
+import { authService } from '../services/authService'
 import toast from 'react-hot-toast'
+import { Clock3, GraduationCap, XCircle } from 'lucide-react'
 
 const ROLE_LABELS = {
   student: 'Học sinh',
@@ -19,8 +21,10 @@ const ROLE_COLORS = {
 export default function Profile() {
   const { user, updateUser } = useAuthStore()
   const [isEditing, setIsEditing] = useState(false)
-  const [showUpgrade, setShowUpgrade] = useState(false)
+  const [showApplication, setShowApplication] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [applicationLoading, setApplicationLoading] = useState(false)
+  const [teacherApplication, setTeacherApplication] = useState(null)
 
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
@@ -29,7 +33,7 @@ export default function Profile() {
     bio: user?.bio || '',
   })
 
-  const [upgradeData, setUpgradeData] = useState({
+  const [applicationData, setApplicationData] = useState({
     specialization: '',
     years_of_experience: 0,
     reason: '',
@@ -51,19 +55,52 @@ export default function Profile() {
     }
   }
 
-  const handleUpgrade = async () => {
-    if (!upgradeData.specialization.trim()) {
+  useEffect(() => {
+    if (user?.role !== 'student') {
+      return
+    }
+    let active = true
+    setApplicationLoading(true)
+    authService.getTeacherApplication()
+      .then((data) => {
+        if (!active) return
+        setTeacherApplication(data.application)
+        if (data.user?.role !== user.role) {
+          updateUser(data.user)
+        }
+      })
+      .catch(() => {
+        if (active) toast.error('Không thể tải trạng thái hồ sơ giáo viên')
+      })
+      .finally(() => {
+        if (active) setApplicationLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [updateUser, user?.role])
+
+  const handleTeacherApplication = async () => {
+    if (!applicationData.specialization.trim()) {
       toast.error('Vui lòng nhập chuyên môn của bạn')
+      return
+    }
+    if (applicationData.reason.trim().length < 20) {
+      toast.error('Vui lòng chia sẻ lý do ít nhất 20 ký tự')
       return
     }
     setLoading(true)
     try {
-      const res = await api.post('/auth/users/upgrade_to_teacher/', upgradeData)
-      updateUser(res.data.user)
-      toast.success(res.data.message)
-      setShowUpgrade(false)
+      const data = await authService.submitTeacherApplication(applicationData)
+      setTeacherApplication(data.application)
+      toast.success(data.message)
+      setShowApplication(false)
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Nâng cấp thất bại')
+      toast.error(
+        error.response?.data?.error
+        || error.response?.data?.reason?.[0]
+        || 'Không thể gửi hồ sơ',
+      )
     } finally {
       setLoading(false)
     }
@@ -246,78 +283,123 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Teacher Upgrade Module */}
+      {/* Teacher application module */}
       {user?.role === 'student' && (
-        <div className="bg-orange-50 rounded-2xl shadow-md overflow-hidden">
-          <div className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-400 rounded-xl flex items-center justify-center shadow-md">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
+        <section className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-700">
+                <GraduationCap aria-hidden="true" size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">Đăng ký trở thành giáo viên</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+                  Hồ sơ sẽ được quản trị viên xem xét. Việc gửi hồ sơ không tự động
+                  thay đổi quyền tài khoản.
+                </p>
+              </div>
+            </div>
+
+            {!applicationLoading && !teacherApplication && (
+              <Button
+                onClick={() => setShowApplication(!showApplication)}
+                className="min-h-11 bg-orange-700 text-white hover:bg-orange-800"
+              >
+                {showApplication ? 'Đóng biểu mẫu' : 'Gửi hồ sơ'}
+              </Button>
+            )}
+          </div>
+
+          {applicationLoading && (
+            <p className="mt-5 text-sm text-slate-600" role="status">
+              Đang tải trạng thái hồ sơ…
+            </p>
+          )}
+
+          {teacherApplication?.status === 'pending' && (
+            <div className="mt-5 flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+              <Clock3 aria-hidden="true" className="mt-0.5 shrink-0" size={20} />
+              <div>
+                <p className="font-semibold">Hồ sơ đang chờ admin duyệt</p>
+                <p className="mt-1 text-sm">
+                  Bạn vẫn là học viên cho tới khi nhận được quyết định chính thức.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {teacherApplication?.status === 'rejected' && (
+            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-900">
+              <div className="flex gap-3">
+                <XCircle aria-hidden="true" className="mt-0.5 shrink-0" size={20} />
                 <div>
-                  <h2 className="text-lg font-heading font-bold text-gray-800">Trở thành Giáo viên</h2>
-                  <p className="text-sm text-gray-500">Nâng cấp tài khoản để tạo và quản lý khóa học</p>
+                  <p className="font-semibold">Hồ sơ chưa được chấp thuận</p>
+                  <p className="mt-1 text-sm">
+                    {teacherApplication.review_note || 'Vui lòng bổ sung thông tin và thử lại.'}
+                  </p>
                 </div>
               </div>
               <Button
-                onClick={() => setShowUpgrade(!showUpgrade)}
-                className="rounded-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white font-bold border-0 shadow-md px-6"
+                onClick={() => setShowApplication(!showApplication)}
+                className="mt-4 min-h-11 bg-orange-700 text-white hover:bg-orange-800"
               >
-                {showUpgrade ? 'Đóng' : 'Nâng cấp'}
+                {showApplication ? 'Đóng biểu mẫu' : 'Gửi hồ sơ mới'}
               </Button>
             </div>
+          )}
 
-            {showUpgrade && (
-              <div className="mt-6 pt-6 border-t border-orange-200">
+          {showApplication && teacherApplication?.status !== 'pending' && (
+              <div className="mt-6 border-t border-slate-200 pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Chuyên môn *</label>
+                    <label htmlFor="teacher-specialization" className="block text-sm font-medium text-slate-800 mb-2">Chuyên môn *</label>
                     <input
+                      id="teacher-specialization"
                       type="text"
-                      value={upgradeData.specialization}
-                      onChange={(e) => setUpgradeData({ ...upgradeData, specialization: e.target.value })}
+                      value={applicationData.specialization}
+                      onChange={(e) => setApplicationData({ ...applicationData, specialization: e.target.value })}
                       placeholder="VD: Lập trình Python, Web Development..."
-                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                      className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Số năm kinh nghiệm</label>
+                    <label htmlFor="teacher-experience" className="block text-sm font-medium text-slate-800 mb-2">Số năm kinh nghiệm</label>
                     <input
+                      id="teacher-experience"
                       type="number"
                       min="0"
-                      value={upgradeData.years_of_experience}
-                      onChange={(e) => setUpgradeData({ ...upgradeData, years_of_experience: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                      max="80"
+                      value={applicationData.years_of_experience}
+                      onChange={(e) => setApplicationData({ ...applicationData, years_of_experience: parseInt(e.target.value) || 0 })}
+                      className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20"
                     />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Lý do muốn trở thành giáo viên</label>
+                  <label htmlFor="teacher-reason" className="block text-sm font-medium text-slate-800 mb-2">Lý do muốn trở thành giáo viên *</label>
                   <textarea
-                    value={upgradeData.reason}
-                    onChange={(e) => setUpgradeData({ ...upgradeData, reason: e.target.value })}
-                    rows={3}
+                    id="teacher-reason"
+                    value={applicationData.reason}
+                    onChange={(e) => setApplicationData({ ...applicationData, reason: e.target.value })}
+                    rows={4}
                     placeholder="Chia sẻ lý do bạn muốn giảng dạy trên nền tảng..."
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent resize-none"
+                    className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20"
                   />
+                  <p className="mt-1 text-xs text-slate-500">Ít nhất 20 ký tự.</p>
                 </div>
-                <div className="mt-4 flex items-center gap-3">
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <Button
-                    onClick={handleUpgrade}
+                    onClick={handleTeacherApplication}
                     disabled={loading}
-                    className="rounded-full bg-black hover:bg-gray-800 text-white font-bold border-0 shadow-md px-8"
+                    className="min-h-11 bg-orange-700 px-6 text-white hover:bg-orange-800"
                   >
-                    {loading ? 'Đang xử lý...' : 'Xác nhận nâng cấp'}
+                    {loading ? 'Đang gửi…' : 'Gửi hồ sơ cho admin'}
                   </Button>
-                  <p className="text-xs text-gray-500">Sau khi nâng cấp, bạn có thể tạo và quản lý khóa học.</p>
+                  <p className="text-xs text-slate-500">Admin sẽ nhận thông báo và phản hồi qua email.</p>
                 </div>
               </div>
             )}
-          </div>
-        </div>
+        </section>
       )}
 
       {/* Teacher Info (if already teacher) */}

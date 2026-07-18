@@ -75,8 +75,11 @@ Project hiện chưa khai báo script `npm test`.
 ## RAG/AI hiện tại
 
 Chat lesson nhận scope `lesson_id` do backend kiểm tra và trả contract gồm
-`answer`, `citations`, `grounded`. Retrieval, embeddings, vector database và
-citation thật chưa được triển khai; `citations` hiện rỗng và `grounded=false`.
+`answer`, `citations`, `grounded`. Lesson text/PDF được version, chunk và embed
+local vào PostgreSQL/pgvector; retrieval exact cosine chỉ chạy trong active source
+đã authorize. Evidence yếu hoặc lesson chưa index trả fallback không gọi model;
+citation được ứng dụng tạo từ selected chunk.
 
-Ưu tiên tiếp theo là vertical slice ingestion/retrieval nhỏ nhất, không phải
-avatar/video.
+Hai corpus Markdown có thể nhập thành 2 course/15 lesson draft; command riêng tạo
+3 assessment draft/27 câu tách khỏi RAG. Xem `docs/SETUP.md`. Grounded-answer
+live baseline V1 đã có nhưng chưa thay thế multi-lesson/human evaluation.

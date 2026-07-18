@@ -13,14 +13,14 @@ score policy, progression, and citation membership.
 ## Secure ingestion
 
 - Authorize teacher ownership before accepting a file or starting processing.
-- Allowlist supported formats and verify content; do not claim old `.ppt` support
-  through a parser that only supports `.pptx`.
-- Bound upload bytes, pages/slides, extracted characters, chunk count, parser
+- Allowlist only PDF and verify its content and structure; reject DOCX, PPT, and
+  PPTX even if a legacy parser remains installed.
+- Bound upload bytes, pages, extracted characters, chunk count, parser
   duration, embedding batches, retries, and total cost.
 - Store original files under server-generated object keys. Do not trust names or
   allow path traversal/overwrite.
 - Scan or isolate risky document processing where practical. Never execute
-  macros, scripts, embedded objects, or links.
+  scripts, embedded objects, or links found in a PDF.
 - Treat extracted instructions as content, not commands.
 - Make source versioning and indexing idempotent. Activate a new version only
   after all chunks are ready; exclude failed/stale chunks from retrieval.
@@ -72,4 +72,3 @@ Store only what the research and product genuinely need. Prefer IDs, scores,
 latency, model/config versions, selected chunk IDs, and bounded error codes over
 full prompts/documents. Define retention and deletion for chat, submissions,
 uploads, traces, and generated media before production use.
-
