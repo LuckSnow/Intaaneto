@@ -9,6 +9,8 @@ from django.conf import settings
 from django.utils.crypto import get_random_string
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.shortcuts import redirect
+from django.urls import reverse
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from .models import User, Profile
@@ -23,13 +25,17 @@ class AuthViewSet(viewsets.GenericViewSet):
     
     permission_classes = [AllowAny]
 
-    def _send_verification_email(self, user):
+    def _send_verification_email(self, user, request=None):
         """Send email verification link to user"""
         token = get_random_string(64)
         user.verification_token = token
         user.save(update_fields=['verification_token'])
 
-        verify_url = f"{settings.FRONTEND_URL}/verify-email/{token}"
+        if request is not None:
+            verify_path = reverse('auth-verify-email-link', kwargs={'token': token})
+            verify_url = request.build_absolute_uri(verify_path)
+        else:
+            verify_url = f"{settings.FRONTEND_URL}/verify-email/{token}"
         subject = 'Xác thực email - Intaaneto'
         html_message = f"""
         <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -85,7 +91,15 @@ class AuthViewSet(viewsets.GenericViewSet):
         user.save(update_fields=['is_verified'])
 
         # Send verification email
-        email_sent = self._send_verification_email(user)
+        email_sent = self._send_verification_email(user, request=request)
+        if not email_sent:
+            return Response(
+                {
+                    'error': 'Không thể gửi email xác thực. Vui lòng thử lại sau hoặc liên hệ quản trị viên.',
+                    'email_sent': False,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         return Response({
             'message': 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
@@ -165,6 +179,23 @@ class AuthViewSet(viewsets.GenericViewSet):
 
         return Response({'message': 'Email đã được xác thực thành công!'})
 
+    @action(detail=False, methods=['get'], url_path=r'verify-email/(?P<token>[^/.]+)')
+    def verify_email_link(self, request, token=None):
+        """Verify user email from a clickable email link."""
+        if not token:
+            return Response({'error': 'Token không hợp lệ'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(verification_token=token)
+        except User.DoesNotExist:
+            return Response({'error': 'Token không hợp lệ hoặc đã hết hạn'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.is_verified = True
+        user.verification_token = ''
+        user.save(update_fields=['is_verified', 'verification_token'])
+
+        return redirect(f"{settings.FRONTEND_URL}/login?verified=1")
+
     @action(detail=False, methods=['post'])
     def resend_verification(self, request):
         """Resend verification email"""
@@ -181,6 +212,14 @@ class AuthViewSet(viewsets.GenericViewSet):
             return Response({'error': 'Email đã được xác thực rồi'}, status=status.HTTP_400_BAD_REQUEST)
 
         email_sent = self._send_verification_email(user)
+        if not email_sent:
+            return Response(
+                {
+                    'error': 'Không thể gửi lại email xác thực. Vui lòng thử lại sau hoặc liên hệ quản trị viên.',
+                    'email_sent': False,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         return Response({
             'message': 'Email xác thực đã được gửi lại!',
             'email_sent': email_sent,

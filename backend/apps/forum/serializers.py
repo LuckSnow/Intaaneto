@@ -26,13 +26,14 @@ class CommentSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     replies_count = serializers.SerializerMethodField()
     reactions_summary = serializers.SerializerMethodField()
+    replies = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
         fields = [
             'id', 'post', 'author', 'parent', 'content', 'image',
             'likes_count', 'is_solution', 'replies_count',
-            'reactions_summary', 'created_at', 'updated_at'
+            'reactions_summary', 'replies', 'created_at', 'updated_at'
         ]
         read_only_fields = ['author', 'likes_count', 'created_at', 'updated_at']
 
@@ -53,16 +54,14 @@ class CommentSerializer(serializers.ModelSerializer):
                 summary['user_reaction'] = user_r.reaction_type
         return summary
 
+    def get_replies(self, obj):
+        replies = obj.replies.select_related('author').prefetch_related('replies__author').all()
+        return CommentSerializer(replies, many=True, context=self.context).data
+
 
 class CommentWithRepliesSerializer(CommentSerializer):
-    replies = serializers.SerializerMethodField()
-
     class Meta(CommentSerializer.Meta):
-        fields = CommentSerializer.Meta.fields + ['replies']
-
-    def get_replies(self, obj):
-        replies = obj.replies.select_related('author').all()
-        return CommentSerializer(replies, many=True, context=self.context).data
+        fields = CommentSerializer.Meta.fields
 
 
 class PostListSerializer(serializers.ModelSerializer):

@@ -181,7 +181,7 @@ export default function ForumPost() {
                       <span>{timeAgo(post.created_at)}</span>
                       <span>•</span>
                       <Eye className="w-3 h-3" />
-                      <span>{post.views_count || 0} lượt xem</span>
+                      <span>{post.views_count || 0} người đã xem</span>
                     </div>
                   </div>
                 </div>
@@ -350,7 +350,7 @@ export default function ForumPost() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white/40">Lượt xem</span>
-                  <span className="text-white/70">{post.views_count || 0}</span>
+                  <span className="text-white/70">{post.views_count || 0} người</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white/40">Phản hồi</span>

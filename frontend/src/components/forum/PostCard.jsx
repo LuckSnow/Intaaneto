@@ -24,6 +24,7 @@ function timeAgo(dateStr) {
 export default function PostCard({ post, onReact }) {
   const cat = CATEGORY_STYLES[post.category] || CATEGORY_STYLES.question
   const images = [post.image_1, post.image_2, post.image_3, post.image_4].filter(Boolean)
+  const [lightboxImg, setLightboxImg] = useState(null)
 
   return (
     <div className="group relative">
@@ -83,16 +84,16 @@ export default function PostCard({ post, onReact }) {
             'grid-cols-2'
           }`}>
             {images.slice(0, 4).map((img, idx) => (
-              <div key={idx} className={`rounded-xl overflow-hidden border border-white/10 ${
+              <button key={idx} type="button" onClick={() => setLightboxImg(img)} className={`rounded-xl overflow-hidden border border-white/10 text-left ${
                 images.length === 1 ? 'max-h-72' :
                 images.length === 3 && idx === 0 ? 'row-span-2' : 'max-h-36'
               }`}>
                 <img
                   src={img}
                   alt=""
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-zoom-in"
                 />
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -119,15 +120,32 @@ export default function PostCard({ post, onReact }) {
             onReact={(type) => onReact?.(post.id, type)}
           />
           <div className="flex items-center gap-4 text-white/40 text-xs">
-            <span className="flex items-center gap-1">
+            <Link
+              to={`/forum/${post.id}`}
+              className="flex items-center gap-1 hover:text-white transition-colors"
+              title="Xem bình luận"
+            >
               <MessageCircle className="w-3.5 h-3.5" /> {post.comments_count || 0}
-            </span>
-            <span className="flex items-center gap-1">
+            </Link>
+            <Link
+              to={`/forum/${post.id}`}
+              className="flex items-center gap-1 hover:text-white transition-colors"
+              title="Xem bài viết"
+            >
               <Eye className="w-3.5 h-3.5" /> {post.views_count || 0}
-            </span>
+            </Link>
           </div>
         </div>
       </div>
+
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-8 cursor-pointer"
+          onClick={() => setLightboxImg(null)}
+        >
+          <img src={lightboxImg} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
+        </div>
+      )}
     </div>
   )
 }

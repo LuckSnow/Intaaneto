@@ -48,7 +48,11 @@ export default function Register() {
       return
     }
     try {
-      await registerUser(formData)
+      const response = await registerUser(formData)
+      if (!response?.email_sent) {
+        toast.error('Đã tạo tài khoản nhưng chưa gửi được email xác thực. Vui lòng thử lại sau.')
+        return
+      }
       setRegistered(true)
     } catch (error) {
       const errorData = error.response?.data
@@ -96,8 +100,12 @@ export default function Register() {
               <button
                 onClick={async () => {
                   try {
-                    await api.post('/auth/resend_verification/', { email: formData.email })
-                    toast.success('Email xác thực đã được gửi lại!')
+                      const response = await api.post('/auth/resend_verification/', { email: formData.email })
+                      if (response.data?.email_sent) {
+                        toast.success('Email xác thực đã được gửi lại!')
+                      } else {
+                        toast.error('Chưa gửi được email xác thực. Vui lòng thử lại sau.')
+                      }
                   } catch {
                     toast.error('Gửi lại thất bại')
                   }
