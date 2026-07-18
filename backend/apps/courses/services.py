@@ -1,65 +1,327 @@
 """
 AI Processing Services for Lessons
-Workflow: Upload PDF/PPT → Extract text → Llama summarize → D-ID generate video
+Legacy multimedia helpers plus the PDF-only RAG ingestion service.
 """
 
+from decimal import Decimal
 import io
+import re
 import time
 import logging
+import unicodedata
 import requests
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
+from django.db.models import F, Max, Q
+from django.utils import timezone
+
+from apps.ai_assistant.rag_services import LessonIndexingError, index_lesson
 
 logger = logging.getLogger(__name__)
 
 
+class PDFIngestionError(Exception):
+    """Safe, user-facing failure from the bounded PDF ingestion pipeline."""
+
+    def __init__(self, message, *, retryable=False):
+        self.retryable = retryable
+        super().__init__(message)
+
+
+class AssessmentRequiredError(Exception):
+    """The learner has not passed the lesson's published assessment."""
+
+    def __init__(self, assessment_id):
+        self.assessment_id = assessment_id
+        super().__init__('Bạn cần đạt bài đánh giá trước khi chuyển bài.')
+
+
+def available_lessons(course):
+    """Return published lessons that have readable text or an active RAG index."""
+
+    from .models import Lesson
+
+    return list(
+        Lesson.objects.filter(course=course, is_published=True)
+        .filter(
+            ~Q(content='')
+            | Q(
+                knowledge_sources__is_active=True,
+                knowledge_sources__status='ready',
+            )
+        )
+        .distinct()
+        .order_by('order', 'created_at', 'id')
+    )
+
+
+def next_available_lesson(*, user, lesson):
+    """Resolve the next usable lesson without leaking enrolled-only content."""
+
+    from .models import Enrollment, Lesson
+
+    if user.role == 'student' and not Enrollment.objects.filter(
+        user=user,
+        course=lesson.course,
+    ).exists():
+        return None
+
+    published_ids = list(
+        Lesson.objects.filter(course=lesson.course, is_published=True)
+        .order_by('order', 'created_at', 'id')
+        .values_list('id', flat=True)
+    )
+    try:
+        current_position = published_ids.index(lesson.id)
+    except ValueError:
+        return None
+
+    available_by_id = {item.id: item for item in available_lessons(lesson.course)}
+    for lesson_id in published_ids[current_position + 1:]:
+        if lesson_id in available_by_id:
+            return available_by_id[lesson_id]
+    return None
+
+
+def recalculate_enrollment_mastery(enrollment):
+    """Average each published lesson assessment's best score, including zeroes."""
+
+    from apps.exercises.models import LessonAssessment
+
+    assessments = list(
+        LessonAssessment.objects.filter(
+            lesson__course=enrollment.course,
+            lesson__is_published=True,
+            is_published=True,
+        ).annotate(
+            best_score=Max(
+                'attempts__score',
+                filter=Q(
+                    attempts__user=enrollment.user,
+                    attempts__assessment_version=F('version'),
+                ),
+            )
+        )
+    )
+    if assessments:
+        total = sum(
+            (item.best_score or Decimal('0.00') for item in assessments),
+            Decimal('0.00'),
+        )
+        mastery = (total / Decimal(len(assessments))).quantize(Decimal('0.01'))
+    else:
+        mastery = Decimal('0.00')
+
+    enrollment.mastery_percentage = mastery
+    enrollment.save(update_fields=['mastery_percentage'])
+    return mastery
+
+
+def complete_lesson(*, user, lesson, require_assessment=True):
+    """Record completion and return server-owned progression state."""
+
+    from .models import Enrollment, LessonProgress
+
+    try:
+        assessment = lesson.assessment
+    except ObjectDoesNotExist:
+        assessment = None
+
+    if (
+        assessment is not None
+        and assessment.is_published
+        and user.role == 'student'
+        and not Enrollment.objects.filter(user=user, course=lesson.course).exists()
+    ):
+        raise PermissionDenied('Bạn cần đăng ký khóa học để làm bài đánh giá.')
+
+    if (
+        require_assessment
+        and assessment is not None
+        and assessment.is_published
+        and not assessment.attempts.filter(
+            user=user,
+            assessment_version=assessment.version,
+            passed=True,
+        ).exists()
+    ):
+        raise AssessmentRequiredError(assessment.id)
+
+    progress, _ = LessonProgress.objects.get_or_create(user=user, lesson=lesson)
+    progress.is_completed = True
+    if progress.completed_at is None:
+        progress.completed_at = timezone.now()
+    progress.save(update_fields=['is_completed', 'completed_at', 'updated_at'])
+
+    next_lesson = next_available_lesson(user=user, lesson=lesson)
+    enrollment = Enrollment.objects.filter(user=user, course=lesson.course).first()
+    progress_percentage = None
+    if enrollment is not None:
+        available_ids = [item.id for item in available_lessons(lesson.course)]
+        completed_count = LessonProgress.objects.filter(
+            user=user,
+            lesson_id__in=available_ids,
+            is_completed=True,
+        ).count()
+        if available_ids:
+            progress_percentage = (
+                Decimal(completed_count * 100) / Decimal(len(available_ids))
+            ).quantize(Decimal('0.01'))
+        else:
+            progress_percentage = Decimal('0.00')
+
+        enrollment.progress_percentage = progress_percentage
+        enrollment.last_accessed_lesson = next_lesson or lesson
+        enrollment.completed_at = (
+            timezone.now() if progress_percentage == Decimal('100.00') else None
+        )
+        enrollment.save(update_fields=[
+            'progress_percentage',
+            'last_accessed_lesson',
+            'completed_at',
+        ])
+
+    return {
+        'is_completed': True,
+        'progress_percentage': progress_percentage,
+        'next_lesson': next_lesson,
+    }
+
+
 # ═══════════════════════════════════════════════════════════
-#  1. DOCUMENT TEXT EXTRACTION (PDF / PPT)
+#  1. DOCUMENT TEXT EXTRACTION (PDF ONLY)
 # ═══════════════════════════════════════════════════════════
+
+def _read_bounded_pdf(file):
+    from PyPDF2 import PdfReader
+
+    data = file.read(settings.LESSON_PDF_MAX_BYTES + 1)
+    if len(data) > settings.LESSON_PDF_MAX_BYTES:
+        raise PDFIngestionError('File PDF vượt quá dung lượng cho phép')
+    if not data.startswith(b'%PDF-'):
+        raise PDFIngestionError('Nội dung tải lên không phải PDF hợp lệ')
+    return PdfReader(io.BytesIO(data), strict=False)
+
+
+def sanitize_extracted_text(text: str) -> str:
+    """Normalize parser output and remove database-unsafe control characters."""
+
+    normalized = unicodedata.normalize('NFKC', text or '')
+    normalized = normalized.replace('\r\n', '\n').replace('\r', '\n')
+    return ''.join(
+        character
+        for character in normalized
+        if character in ('\n', '\t')
+        or unicodedata.category(character) not in ('Cc', 'Cs')
+    )
+
+
+PDF_PAGE_MARKER_COLLISION = re.compile(r'^--- Trang ([1-9]\d*) ---$', re.MULTILINE)
+
+
+def escape_pdf_page_marker_collisions(text: str) -> str:
+    """Prevent untrusted page text from impersonating an app-owned marker."""
+
+    return PDF_PAGE_MARKER_COLLISION.sub(r'\\--- Trang \1 ---', text)
+
+
+def _extract_pdf_pages(reader):
+    if reader.is_encrypted:
+        raise PDFIngestionError('Chưa hỗ trợ PDF được mã hóa hoặc đặt mật khẩu')
+    if not reader.pages:
+        raise PDFIngestionError('PDF không có trang nội dung')
+    if len(reader.pages) > settings.LESSON_PDF_MAX_PAGES:
+        raise PDFIngestionError('PDF vượt quá số trang cho phép')
+
+    pages = []
+    extracted_chars = 0
+    for page_number, page in enumerate(reader.pages, start=1):
+        text = escape_pdf_page_marker_collisions(
+            sanitize_extracted_text(page.extract_text()).strip()
+        )
+        if not text:
+            continue
+        extracted_chars += len(text)
+        if extracted_chars > settings.LESSON_PDF_MAX_EXTRACTED_CHARS:
+            raise PDFIngestionError('Nội dung PDF vượt quá giới hạn xử lý')
+        pages.append(f'--- Trang {page_number} ---\n{text}')
+    if not pages:
+        raise PDFIngestionError('Không tìm thấy văn bản có thể trích xuất trong PDF')
+    return '\n\n'.join(pages)
+
 
 def extract_text_from_pdf(file) -> str:
-    """Extract text from a PDF file."""
-    from PyPDF2 import PdfReader
-    
-    file.seek(0)
-    reader = PdfReader(io.BytesIO(file.read()))
-    pages = []
-    for i, page in enumerate(reader.pages):
-        text = page.extract_text()
-        if text and text.strip():
-            pages.append(f"--- Trang {i+1} ---\n{text.strip()}")
-    return "\n\n".join(pages)
+    """Extract bounded text while retaining stable, human-readable page markers."""
+    from PyPDF2.errors import PdfReadError
 
-
-def extract_text_from_pptx(file) -> str:
-    """Extract text from a PowerPoint (.pptx) file."""
-    from pptx import Presentation
-    
-    file.seek(0)
-    prs = Presentation(io.BytesIO(file.read()))
-    slides = []
-    for i, slide in enumerate(prs.slides):
-        texts = []
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                for para in shape.text_frame.paragraphs:
-                    text = para.text.strip()
-                    if text:
-                        texts.append(text)
-        if texts:
-            slides.append(f"--- Slide {i+1} ---\n" + "\n".join(texts))
-    return "\n\n".join(slides)
+    try:
+        file.seek(0)
+        return _extract_pdf_pages(_read_bounded_pdf(file))
+    except PDFIngestionError:
+        raise
+    except (PdfReadError, OSError, ValueError, TypeError, KeyError) as exc:
+        raise PDFIngestionError('Không thể đọc file PDF') from exc
+    finally:
+        file.seek(0)
 
 
 def extract_text(file, filename: str) -> str:
-    """Extract text from uploaded file based on extension."""
+    """Extract text from the only supported lesson document format."""
     ext = filename.lower().rsplit('.', 1)[-1] if '.' in filename else ''
     
     if ext == 'pdf':
         return extract_text_from_pdf(file)
-    elif ext in ('pptx', 'ppt'):
-        return extract_text_from_pptx(file)
-    else:
-        raise ValueError(f"Unsupported file type: .{ext}. Only PDF and PPT/PPTX are supported.")
+    raise PDFIngestionError('Chỉ hỗ trợ file PDF')
+
+
+def process_pdf_lesson(*, actor, lesson, embedding_provider=None):
+    """Authorize, extract, and synchronously index one uploaded lesson PDF."""
+
+    if not getattr(actor, 'is_authenticated', False):
+        raise PermissionDenied('Bạn không có quyền xử lý bài học này.')
+    if actor.role != 'admin' and (
+        actor.role != 'teacher' or lesson.course.teacher_id != actor.id
+    ):
+        raise PermissionDenied('Bạn không có quyền xử lý bài học này.')
+
+    try:
+        if not lesson.uploaded_file or not lesson.uploaded_file.name.lower().endswith('.pdf'):
+            raise PDFIngestionError('Bài học không có file PDF hợp lệ')
+
+        lesson.processing_status = 'extracting'
+        lesson.processing_error = ''
+        lesson.save(update_fields=['processing_status', 'processing_error'])
+
+        extracted = extract_text_from_pdf(lesson.uploaded_file)
+        lesson.extracted_text = extracted
+        lesson.save(update_fields=['extracted_text'])
+
+        source, created = index_lesson(
+            actor=actor,
+            lesson_id=lesson.id,
+            provider=embedding_provider,
+        )
+        lesson.processing_status = 'completed'
+        lesson.processing_error = ''
+        lesson.save(update_fields=['processing_status', 'processing_error'])
+        return source, created
+    except PermissionDenied:
+        raise
+    except PDFIngestionError as exc:
+        safe_error = str(exc)
+        retryable = exc.retryable
+    except LessonIndexingError:
+        safe_error = 'Không thể lập chỉ mục nội dung PDF'
+        retryable = True
+    except Exception:
+        logger.exception('Unexpected PDF ingestion failure for lesson %s', lesson.id)
+        safe_error = 'Không thể xử lý file PDF'
+        retryable = True
+
+    lesson.processing_status = 'failed'
+    lesson.processing_error = safe_error
+    lesson.save(update_fields=['processing_status', 'processing_error'])
+    raise PDFIngestionError(safe_error, retryable=retryable)
 
 
 # ═══════════════════════════════════════════════════════════

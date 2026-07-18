@@ -2,7 +2,7 @@
 
 ## MVP boundary
 
-Start with approved lesson text and teacher-uploaded PDF/PPT material. Support
+Start with approved lesson text and teacher-uploaded PDF material. Support
 grounded questions scoped to one lesson first, then widen retrieval to an
 enrolled course. Keep multimedia generation downstream and out of the RAG core.
 
@@ -50,7 +50,7 @@ Use a hybrid deployment for the first research prototype:
 - Call an online generation model through a provider interface for answer
   quality and easier experimentation. Configure model and credentials through
   environment variables; do not couple retrieval to one vendor.
-- Store original PDF/PPT/DOCX and generated media in object storage such as
+- Store original PDF and generated media in object storage such as
   Cloudflare R2. Google Drive may be used for early manual research data, but
   it is not the application's vector database and is less suitable as the
   production media layer.
@@ -75,7 +75,7 @@ must remain downstream consumers of approved lesson knowledge.
 - `KnowledgeSource`: owning lesson, file/content origin, checksum, status,
   version, parser metadata, timestamps, and processing error.
 - `KnowledgeChunk`: source, ordinal, normalized text, token/character counts,
-  page/slide/heading metadata, embedding, and active/version status.
+  PDF page metadata, embedding, and active/version status.
 - Optional `RetrievalTrace`: non-sensitive question hash or text policy,
   selected chunk IDs/scores, model/config version, latency, and fallback status.
 

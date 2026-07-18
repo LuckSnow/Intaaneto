@@ -10,9 +10,11 @@ from apps.users.models import User
 from .models import KnowledgeChunk, KnowledgeSource
 from .rag_services import (
     LessonIndexingError,
+    TextChunk,
     chunk_text,
     index_lesson,
     normalize_lesson_text,
+    pdf_page_ranges,
 )
 
 
@@ -68,6 +70,44 @@ def test_normalization_prefers_extracted_text_and_chunking_is_deterministic(inde
     assert [chunk.ordinal for chunk in first] == list(range(len(first)))
     assert all(normalized.text[item.start_offset:item.end_offset] == item.text for item in first)
     assert all(len(item.text) <= 16 for item in first)
+
+
+def test_pdf_page_ranges_preserve_original_page_numbers_and_cross_page_chunks():
+    text = '--- Trang 1 ---\nAlpha\n\n--- Trang 3 ---\nBeta'
+    page_three_offset = text.index('--- Trang 3 ---')
+    chunks = [
+        TextChunk(0, text[:page_three_offset].strip(), 0, page_three_offset),
+        TextChunk(1, text[page_three_offset - 3:], page_three_offset - 3, len(text)),
+        TextChunk(2, text[page_three_offset:], page_three_offset, len(text)),
+    ]
+
+    assert pdf_page_ranges(text, chunks) == [(1, 1), (1, 3), (3, 3)]
+
+
+@pytest.mark.django_db
+def test_indexed_pdf_chunks_store_deterministic_page_ranges(
+    teacher_user, indexable_lesson
+):
+    indexable_lesson.extracted_text = (
+        '--- Trang 1 ---\nNội dung trang đầu về retrieval.\n\n'
+        '--- Trang 3 ---\nNội dung trang ba về citation.'
+    )
+    indexable_lesson.save(update_fields=['extracted_text'])
+
+    source, created = index_lesson(
+        actor=teacher_user,
+        lesson_id=indexable_lesson.id,
+        provider=FakeEmbeddingProvider(),
+        chunk_size=48,
+        chunk_overlap=8,
+    )
+
+    ranges = list(source.chunks.values_list('page_start', 'page_end'))
+    assert created is True
+    assert ranges
+    assert all(start is not None and end >= start for start, end in ranges)
+    assert ranges[0][0] == 1
+    assert ranges[-1][1] == 3
 
 
 @pytest.mark.django_db

@@ -1,3 +1,5 @@
+import os
+
 from django.core.management.base import BaseCommand
 from apps.courses.models import Course, Lesson
 from apps.users.models import User
@@ -8,7 +10,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         # Get or create teacher user
-        teacher, _ = User.objects.get_or_create(
+        teacher, teacher_created = User.objects.get_or_create(
             email='teacher@intaaneto.com',
             defaults={
                 'username': 'teacher',
@@ -17,9 +19,13 @@ class Command(BaseCommand):
                 'is_active': True
             }
         )
-        if not teacher.has_usable_password():
-            teacher.set_password('teacher123')
-            teacher.save()
+        demo_password = os.getenv('DEMO_TEACHER_PASSWORD', '')
+        if demo_password:
+            teacher.set_password(demo_password)
+            teacher.save(update_fields=['password', 'updated_at'])
+        elif teacher_created:
+            teacher.set_unusable_password()
+            teacher.save(update_fields=['password', 'updated_at'])
 
         # Create courses
         courses_data = [

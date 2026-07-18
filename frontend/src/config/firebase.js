@@ -1,7 +1,3 @@
-import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
-
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -9,29 +5,35 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
-const firebaseConfigured = [
+export const firebaseConfigured = [
   firebaseConfig.apiKey,
   firebaseConfig.authDomain,
   firebaseConfig.projectId,
   firebaseConfig.appId,
 ].every(Boolean)
 
-// Firebase is optional in local development. Initializing Auth with blank
-// values throws during module import and prevents the whole React app rendering.
-const app = firebaseConfigured ? initializeApp(firebaseConfig) : null
-const auth = app ? getAuth(app) : null
-const db = app ? getFirestore(app) : null
-const googleProvider = app ? new GoogleAuthProvider() : null
+let authContextPromise
 
-// Luôn hiện popup chọn tài khoản Google
-if (googleProvider) {
-  googleProvider.setCustomParameters({
-    prompt: 'select_account'
-  })
+export async function getFirebaseAuthContext() {
+  if (!firebaseConfigured) return null
+  if (!authContextPromise) {
+    authContextPromise = Promise.all([
+      import('firebase/app'),
+      import('firebase/auth'),
+    ]).then(([appModule, authModule]) => {
+      const app = appModule.initializeApp(firebaseConfig)
+      const auth = authModule.getAuth(app)
+      const googleProvider = new authModule.GoogleAuthProvider()
+      googleProvider.setCustomParameters({ prompt: 'select_account' })
+      return {
+        auth,
+        googleProvider,
+        signInWithPopup: authModule.signInWithPopup,
+      }
+    })
+  }
+  return authContextPromise
 }
-
-export { auth, db, firebaseConfigured, googleProvider }
-export default app

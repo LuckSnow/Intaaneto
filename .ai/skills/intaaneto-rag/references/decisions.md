@@ -126,3 +126,202 @@ affected files or migration.
 - Constraint: Fail closed for a missing key or unknown provider. Free-tier
   providers are for non-sensitive prototype material only unless their data
   handling terms meet the deployment's privacy requirements.
+
+## RAG-011 — Reproducible source seed instead of shared development databases
+
+- Status: Implemented
+- Date: 2026-07-15
+- Affected: `seed_demo_data`, its tests, environment example, and `docs/SETUP.md`
+- Decision: Recreate a minimal text-only RAG course from an idempotent management
+  command on each developer database. Do not distribute local database dumps,
+  media, chat history, vectors, or fixed login credentials as demo data.
+- Reason: Migrations plus deterministic source data are reviewable and portable,
+  while database volumes contain machine-local and potentially private state.
+- Constraint: Vector indexing remains explicit because it depends on the local
+  embedding model/configuration and may download model weights on first use.
+
+## RAG-012 — Limit lesson document ingestion to PDF
+
+- Status: Implemented for the current upload contract
+- Date: 2026-07-15
+- Affected: course upload serializer/service/view, PDF ingestion tests, frontend
+  teacher upload page, and document-processing dependencies
+- Decision: Support teacher-uploaded PDF lesson documents only. DOCX, PPT, and
+  PPTX uploads are outside the ingestion target.
+- Reason: One format covers the required learning-material workflow while
+  keeping parser validation, page metadata, fixtures, and security testing small
+  enough for a focused vertical slice.
+- Implementation note: Slice 4 replaced the legacy PDF/PPTX upload contract and
+  later moved extraction/indexing to the bounded job design in RAG-019.
+
+## RAG-013 — Evaluate retrieval before tuning it
+
+- Status: Implemented for the initial Slice 5 harness
+- Date: 2026-07-16
+- Affected: `backend/apps/ai_assistant/rag_evaluation.py`, the bundled Vietnamese
+  evaluation dataset, demo seed content, evaluation command, and tests
+- Decision: Keep a versioned evaluation dataset tied to non-sensitive,
+  reproducible demo lesson material and run it through the same authorized
+  lesson-retrieval service used by chat. Record provider/source configuration and
+  bounded metrics without invoking answer generation or logging raw evidence.
+- Reason: Retrieval quality and threshold changes need repeatable evidence while
+  authorization and observability boundaries remain identical to the product
+  path.
+- Revisit when: the dataset is large enough to split development and holdout
+  cases, or grounded-answer evaluation requires a separately versioned rubric.
+
+## RAG-014 — Deterministic assessment before AI grading
+
+- Status: Implemented for the first lesson-assessment slice
+- Date: 2026-07-16
+- Affected: exercises assessment models/API/tests, course progression service,
+  enrollment mastery, and `frontend/src/pages/LessonPage.jsx`
+- Decision: Establish a teacher-authored multiple-choice assessment with a
+  server-calculated configurable threshold, immutable attempt snapshots, and
+  server-owned progression before allowing an AI-generated grade to affect
+  learner state.
+- Reason: The research project needs an explainable baseline for scoring,
+  progression, consistency, and access control before comparing or calibrating
+  conversational AI evaluation.
+- Constraint: Retrieval similarity is evidence availability, not learner
+  mastery. Future AI grades remain recommendations until a versioned rubric and
+  evaluation set show sufficient accuracy and consistency.
+
+## RAG-015 — Reviewed Markdown corpus imports as drafts before indexing
+
+- Status: Implemented for the initial two-course corpus
+- Date: 2026-07-16
+- Affected: `backend/apps/courses/learning_corpus.py`,
+  `import_learning_corpus`, its tests, the two authoring documents, Docker
+  Compose, and `docs/SETUP.md`
+- Decision: Compile versioned, repository-reviewed Markdown sections into stable
+  text lessons through an idempotent management command. Database imports
+  default to drafts and require an active verified teacher; publication and RAG
+  indexing are explicit later operations.
+- Reason: The project needs reusable learning content without treating raw
+  notes as approved knowledge, coupling source editing to vectors, or sharing a
+  development database. Stable slugs and deterministic content let existing
+  source checksums/versioning handle later re-indexing.
+- Constraint: Never overwrite a PDF lesson, a manually authored same-slug
+  lesson, or a course owned by another teacher. Do not place assessment answer
+  keys in indexed corpus documents.
+
+## RAG-016 — Reinforcement retrieves weak objectives without grading by AI
+
+- Status: Implemented for current-version failed attempts
+- Date: 2026-07-16
+- Affected: `backend/apps/exercises/reinforcement.py`, assessment API/tests,
+  RAG settings, and `frontend/src/pages/LessonPage.jsx`
+- Decision: Make reinforcement a separate learner-triggered retrieval action.
+  Resolve the owned immutable attempt first, retrieve bounded evidence for its
+  server-recorded weak objectives inside the assessment lesson, and construct
+  citations in application code without calling an LLM.
+- Reason: Retrieval can guide review immediately while deterministic grading
+  remains the trusted control. Separating it from submission avoids making
+  scoring depend on embedding availability or incurring hidden provider work.
+- Constraint: Reinforcement never changes score, mastery, completion, or
+  progression. Passed, stale, and foreign attempts are not eligible, and a
+  generated Tutor question is only prefilled for the learner to send explicitly.
+
+## RAG-017 — Progress reports derive from deterministic learning records
+
+- Status: Implemented for learner and owned-course dashboards
+- Date: 2026-07-16
+- Affected: analytics progress reporting API/tests and frontend dashboard
+- Decision: Calculate current reports from enrollment progress/mastery, lesson
+  completion, and attempts matching the assessment's current version. Do not use
+  the legacy mutable `LearningAnalytics` counters as assessment evidence.
+- Reason: The research report needs reproducible metrics tied to the same
+  server-owned progression baseline used by the product, without presenting
+  stale counters or retrieval similarity as learner mastery.
+- Constraint: Learners receive only their records. Teachers receive aggregates
+  and a paged roster for owned courses; reports omit email, answers, chat, and
+  old-version attempts. Admin scope remains explicit and audited separately.
+
+## RAG-018 — SadTalker PoC is local, manual, bounded, and audited
+
+- Status: Initial command implemented; technical GPU smoke verified; web queue
+  extension is governed by RAG-022
+- Date: 2026-07-16
+- Affected: video job model/migration/admin, local provider/command/tests,
+  lesson video serialization/UI, environment example, and `docs/SADTALKER_POC.md`
+- Decision: Keep SadTalker outside HTTP and invoke its CLI only from a trusted
+  management command after ownership and explicit rights/approval checks.
+  Validate bounded WAV/portrait/script inputs, execute without a shell and with
+  timeout, validate one MP4, and persist checksums plus a safe lifecycle record.
+- Reason: SadTalker's GPU dependency stack must not destabilize Django/RAG, and
+  generated likeness/audio introduces consent, provenance, abuse, resource, and
+  failure concerns that an inline request cannot handle safely.
+- Constraint: SadTalker is not TTS and requires no API key. A fake-provider test
+  proves the adapter contract only; the thesis cannot claim real video quality
+  until a recorded run uses reviewed checkpoints and consented inputs.
+
+## RAG-019 — PDF ingestion uses durable DB state plus Celery/Redis
+
+- Status: Implemented for development Compose
+- Date: 2026-07-17
+- Affected: course ingestion job/model/task/API/tests, Celery configuration,
+  Redis/worker Compose services, teacher upload polling UI, setup and API docs
+- Decision: Persist one active ingestion job per lesson before dispatch. Return
+  `202 Accepted`, process PDF extraction/embedding in a non-root Celery worker,
+  reauthorize ownership in the worker, retry only safe transient failures within
+  a fixed bound, and use lesson/job database state—not Celery results—as the
+  product polling contract.
+- Reason: PDF parsing and local embedding must not hold open an HTTP request;
+  broker/process failures must be observable and retryable without duplicating
+  active sources or exposing exception/broker metadata.
+- Constraint: Redis/AOF in development is evidence of broker delivery, not a
+  production HA guarantee. Parser wall-clock isolation, malware scanning,
+  monitoring, orphan cleanup and production object storage remain separate.
+
+## RAG-020 — Human RAG review uses one immutable private answer package
+
+- Status: Implemented for the E1 review workflow
+- Date: 2026-07-17
+- Affected: grounded-answer evaluation, private review/aggregate commands,
+  focused tests, and `docs/RAG_GROUNDED_ANSWER_EVALUATION.md`
+- Decision: Generate both independent reviewer sheets from one provider run,
+  bind their bounded demo questions/answers/citations to the same digest, store
+  them as local `0600` files, and emit only agreement aggregates after review.
+- Reason: Lexical markers do not measure semantic or pedagogical quality, while
+  separate live runs would expose reviewers to different stochastic outputs.
+- Constraint: Tooling and blank sheets are not human evidence. No accuracy,
+  agreement, or pedagogical-quality claim is allowed before two real reviewers
+  finish the same package and disagreements are adjudicated.
+
+## RAG-021 — Dialogue assessment starts post-pass and recommendation-only
+
+- Status: Implemented for the first software seam
+- Date: 2026-07-17
+- Affected: exercises dialogue-check model/service/API/tests, structured AI
+  recommendation parser, lesson UI, throttling and documentation
+- Decision: Permit a RAG-grounded free-text check only after the learner passes
+  the current deterministic assessment. Its outcome is optional feedback and
+  cannot affect progression.
+- Reason: The thesis needs a dialogue-evaluation seam, but an uncalibrated model
+  must not create false passes/fails or weaken the explainable baseline.
+- Constraint: Audit stores an HMAC answer digest and bounded metadata, not raw
+  answer/rubric/key/feedback. Grading use requires human-labeled evaluation,
+  teacher review, an appeal path and a separate architecture decision.
+
+## RAG-022 — Generated lesson artifacts remain reviewed drafts
+
+- Status: Implemented for summary, assessment, local narration and video enqueue
+- Date: 2026-07-17
+- Affected: lesson authoring models/services/API/UI, AI provider adapter,
+  dedicated video worker, migration `courses.0007`, tests and operations docs
+- Decision: Generate summaries and five-question assessments only as teacher-
+  reviewable drafts from the active ready lesson source. Only explicit summary
+  approval updates learner-visible state; assessments remain unpublished until
+  the existing teacher publish action. Bind local narration and SadTalker input
+  to the approved summary checksum, require portrait rights confirmation, and
+  render on a dedicated one-at-a-time GPU queue.
+- Reason: LLM output is untrusted authoring assistance, not authoritative course
+  content or grading policy. Review gates prevent hallucinated text/answer keys
+  from silently reaching learners, while a separate queue keeps GPU work from
+  delaying PDF ingestion.
+- Constraint: Provider calls require deliberate server-side configuration and
+  may send bounded lesson text to that provider. `espeak-ng` and SadTalker use no
+  API key, but a technical smoke is not evidence of natural voice, lip-sync or
+  pedagogical quality. Video remains optional; consented Vietnamese input and
+  quality measurement are still required.

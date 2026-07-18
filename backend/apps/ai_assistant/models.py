@@ -126,6 +126,8 @@ class KnowledgeChunk(models.Model):
     text = models.TextField()
     start_offset = models.PositiveIntegerField()
     end_offset = models.PositiveIntegerField()
+    page_start = models.PositiveIntegerField(null=True, blank=True)
+    page_end = models.PositiveIntegerField(null=True, blank=True)
     char_count = models.PositiveIntegerField()
     embedding = VectorField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -136,6 +138,17 @@ class KnowledgeChunk(models.Model):
             models.UniqueConstraint(
                 fields=['source', 'ordinal'],
                 name='unique_knowledge_chunk_source_ordinal',
+            ),
+            models.CheckConstraint(
+                check=(
+                    models.Q(page_start__isnull=True, page_end__isnull=True)
+                    | models.Q(
+                        page_start__isnull=False,
+                        page_end__isnull=False,
+                        page_end__gte=models.F('page_start'),
+                    )
+                ),
+                name='knowledge_chunk_valid_page_range',
             ),
         ]
 

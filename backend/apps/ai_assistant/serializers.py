@@ -34,6 +34,10 @@ class ChatRequestSerializer(serializers.Serializer):
         return attrs
 
 
+class ChatHistoryQuerySerializer(serializers.Serializer):
+    lesson_id = serializers.IntegerField(min_value=1)
+
+
 class ExplainCodeSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=20000)
     language = serializers.CharField(default='javascript', max_length=30)

@@ -14,6 +14,7 @@ ownership of every course, lesson, upload, assessment, or student record.
 | Student submission | No | Own create/read | Assigned-course read | Manage |
 | Solution/hidden tests | No | Never | Owned/assigned course | Manage |
 | Own profile | No | Read/update safe fields | Read/update safe fields | Manage |
+| Teacher application | No | Own submit/read | No new submission | Review/audit |
 | Role/active status | No | No | No | Manage/audit |
 | Chat/RAG session | No | Own authorized scope | Own/authorized scope | Audited support |
 | Progress/AI assessment | No | Own read | Assigned learners | Manage |
@@ -29,6 +30,9 @@ Refine this matrix when product rules are decided, but never silently broaden it
   custom actions.
 - Set ownership in `perform_create()` from `request.user`; ignore client owners.
 - Make privilege and evaluation fields read-only or omit them entirely.
+- Treat teacher applications as evidence, not authority: the applicant never
+  writes status/reviewer fields, and only an admin approval transaction may
+  change the server-owned role.
 - Use dedicated learner serializers that omit solutions, hidden tests, internal
   feedback, source internals, provider IDs, and processing errors.
 - Verify related IDs belong to an authorized parent before saving nested or
@@ -48,4 +52,3 @@ Refine this matrix when product rules are decided, but never silently broaden it
 - Learner cannot set score, status, completion, user, owner, or processing state.
 - Custom actions enforce the same object scope as normal actions.
 - List endpoints do not leak objects that detail endpoints would deny.
-

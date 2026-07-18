@@ -62,6 +62,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(_('active'), default=True)
     is_verified = models.BooleanField(_('verified'), default=False)
     verification_token = models.CharField(_('verification token'), max_length=100, blank=True, null=True)
+    verification_token_created_at = models.DateTimeField(
+        _('verification token created at'),
+        null=True,
+        blank=True,
+    )
     
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
@@ -118,3 +123,53 @@ class Profile(models.Model):
     
     def __str__(self):
         return f"Profile of {self.user.full_name}"
+
+
+class TeacherApplication(models.Model):
+    """Auditable request for a verified learner to receive teacher privileges."""
+
+    STATUS_CHOICES = [
+        ('pending', 'Chờ duyệt'),
+        ('approved', 'Đã duyệt'),
+        ('rejected', 'Từ chối'),
+    ]
+
+    applicant = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='teacher_applications',
+    )
+    specialization = models.CharField(max_length=255)
+    years_of_experience = models.PositiveSmallIntegerField(default=0)
+    reason = models.TextField(max_length=2000)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+    )
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='reviewed_teacher_applications',
+        null=True,
+        blank=True,
+    )
+    review_note = models.TextField(max_length=1000, blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['applicant'],
+                condition=models.Q(status='pending'),
+                name='unique_pending_teacher_application',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['status', '-submitted_at']),
+        ]
+
+    def __str__(self):
+        return f"Teacher application {self.pk} by user {self.applicant_id}"

@@ -1,4 +1,10 @@
 import axios from 'axios'
+import {
+  clearAuthSession,
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  storeRefreshedTokens,
+} from '../utils/authStorage'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
@@ -13,7 +19,7 @@ const api = axios.create({
 // Request interceptor - add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token')
+    const token = getStoredAccessToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -30,26 +36,38 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
-    // If 401 and not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const publicAuthRequest = [
+      '/auth/login/',
+      '/auth/teacher_login/',
+      '/auth/register/',
+      '/auth/google/',
+      '/auth/verify_email/',
+      '/auth/resend_verification/',
+      '/auth/token/refresh/',
+    ].some((path) => originalRequest?.url?.includes(path))
+    const refreshToken = getStoredRefreshToken()
+
+    // Refresh only an authenticated API request, never a failed login/register.
+    if (
+      error.response?.status === 401
+      && !originalRequest?._retry
+      && !publicAuthRequest
+      && refreshToken
+    ) {
       originalRequest._retry = true
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token')
         const response = await axios.post(`${API_URL}/auth/token/refresh/`, {
           refresh: refreshToken,
         })
 
-        const { access } = response.data
-        localStorage.setItem('access_token', access)
+        const { access, refresh } = response.data
+        storeRefreshedTokens({ access, refresh })
 
         originalRequest.headers.Authorization = `Bearer ${access}`
         return api(originalRequest)
       } catch (refreshError) {
-        // Refresh failed, logout user
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
+        clearAuthSession()
         window.location.href = '/login'
         return Promise.reject(refreshError)
       }

@@ -6,6 +6,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
+    espeak-ng \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -15,8 +16,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
-# Create media and static directories
-RUN mkdir -p media staticfiles
+# Create writable runtime directories and an unprivileged worker identity.
+RUN useradd --create-home --uid 10001 appuser \
+    && mkdir -p media staticfiles /home/appuser/.cache \
+    && chown -R appuser:appuser /app /home/appuser
 
 # Expose port
 EXPOSE 8000

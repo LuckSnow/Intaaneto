@@ -7,6 +7,26 @@ export const courseService = {
     return response.data.results || response.data
   },
 
+  // Teacher: include owned draft and published courses.
+  getManagedCourses: async () => {
+    const response = await api.get('/courses/managed/')
+    return response.data.results || response.data
+  },
+
+  createCourse: async (payload) => {
+    const response = await api.post('/courses/', payload)
+    return response.data
+  },
+
+  updateCourse: async (courseId, payload) => {
+    const response = await api.patch(`/courses/${courseId}/`, payload)
+    return response.data
+  },
+
+  deleteCourse: async (courseId) => {
+    await api.delete(`/courses/${courseId}/`)
+  },
+
   // Get single course
   getCourse: async (id) => {
     const response = await api.get(`/courses/${id}/`)
@@ -25,7 +45,7 @@ export const courseService = {
     return response.data
   },
 
-  // Teacher: upload lesson with PDF/PPT
+  // Teacher: upload and index a PDF lesson
   uploadLesson: async (formData) => {
     const response = await api.post('/courses/lessons/upload/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -45,6 +65,50 @@ export const courseService = {
     return response.data
   },
 
+  getIngestionStatuses: async (courseId) => {
+    const response = await api.get('/courses/lessons/ingestion-statuses/', {
+      params: { course: courseId },
+    })
+    return response.data.results || []
+  },
+
+  getLessonAuthoringStatus: async (lessonId) => {
+    const response = await api.get(`/courses/lessons/${lessonId}/authoring-status/`)
+    return response.data
+  },
+
+  generateLessonSummary: async (lessonId) => {
+    const response = await api.post(`/courses/lessons/${lessonId}/generate-summary/`)
+    return response.data
+  },
+
+  approveLessonSummary: async (lessonId, text) => {
+    const response = await api.post(`/courses/lessons/${lessonId}/approve-summary/`, { text })
+    return response.data
+  },
+
+  generateLessonAssessment: async (lessonId) => {
+    const response = await api.post(`/courses/lessons/${lessonId}/generate-assessment/`)
+    return response.data
+  },
+
+  generateLessonNarration: async (lessonId) => {
+    const response = await api.post(`/courses/lessons/${lessonId}/generate-narration/`)
+    return response.data
+  },
+
+  generateLessonVideo: async (lessonId, portrait) => {
+    const formData = new FormData()
+    formData.append('portrait', portrait)
+    formData.append('rights_and_approval_confirmed', 'true')
+    const response = await api.post(
+      `/courses/lessons/${lessonId}/generate-video/`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    return response.data
+  },
+
   // Reprocess failed lesson
   reprocessLesson: async (id) => {
     const response = await api.post(`/courses/lessons/${id}/reprocess/`)
@@ -54,6 +118,38 @@ export const courseService = {
   // Mark lesson as completed
   completeLesson: async (id) => {
     const response = await api.post(`/courses/lessons/${id}/complete/`)
+    return response.data
+  },
+
+  // Get the learner-safe published assessment for one enrolled lesson.
+  getLessonAssessment: async (lessonId) => {
+    const response = await api.get(`/exercises/assessments/?lesson=${lessonId}`)
+    const assessments = response.data.results || response.data
+    return assessments[0] || null
+  },
+
+  // Submit choices only; score, pass state, mastery, and progression are server-owned.
+  submitAssessment: async (assessmentId, answers) => {
+    const response = await api.post(`/exercises/assessments/${assessmentId}/submit/`, {
+      answers,
+    })
+    return response.data
+  },
+
+  // Retrieve lesson-scoped evidence for objectives missed in one owned attempt.
+  getAssessmentReinforcement: async (assessmentId, attemptId) => {
+    const response = await api.post(
+      `/exercises/assessments/${assessmentId}/reinforcement/`,
+      { attempt_id: attemptId },
+    )
+    return response.data
+  },
+
+  runDialogueKnowledgeCheck: async (assessmentId, questionId, answer) => {
+    const response = await api.post(
+      `/exercises/assessments/${assessmentId}/dialogue-check/`,
+      { question_id: questionId, answer },
+    )
     return response.data
   },
 

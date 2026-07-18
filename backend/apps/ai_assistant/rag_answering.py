@@ -69,6 +69,8 @@ def _build_citations(lesson, chunks: list[RetrievedChunk]) -> list[dict]:
             'location': {
                 'start_offset': chunk.start_offset,
                 'end_offset': chunk.end_offset,
+                'page_start': chunk.page_start,
+                'page_end': chunk.page_end,
             },
             'excerpt': excerpt,
             'score': chunk.score,
