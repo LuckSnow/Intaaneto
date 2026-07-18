@@ -449,6 +449,16 @@ relying on it and update it after material implementation changes.
   A consented/licensed Vietnamese portrait/audio render, peak-resource measure,
   and qualitative review are still not proven. SadTalker needs no API key; the
   local TTS smoke is execution evidence, not a natural-voice quality claim.
+- A real owned PHP lesson video attempt on 2026-07-17 used an approved 1,602-
+  character summary, a 109.26-second local WAV and a consented portrait. SadTalker
+  saturated the NVIDIA T1200 (about 99% GPU and 3.9/4 GiB VRAM) and ended after
+  1,903 seconds with safe `provider_timeout`, producing no MP4. This is evidence
+  that the current laptop/runtime is not viable for multi-minute delivery; it
+  does not invalidate the earlier 1.48-second technical smoke.
+- D-ID is being considered as an optional cloud PoC provider, but **no D-ID code,
+  key, live request or output exists yet**. The next-session scope and privacy,
+  cost, consent and idempotency requirements are recorded in
+  `docs/DID_POC_HANDOFF.md`.
 
 ## Known integration risks
 
@@ -483,6 +493,10 @@ relying on it and update it after material implementation changes.
   web queue and dedicated GPU worker are implemented. A consented Vietnamese
   render and measured voice/video-quality record remain; do not present the
   local WAV smoke or upstream demo render as pedagogical-quality evidence.
+- Next video slice: follow `docs/DID_POC_HANDOFF.md`. First validate a 30-second
+  non-sensitive Studio clip within the trial, then add a mocked/tested D-ID
+  provider before any explicitly confirmed live API call. Do not treat trial
+  registration or a key in local `.env` as implementation evidence.
 - Collaborators should run migrations and `seed_demo_data` locally rather than
   sharing development database volumes or dumps containing accounts and chats.
 - The worktree contains intentional uncommitted changes from stabilization,
@@ -503,3 +517,4 @@ relying on it and update it after material implementation changes.
 - `frontend/src/services/aiService.js`
 - `frontend/src/pages/LessonPage.jsx`
 - `docker-compose.yml` and `backend/requirements.txt`
+- `docs/DID_POC_HANDOFF.md`
