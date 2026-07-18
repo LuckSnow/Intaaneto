@@ -110,9 +110,17 @@ export default function TeacherLogin() {
             </div>
 
             <div>
-              <label htmlFor="teacher-password" className="text-sm font-medium text-slate-800">
-                Mật khẩu
-              </label>
+              <div className="flex items-center justify-between gap-4">
+                <label htmlFor="teacher-password" className="text-sm font-medium text-slate-800">
+                  Mật khẩu
+                </label>
+                <Link
+                  to="/forgot-password?portal=teacher"
+                  className="text-sm font-semibold text-orange-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600"
+                >
+                  Quên mật khẩu?
+                </Link>
+              </div>
               <div className="relative mt-2">
                 <LockKeyhole
                   aria-hidden="true"

@@ -1,13 +1,18 @@
 import hashlib
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from django.core import mail
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from django.utils import timezone
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
+from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.users.models import TeacherApplication
+from apps.users.views import AuthViewSet
 
 User = get_user_model()
 
@@ -89,6 +94,35 @@ class TestUserAPI:
         assert created_user.verification_token_created_at is not None
         assert created_user.verification_token not in mail.outbox[0].body
         assert '/verify-email/' in mail.outbox[0].body
+        assert mail.outbox[0].subject == 'Xác thực tài khoản Intaaneto'
+        assert mail.outbox[0].from_email.startswith('Intaaneto <')
+        html_body = mail.outbox[0].alternatives[0][0]
+        assert '<html lang="vi">' in html_body
+        assert 'Xác thực tài khoản' in html_body
+        assert 'Liên kết chỉ dùng được một lần' in html_body
+        assert '/verify-email/' in html_body
+
+    def test_register_reports_email_delivery_failure_without_verifying_user(
+        self, api_client, monkeypatch
+    ):
+        monkeypatch.setattr(
+            AuthViewSet,
+            '_send_verification_email',
+            lambda self, user: False,
+        )
+
+        response = api_client.post('/api/auth/register/', {
+            'email': 'delivery-failure@example.com',
+            'username': 'delivery-failure',
+            'full_name': 'Delivery Failure',
+            'password': 'Newpass123!',
+            'password_confirm': 'Newpass123!',
+        })
+
+        assert response.status_code == 201
+        assert response.data['email_sent'] is False
+        user = User.objects.get(email='delivery-failure@example.com')
+        assert user.is_verified is False
 
     def test_user_cannot_change_role(self, authenticated_client, student_user):
         response = authenticated_client.patch(
@@ -432,6 +466,138 @@ class TestUserAPI:
         assert unverified_response.data == verified_response.data
         assert verified_response.data == missing_response.data
         assert len(mail.outbox) == 1
+
+    def test_password_reset_request_is_generic_and_sends_only_for_account(
+        self, api_client, teacher_user
+    ):
+        mail.outbox.clear()
+
+        existing_response = api_client.post(
+            '/api/auth/password_reset_request/',
+            {'email': teacher_user.email},
+            format='json',
+        )
+        missing_response = api_client.post(
+            '/api/auth/password_reset_request/',
+            {'email': 'missing-reset@example.com'},
+            format='json',
+        )
+
+        assert existing_response.status_code == 200
+        assert missing_response.status_code == 200
+        assert existing_response.data == missing_response.data
+        assert len(mail.outbox) == 1
+        assert mail.outbox[0].subject == 'Đặt lại mật khẩu Intaaneto'
+        assert '/reset-password/' in mail.outbox[0].body
+        assert teacher_user.email not in str(existing_response.data)
+
+    def test_password_reset_delivery_failure_remains_generic(
+        self, api_client, teacher_user, monkeypatch
+    ):
+        monkeypatch.setattr(
+            AuthViewSet,
+            '_send_password_reset_email',
+            lambda self, user: False,
+        )
+
+        response = api_client.post(
+            '/api/auth/password_reset_request/',
+            {'email': teacher_user.email},
+            format='json',
+        )
+
+        assert response.status_code == 200
+        assert 'tồn tại' in response.data['message']
+
+    def test_password_reset_changes_password_invalidates_token_and_old_jwt(
+        self, api_client, teacher_user
+    ):
+        uid = urlsafe_base64_encode(force_bytes(teacher_user.pk))
+        reset_token = default_token_generator.make_token(teacher_user)
+        old_access = str(AccessToken.for_user(teacher_user))
+        payload = {
+            'uid': uid,
+            'token': reset_token,
+            'password': 'Freshpass123!',
+            'password_confirm': 'Freshpass123!',
+        }
+
+        response = api_client.post(
+            '/api/auth/password_reset_confirm/', payload, format='json'
+        )
+        replay_response = api_client.post(
+            '/api/auth/password_reset_confirm/', payload, format='json'
+        )
+
+        assert response.status_code == 200
+        assert response.data['login_path'] == '/teacher/login'
+        assert replay_response.status_code == 400
+        teacher_user.refresh_from_db()
+        assert teacher_user.check_password('Freshpass123!')
+        assert teacher_user.role == 'teacher'
+        assert teacher_user.is_verified is True
+
+        api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {old_access}')
+        old_session_response = api_client.get('/api/auth/users/me/')
+        assert old_session_response.status_code == 401
+
+    def test_password_reset_rejects_invalid_token_and_weak_password(
+        self, api_client, teacher_user
+    ):
+        uid = urlsafe_base64_encode(force_bytes(teacher_user.pk))
+
+        invalid_response = api_client.post(
+            '/api/auth/password_reset_confirm/',
+            {
+                'uid': uid,
+                'token': 'invalid-token',
+                'password': 'Freshpass123!',
+                'password_confirm': 'Freshpass123!',
+            },
+            format='json',
+        )
+        weak_response = api_client.post(
+            '/api/auth/password_reset_confirm/',
+            {
+                'uid': uid,
+                'token': default_token_generator.make_token(teacher_user),
+                'password': 'weakpass',
+                'password_confirm': 'weakpass',
+            },
+            format='json',
+        )
+
+        assert invalid_response.status_code == 400
+        assert weak_response.status_code == 400
+        teacher_user.refresh_from_db()
+        assert teacher_user.check_password('testpass123')
+
+    def test_password_reset_token_expires(
+        self, api_client, teacher_user, settings, monkeypatch
+    ):
+        settings.PASSWORD_RESET_TIMEOUT = 1
+        uid = urlsafe_base64_encode(force_bytes(teacher_user.pk))
+        reset_token = default_token_generator.make_token(teacher_user)
+        monkeypatch.setattr(
+            default_token_generator,
+            '_now',
+            lambda: datetime.now() + timedelta(seconds=2),
+        )
+
+        response = api_client.post(
+            '/api/auth/password_reset_confirm/',
+            {
+                'uid': uid,
+                'token': reset_token,
+                'password': 'Freshpass123!',
+                'password_confirm': 'Freshpass123!',
+            },
+            format='json',
+        )
+
+        assert response.status_code == 400
+        teacher_user.refresh_from_db()
+        assert teacher_user.check_password('testpass123')
 
     def test_logout_blacklists_refresh_token(self, api_client, student_user):
         login_response = api_client.post('/api/auth/login/', {

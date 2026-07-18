@@ -13,6 +13,8 @@ import Login from './pages/Login'
 import TeacherLogin from './pages/TeacherLogin'
 import Register from './pages/Register'
 import VerifyEmail from './pages/VerifyEmail'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import Courses from './pages/Courses'
 import CourseDetail from './pages/CourseDetail'
@@ -69,6 +71,8 @@ function App() {
         path="/teacher/login"
         element={<GuestRoute><TeacherLogin /></GuestRoute>}
       />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
       {/* Public Routes */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<Landing />} />

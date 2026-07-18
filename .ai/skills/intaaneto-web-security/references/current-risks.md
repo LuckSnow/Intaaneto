@@ -21,9 +21,11 @@ exploitation. Re-check code and tests before changing status.
   AI chat/hints, and assessment submit/reinforcement. The current development
   cache is process-local, so multi-instance production still requires a shared
   cache and/or gateway-level enforcement; DRF throttling is not a DDoS control.
-- Mailjet delivery still requires a verified sender and a deliberate local smoke
-  test. Automated tests use Django's in-memory email backend and do not prove
-  external deliverability.
+- A live Mailjet verification email reached Gmail Spam on 2026-07-18, proving
+  basic delivery but not production deliverability. The current personal Gmail
+  sender cannot provide project-owned SPF/DKIM/DMARC or BIMI alignment; move to
+  an authenticated project domain before public use. Automated tests continue
+  to use Django's in-memory email backend.
 - Security regression coverage now includes initial role, lesson ownership,
   enrollment, hidden-answer, chat-scope, indexing-owner, lesson-scoped vector
   retrieval boundaries, and initial PDF spoofing/type/size/owner failure paths.
@@ -86,6 +88,13 @@ exploitation. Re-check code and tests before changing status.
   blacklist app and covered by API tests. The frontend stores a rotated refresh
   token, validates the current user during app startup, and does not attempt a
   refresh when login or registration itself returns 401.
+- Password reset now returns an enumeration-resistant request response, sends a
+  bounded one-hour Django reset token through the configured email backend,
+  atomically validates and consumes it, enforces password policy, preserves
+  server-owned role/verification state, throttles request and confirmation, and
+  invalidates old JWTs through password-hash claims. Tests cover missing users,
+  delivery failure, invalid/expired/replayed tokens, weak passwords and old
+  access-token rejection.
 - Teacher-portal login checks the server-owned role and verified/active state
   before issuing JWTs; learner credentials receive no tokens. Verification links
   now have a persisted configurable expiry, SHA-256-at-rest token digest, and

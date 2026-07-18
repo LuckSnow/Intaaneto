@@ -107,9 +107,14 @@ export default function Login() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-2">
-                Mật khẩu
-              </label>
+              <div className="mb-2 flex items-center justify-between gap-4">
+                <label htmlFor="password" className="block text-sm font-medium text-white/90">
+                  Mật khẩu
+                </label>
+                <Link to="/forgot-password" className="text-sm font-semibold text-orange-300 underline-offset-4 hover:underline">
+                  Quên mật khẩu?
+                </Link>
+              </div>
               <input
                 id="password"
                 name="password"

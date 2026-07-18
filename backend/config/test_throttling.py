@@ -10,6 +10,7 @@ THROTTLE_TEST_SETTINGS = {
     'DEFAULT_THROTTLE_RATES': {
         **settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'],
         'auth_login': '1/minute',
+        'auth_password_reset_request': '1/hour',
         'teacher_application': '1/day',
         'lesson_upload': '1/hour',
         'ai_chat': '1/minute',
@@ -42,6 +43,23 @@ def test_anonymous_login_is_throttled_by_client(api_client):
     assert first.status_code == 401
     assert second.status_code == 429
     assert 'password' not in str(second.data).lower()
+
+
+@pytest.mark.django_db
+@override_settings(REST_FRAMEWORK=THROTTLE_TEST_SETTINGS)
+def test_password_reset_request_is_throttled_without_disclosing_account(api_client):
+    payload = {'email': 'missing-reset@example.com'}
+
+    first = api_client.post(
+        '/api/auth/password_reset_request/', payload, format='json'
+    )
+    second = api_client.post(
+        '/api/auth/password_reset_request/', payload, format='json'
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert 'missing-reset@example.com' not in str(second.data)
 
 
 @pytest.mark.django_db

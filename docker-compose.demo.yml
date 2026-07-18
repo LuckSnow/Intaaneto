@@ -1,0 +1,12 @@
+services:
+  backend:
+    environment:
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend,${DEMO_TUNNEL_HOST}
+      - FRONTEND_URL=https://${DEMO_TUNNEL_HOST}
+      - TRUST_X_FORWARDED_PROTO=True
+
+  frontend:
+    environment:
+      - VITE_API_URL=/api
+      - VITE_PROXY_TARGET=http://backend:8000
+      - VITE_TUNNEL_HOST=${DEMO_TUNNEL_HOST}

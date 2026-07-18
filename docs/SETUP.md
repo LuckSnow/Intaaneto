@@ -228,15 +228,30 @@ qua Mailjet, đặt ba giá trị sau trong `backend/.env` rồi recreate backen
 EMAIL_BACKEND=anymail.backends.mailjet.EmailBackend
 MAILJET_API_KEY=your-local-mailjet-api-key
 MAILJET_SECRET_KEY=your-local-mailjet-secret-key
+DEFAULT_FROM_EMAIL_NAME=Intaaneto
 ```
 
 Địa chỉ `DEFAULT_FROM_EMAIL` phải là sender/domain đã được xác minh trong tài
 khoản Mailjet. Link xác thực mặc định hết hạn sau 24 giờ; có thể cấu hình bằng
 `EMAIL_VERIFICATION_TOKEN_TTL_HOURS`. Sau khi đổi cấu hình:
 
+Địa chỉ `@gmail.com` chỉ phù hợp cho smoke cục bộ: chủ dự án không thể cấu hình
+SPF/DKIM cho domain `gmail.com`, nên thư gửi qua Mailjet có thể hiện “qua
+Mailjet”, vào Spam và không có avatar thương hiệu. Trước demo công khai, dùng
+một địa chỉ thuộc domain dự án, xác thực domain đó trong Mailjet, rồi cấu hình
+SPF, DKIM và DMARC. Avatar thương hiệu trong Gmail là bước BIMI riêng ở cấp DNS
+và chứng thư; ảnh đặt trong HTML không điều khiển avatar người gửi.
+
 ```bash
 docker compose up -d --force-recreate backend
 ```
+
+Luồng quên mật khẩu dùng cùng email backend. Cả học viên và giáo viên mở liên
+kết `Quên mật khẩu?` tại trang đăng nhập, nhập email, rồi nhận link một lần tại
+`/reset-password/<uid>/<token>`. Link mặc định hết hạn sau 60 phút, cấu hình bằng
+`PASSWORD_RESET_TIMEOUT_SECONDS`. API yêu cầu reset luôn trả thông báo chung để
+không tiết lộ email có tài khoản hay không; đổi mật khẩu thành công làm JWT cũ
+mất hiệu lực và không thay đổi role hoặc trạng thái xác thực.
 
 Không dùng API key thật trong frontend hoặc ảnh chụp/log chia sẻ. Cổng giáo viên
 ở `http://localhost:5173/teacher/login`; endpoint backend chỉ cấp JWT nếu tài
@@ -275,6 +290,40 @@ Các địa chỉ:
 - Django admin: http://localhost:8000/admin/
 - Swagger: http://localhost:8000/api/docs/
 - Adminer: http://localhost:8888
+
+### Quick Tunnel cho demo ngắn
+
+Hướng dẫn bật/tắt, bật lại, cấu hình Google Login và xử lý sự cố nằm tại
+[QUICK_TUNNEL_DEMO.md](QUICK_TUNNEL_DEMO.md).
+
+Chỉ tunnel Vite; `docker-compose.demo.yml` chuyển tiếp `/api` và `/media` nội bộ
+sang Django để trình duyệt ngoài máy không phụ thuộc `localhost:8000`. Không
+tunnel trực tiếp PostgreSQL, Adminer hoặc backend.
+
+Terminal thứ nhất:
+
+```bash
+npx wrangler tunnel quick-start http://localhost:5173
+```
+
+Lấy hostname được cấp, bỏ phần `https://`, rồi chạy ở terminal thứ hai:
+
+```bash
+export DEMO_TUNNEL_HOST=random-words.trycloudflare.com
+docker compose -f docker-compose.yml -f docker-compose.demo.yml \
+  up -d --force-recreate backend frontend
+```
+
+Giữ terminal tunnel mở trong suốt buổi demo. Email xác thực tạo trong thời gian
+này sẽ dùng URL HTTPS public. Google/Firebase popup chỉ hoạt động sau khi thêm
+hostname ngẫu nhiên vào Firebase Authentication > Settings > Authorized domains;
+đăng nhập email/mật khẩu không cần bước đó.
+
+Sau demo, dừng tunnel bằng `Ctrl+C` và khôi phục cấu hình localhost:
+
+```bash
+docker compose up -d --force-recreate backend frontend
+```
 
 ## Khi bấm Start trong Docker Desktop nhưng frontend/backend tắt ngay
 

@@ -17,7 +17,7 @@ const PASSWORD_RULES = [
 export default function Register() {
   const navigate = useNavigate()
   const { register: registerUser, googleLogin, isLoading } = useAuthStore()
-  const [registered, setRegistered] = useState(false)
+  const [registrationResult, setRegistrationResult] = useState(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [formData, setFormData] = useState({
@@ -47,8 +47,8 @@ export default function Register() {
       return
     }
     try {
-      await registerUser(formData)
-      setRegistered(true)
+      const result = await registerUser(formData)
+      setRegistrationResult({ emailSent: result.email_sent === true })
     } catch (error) {
       const errorData = error.response?.data
       if (errorData) {
@@ -70,7 +70,8 @@ export default function Register() {
   }
 
   // After successful registration — show verification message
-  if (registered) {
+  if (registrationResult) {
+    const emailSent = registrationResult.emailSent
     return (
       <div className="min-h-screen flex items-center justify-center py-12 px-4">
         <div className="max-w-md w-full">
@@ -80,11 +81,18 @@ export default function Register() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-heading font-bold text-white mb-2">Kiểm tra email của bạn!</h2>
+            <h2 className="text-2xl font-heading font-bold text-white mb-2">
+              {emailSent ? 'Kiểm tra email của bạn!' : 'Tài khoản đã được tạo'}
+            </h2>
             <p className="text-white/80 mb-2">
-              Chúng tôi đã gửi một email xác thực đến <strong className="text-orange-400">{formData.email}</strong>
+              {emailSent ? 'Chúng tôi đã gửi một email xác thực đến ' : 'Chưa thể gửi email xác thực đến '}
+              <strong className="text-orange-400">{formData.email}</strong>
             </p>
-            <p className="text-white/60 text-sm mb-6">Vui lòng nhấn vào link trong email để kích hoạt tài khoản.</p>
+            <p className="text-white/60 text-sm mb-6">
+              {emailSent
+                ? 'Vui lòng nhấn vào liên kết trong email để kích hoạt tài khoản.'
+                : 'Bạn có thể thử gửi lại bên dưới. Tài khoản vẫn cần được xác thực trước khi đăng nhập.'}
+            </p>
             <div className="space-y-3">
               <Button
                 onClick={() => navigate('/login')}
@@ -96,7 +104,7 @@ export default function Register() {
                 onClick={async () => {
                   try {
                     await api.post('/auth/resend_verification/', { email: formData.email })
-                    toast.success('Email xác thực đã được gửi lại!')
+                    toast.success('Nếu tài khoản đang chờ xác thực, email hướng dẫn sẽ được gửi.')
                   } catch {
                     toast.error('Gửi lại thất bại')
                   }

@@ -2,6 +2,7 @@
 Django base settings for Intaaneto project.
 """
 
+from email.utils import formataddr
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
@@ -145,6 +146,12 @@ REST_FRAMEWORK = {
         'auth_login': config('THROTTLE_AUTH_LOGIN', default='10/minute'),
         'auth_verify': config('THROTTLE_AUTH_VERIFY', default='20/hour'),
         'auth_resend': config('THROTTLE_AUTH_RESEND', default='5/hour'),
+        'auth_password_reset_request': config(
+            'THROTTLE_AUTH_PASSWORD_RESET_REQUEST', default='5/hour'
+        ),
+        'auth_password_reset_confirm': config(
+            'THROTTLE_AUTH_PASSWORD_RESET_CONFIRM', default='10/hour'
+        ),
         'teacher_application': config(
             'THROTTLE_TEACHER_APPLICATION', default='3/day'
         ),
@@ -193,6 +200,7 @@ SIMPLE_JWT = {
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
+    'CHECK_REVOKE_TOKEN': True,
 }
 
 # CORS Settings
@@ -202,6 +210,11 @@ CORS_ALLOWED_ORIGINS = config(
     default='http://localhost:5173,http://127.0.0.1:5173',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
+
+# Enable only behind a proxy that owns this header. The local demo override uses
+# Cloudflare Tunnel -> Vite -> Django so absolute media URLs retain HTTPS.
+if config('TRUST_X_FORWARDED_PROTO', default=False, cast=bool):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # AI Tutor generation provider
 AI_GENERATION_PROVIDER = config('AI_GENERATION_PROVIDER', default='openai').lower()
@@ -362,11 +375,23 @@ ANYMAIL = {
     'MAILJET_API_KEY': config('MAILJET_API_KEY', default=''),
     'MAILJET_SECRET_KEY': config('MAILJET_SECRET_KEY', default=''),
 }
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@intaaneto.com')
+DEFAULT_FROM_EMAIL_ADDRESS = config(
+    'DEFAULT_FROM_EMAIL',
+    default='noreply@intaaneto.com',
+)
+DEFAULT_FROM_EMAIL = formataddr((
+    config('DEFAULT_FROM_EMAIL_NAME', default='Intaaneto'),
+    DEFAULT_FROM_EMAIL_ADDRESS,
+))
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 EMAIL_VERIFICATION_TOKEN_TTL_HOURS = config(
     'EMAIL_VERIFICATION_TOKEN_TTL_HOURS',
     default=24,
+    cast=int,
+)
+PASSWORD_RESET_TIMEOUT = config(
+    'PASSWORD_RESET_TIMEOUT_SECONDS',
+    default=3600,
     cast=int,
 )
 
