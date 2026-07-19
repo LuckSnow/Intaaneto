@@ -1,6 +1,6 @@
 # Current security risks
 
-Last repository audit: 2026-07-17. These are observed risks, not proof of
+Last repository audit: 2026-07-19. These are observed risks, not proof of
 exploitation. Re-check code and tests before changing status.
 
 ## P0 — Resolve before exposing the application
@@ -40,8 +40,14 @@ exploitation. Re-check code and tests before changing status.
 - Free-tier Gemini generation may permit provider product-improvement use of
   submitted prompts/responses; do not send sensitive, confidential, or personal
   lesson/student data until an appropriate provider/data-processing tier is used.
+- Local multimedia has no provider credential or network call at render time.
+  The project owner approved the current Piper voice and `AI_tutor.png` for
+  school research use only; public/commercial distribution rights remain
+  unapproved. Two real local performance runs now exist, but human Vietnamese
+  voice/caption-timing review and generated-media retention remain operational
+  gaps.
 
-## Resolved with regression tests through 2026-07-17
+## Resolved with regression tests through 2026-07-19
 
 - User API no longer exposes global CRUD; role and active status are read-only,
   registration always creates a learner, and direct self-upgrade has been
@@ -112,6 +118,11 @@ exploitation. Re-check code and tests before changing status.
   fields, cross-assessment questions, and mutation after attempts. Legacy coding
   exercises now have an optional lesson link for migration compatibility;
   learner exercise queries and submissions deny unscoped or unenrolled records.
+- Assessment authoring authorizes the teacher-owner before provider work,
+  accepts only Auto/5/10/15/20, bounds each provider payload to one source region
+  and at most four calls, rejects duplicate/incomplete batches, then rechecks the
+  active source and persists atomically. The UI confirmation communicates call
+  count but is not treated as an authorization boundary.
 - Dialogue checks require current enrollment plus a passed current-version
   attempt, reject foreign questions before retrieval, search only the assessment
   lesson, skip generation on weak evidence, validate provider JSON and cannot
@@ -125,10 +136,25 @@ exploitation. Re-check code and tests before changing status.
   only self data, teachers are filtered to owned courses before aggregation or
   roster lookup, rosters are bounded, and responses omit email, answer keys,
   chats, and old-version attempts.
-- The SadTalker command authorizes ownership before input reads, requires an
-  explicit rights/approval assertion, bounds local media, avoids shell
-  invocation, kills timed-out process groups, validates output, and stores only
-  checksums plus safe failure codes in its audit record. There is no HTTP trigger.
+- The historical SadTalker command authorizes ownership before input reads,
+  requires an explicit rights/approval assertion, bounds local media, avoids
+  shell invocation, kills timed-out process groups, validates output, and stores
+  only checksums plus safe failure codes. Its portrait-upload/enqueue HTTP action
+  has been removed from the lesson API; the adapter remains for report evidence.
+- The active local slide-video endpoint authorizes the teacher-owner before
+  reading the tutor asset, persists one active job per lesson, reauthorizes in
+  the worker, rejects stale approved-summary or asset checksums, invokes Piper
+  and FFmpeg without a shell under time/size bounds, and exposes only bounded
+  stage/failure/render metadata. Negative tests cover owner and worker denial,
+  missing-model fail-closed, stale state and API redaction. Narration segment
+  bounds are also rechecked before tutor-asset access and durable job creation;
+  frontend counters and disabled controls are only advisory UX.
+- Long-form video scripts are separate teacher-reviewed records bound to the
+  current active source and approved-summary checksum. Owner authorization occurs
+  before the one provider call; queue and worker recheck mutable state. Lesson
+  PDF embedding fetches through `accessible_lessons` and returns 404 to another
+  teacher before streaming file bytes. Existing direct development media serving
+  is not a production private-object-storage design.
 - AI exercise hints now reuse the same lesson/course owner-enrollment queryset as
   exercise reads/submissions, deny outsiders before generation, and never include
   solution code or hidden tests in the hint prompt.

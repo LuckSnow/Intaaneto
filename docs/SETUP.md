@@ -201,8 +201,8 @@ Việc export phiếu hai người chấm chứa authoring answer key nên cần
 ## PoC video SadTalker
 
 SadTalker local không cần API key và không được cài chung vào backend mặc định.
-Adapter có management command và hàng đợi web owner-scoped, giới hạn input,
-audit job, cấu hình runtime tách biệt và mẫu
+Adapter, management command và audit job cũ được giữ làm bằng chứng PoC; lesson
+API và teacher UI không còn trigger SadTalker. Cấu hình runtime tách biệt và mẫu
 biên bản smoke được mô tả tại [SADTALKER_POC.md](SADTALKER_POC.md). Runtime local
 đã pass technical GPU smoke; chưa có render bằng portrait/audio học liệu đã được
 duyệt thì không được ghi nhận video tutor là hoàn thành về nội dung/chất lượng.
@@ -217,6 +217,13 @@ SADTALKER_HOST_RUNTIME=/absolute/path/to/intaaneto-sadtalker \
 Không ghi đường dẫn này vào `VITE_*`. Override mount runtime read-only và chỉ cấp
 GPU cho worker video một-at-a-time; file tạm/output nằm trong media volume ghi được.
 Worker mặc định tiếp tục xử lý PDF trên queue `celery` và không nhận job video.
+
+## Video slide local tiếng Việt
+
+Luồng web hiện dùng Piper + Pillow + FFmpeg để tạo video slide có phụ đề và ảnh
+AI Tutor cố định; không cần SadTalker, GPU, D-ID hoặc API key. Trước khi tải model
+voice, đọc checklist license/provenance và hướng dẫn cài đặt tại
+[LOCAL_MULTIMEDIA_SETUP.md](LOCAL_MULTIMEDIA_SETUP.md).
 
 ## Email xác thực và Mailjet
 

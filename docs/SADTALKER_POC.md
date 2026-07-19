@@ -1,5 +1,11 @@
 # PoC giảng viên video ảo với SadTalker
 
+> Retired khỏi active web flow ngày 2026-07-19. Teacher UI và lesson API không
+> còn enqueue SadTalker vì render đo trên laptop không khả thi. Tài liệu,
+> management command, adapter, test và audit record được giữ làm bằng chứng
+> nghiên cứu. Multimedia web hiện dùng
+> [LOCAL_MULTIMEDIA_SETUP.md](LOCAL_MULTIMEDIA_SETUP.md).
+
 Trạng thái: adapter local, audit job, runtime GPU cô lập và technical smoke đã
 được triển khai. Technical smoke đã tạo MP4 thật nhưng dùng asset demo upstream;
 không coi video học liệu là hoàn thành cho tới khi render portrait/audio đã được

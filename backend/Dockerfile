@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     espeak-ng \
+    ffmpeg \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies

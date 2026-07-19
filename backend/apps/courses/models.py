@@ -406,6 +406,41 @@ class LessonSummaryDraft(models.Model):
     approved_at = models.DateTimeField(null=True, blank=True)
 
 
+class LessonVideoScriptDraft(models.Model):
+    """Teacher-reviewed long-form narration script for local lesson video."""
+
+    STATUS_CHOICES = [('draft', 'Bản nháp'), ('approved', 'Đã duyệt')]
+
+    lesson = models.OneToOneField(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='video_script_draft',
+    )
+    text = models.TextField(max_length=4800)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    source_checksum = models.CharField(max_length=64)
+    source_version = models.PositiveIntegerField()
+    summary_checksum = models.CharField(max_length=64)
+    provider = models.CharField(max_length=32)
+    model = models.CharField(max_length=100)
+    generated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='generated_lesson_video_script_drafts',
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_lesson_video_scripts',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+
 class LessonNarrationAudio(models.Model):
     """Local TTS output bound to an approved summary checksum."""
 
@@ -426,3 +461,76 @@ class LessonNarrationAudio(models.Model):
         related_name='generated_lesson_narrations',
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class LessonMultimediaJob(models.Model):
+    """Durable local slide-video render from one approved summary snapshot."""
+
+    STATUS_CHOICES = [
+        ('queued', 'Chờ chạy'),
+        ('running', 'Đang chạy'),
+        ('completed', 'Hoàn thành'),
+        ('failed', 'Thất bại'),
+    ]
+    STAGE_CHOICES = [
+        ('queued', 'Chờ chạy'),
+        ('narrating', 'Đang tạo giọng đọc'),
+        ('rendering_slides', 'Đang dựng slide'),
+        ('compositing', 'Đang ghép video'),
+        ('completed', 'Hoàn thành'),
+        ('failed', 'Thất bại'),
+    ]
+
+    lesson = models.ForeignKey(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='multimedia_jobs',
+    )
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='requested_lesson_multimedia_jobs',
+    )
+    provider = models.CharField(max_length=50, default='piper-slide-local')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued')
+    stage = models.CharField(max_length=30, choices=STAGE_CHOICES, default='queued')
+    approved_script = models.TextField(max_length=4800)
+    script_checksum = models.CharField(max_length=64)
+    tutor_asset_checksum = models.CharField(max_length=64)
+    voice = models.CharField(max_length=100)
+    task_id = models.UUIDField(unique=True)
+    output_file = models.FileField(
+        upload_to='courses/generated_multimedia/',
+        null=True,
+        blank=True,
+    )
+    scene_count = models.PositiveSmallIntegerField(default=0)
+    duration_seconds = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    render_duration_ms = models.PositiveIntegerField(null=True, blank=True)
+    failure_code = models.CharField(max_length=50, blank=True)
+    safe_error = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['lesson'],
+                condition=models.Q(status__in=('queued', 'running')),
+                name='unique_active_multimedia_job_per_lesson',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['lesson', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'Multimedia job {self.pk} for lesson {self.lesson_id}'

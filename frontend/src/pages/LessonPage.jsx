@@ -6,6 +6,7 @@ import { courseService } from '../services/courseService'
 import { aiService } from '../services/aiService'
 import toast from 'react-hot-toast'
 import { AlertCircle, ArrowRight, BookOpen, Bot, CheckCircle2, ClipboardCheck, Send } from 'lucide-react'
+import PdfLessonViewer from '../components/lesson/PdfLessonViewer'
 
 const STATUS_MAP = {
   pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: '⏳' },
@@ -468,9 +469,24 @@ export default function LessonPage() {
               {activeTab === 'video' && (
                 <div>
                   <h2 className="text-xl font-bold text-white mb-4">Nội dung bài giảng</h2>
-                  {(lesson.content || lesson.learning_content) ? (
+                  {lesson.uploaded_file ? (
                     <>
-                      <div className="text-white/80 whitespace-pre-wrap leading-relaxed">
+                      <PdfLessonViewer key={lesson.uploaded_file} lessonId={lesson.id} pdfUrl={lesson.uploaded_file} title={lesson.title} />
+                      {(lesson.content || lesson.learning_content) && (
+                        <details className="mt-4 rounded-xl border border-white/15 bg-black/10 p-4">
+                          <summary className="cursor-pointer font-medium text-orange-200">Xem văn bản đã trích xuất</summary>
+                          <div className="mt-4 max-h-[70vh] overflow-auto whitespace-pre-wrap leading-relaxed text-white/80">
+                            {lesson.content || lesson.learning_content}
+                          </div>
+                          {lesson.content_truncated && (
+                            <p className="mt-4 text-sm text-amber-200">Bản văn bản trên web đã được rút gọn; trình xem PDF phía trên vẫn chứa tài liệu gốc.</p>
+                          )}
+                        </details>
+                      )}
+                    </>
+                  ) : (lesson.content || lesson.learning_content) ? (
+                    <>
+                      <div className="max-h-[75vh] overflow-auto whitespace-pre-wrap leading-relaxed text-white/80">
                         {lesson.content || lesson.learning_content}
                       </div>
                       {lesson.content_truncated && (
@@ -481,11 +497,6 @@ export default function LessonPage() {
                     </>
                   ) : (
                     <p className="text-white/50">Bài học chưa có nội dung có thể đọc.</p>
-                  )}
-                  {lesson.uploaded_file && (
-                    <a href={lesson.uploaded_file} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-medium text-orange-300 underline">
-                      Mở file PDF gốc
-                    </a>
                   )}
                   {lesson.rag_ready && (
                     <p className="mt-3 text-sm text-emerald-300">Kho kiến thức RAG đã sẵn sàng cho AI Tutor.</p>

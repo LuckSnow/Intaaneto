@@ -196,7 +196,8 @@ SadTalker queue do not require an API key.
 
 - Show extracted PDF lesson content and PDF/RAG readiness to learners.
 - Generate an editable summary draft and require explicit teacher approval.
-- Generate an unpublished five-question assessment draft for answer review.
+- Generate an unpublished adaptive 5/10/15-question assessment draft in
+  five-question source batches, with an explicit teacher override up to 20.
 - Produce checksum-bound Vietnamese WAV with local `espeak-ng`.
 - Enqueue only consented portrait plus current narration to the isolated
   one-at-a-time `video` worker and expose safe database-backed status.

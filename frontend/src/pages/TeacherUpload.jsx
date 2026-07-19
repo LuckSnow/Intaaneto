@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '../store/authStore'
 import { courseService } from '../services/courseService'
+import {
+  getVideoScriptMetrics,
+  VIDEO_SCRIPT_MAX_CHARS,
+  VIDEO_SCRIPT_MAX_SEGMENTS,
+  VIDEO_SCRIPT_TARGET_MAX_CHARS,
+  VIDEO_SCRIPT_TARGET_MIN_CHARS,
+} from '../utils/multimediaScript'
 import toast from 'react-hot-toast'
 
 const STATUS_MAP = {
@@ -12,8 +19,20 @@ const STATUS_MAP = {
   failed: { label: 'Xử lý thất bại', color: 'text-red-400', icon: '❌' },
 }
 
+const MULTIMEDIA_STAGE_LABELS = {
+  queued: 'Đang chờ worker local',
+  narrating: 'Đang tạo giọng đọc tiếng Việt',
+  rendering_slides: 'Đang dựng slide và phụ đề',
+  compositing: 'Đang ghép video MP4',
+  completed: 'Video đã sẵn sàng để xem trước',
+  failed: 'Không thể tạo video',
+}
+
 export default function TeacherUpload() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const requestedCourseId = searchParams.get('course')
+  const requestedLessonId = searchParams.get('lesson')
   const { user } = useAuthStore()
   const [courses, setCourses] = useState([])
   const [selectedCourse, setSelectedCourse] = useState('')
@@ -25,9 +44,22 @@ export default function TeacherUpload() {
   const [uploadedLessons, setUploadedLessons] = useState([])
   const [authoring, setAuthoring] = useState(null)
   const [summaryText, setSummaryText] = useState('')
+  const [videoScriptText, setVideoScriptText] = useState('')
   const [authoringBusy, setAuthoringBusy] = useState('')
-  const [portrait, setPortrait] = useState(null)
-  const [rightsConfirmed, setRightsConfirmed] = useState(false)
+  const [assessmentQuestionCount, setAssessmentQuestionCount] = useState('auto')
+  const [restoredAuthoringRequest, setRestoredAuthoringRequest] = useState('')
+  const videoScriptMetrics = getVideoScriptMetrics(videoScriptText, {
+    maxChars: authoring?.video_script_limits?.max_chars,
+    maxSegments: authoring?.video_script_limits?.max_segments,
+  })
+  const videoScriptHasUnsavedChanges = Boolean(
+    authoring?.video_script
+    && videoScriptText.trim() !== authoring.video_script.text.trim(),
+  )
+  const videoScriptInTargetRange = (
+    videoScriptMetrics.characterCount >= VIDEO_SCRIPT_TARGET_MIN_CHARS
+    && videoScriptMetrics.characterCount <= VIDEO_SCRIPT_TARGET_MAX_CHARS
+  )
   const activeUploadLessonIds = uploadedLessons
     .filter((lesson) => !['completed', 'failed'].includes(lesson.status))
     .map((lesson) => lesson.id)
@@ -105,7 +137,44 @@ export default function TeacherUpload() {
   }, [selectedCourse])
 
   useEffect(() => {
-    if (!authoring?.lesson_id || !['queued', 'running'].includes(authoring.video?.status)) {
+    const requestKey = requestedCourseId && requestedLessonId
+      ? `${requestedCourseId}:${requestedLessonId}`
+      : ''
+    if (
+      !requestKey
+      || String(selectedCourse) !== requestedCourseId
+      || restoredAuthoringRequest === requestKey
+    ) {
+      return undefined
+    }
+
+    let cancelled = false
+    setRestoredAuthoringRequest(requestKey)
+    setAuthoringBusy('status')
+    courseService.getLessonAuthoringStatus(requestedLessonId)
+      .then((data) => {
+        if (cancelled) return
+        setAuthoring(data)
+        setSummaryText(data.summary?.text || '')
+        setVideoScriptText(data.video_script?.text || '')
+        setAssessmentQuestionCount('auto')
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(error.response?.data?.detail || 'Không thể quay lại bài đang biên soạn')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAuthoringBusy('')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [requestedCourseId, requestedLessonId, restoredAuthoringRequest, selectedCourse])
+
+  useEffect(() => {
+    if (!authoring?.lesson_id || !['queued', 'running'].includes(authoring.multimedia?.status)) {
       return undefined
     }
     let cancelled = false
@@ -122,13 +191,16 @@ export default function TeacherUpload() {
       cancelled = true
       window.clearInterval(interval)
     }
-  }, [authoring?.lesson_id, authoring?.video?.status])
+  }, [authoring?.lesson_id, authoring?.multimedia?.status])
 
   const fetchCourses = async () => {
     try {
       const data = await courseService.getManagedCourses()
       setCourses(data)
-      if (data.length > 0) setSelectedCourse(data[0].id)
+      const requested = data.find(
+        (course) => String(course.id) === requestedCourseId,
+      )
+      if (data.length > 0) setSelectedCourse(requested?.id || data[0].id)
     } catch (error) {
       console.error(error)
     }
@@ -231,8 +303,8 @@ export default function TeacherUpload() {
       const data = await courseService.getLessonAuthoringStatus(lessonId)
       setAuthoring(data)
       setSummaryText(data.summary?.text || '')
-      setPortrait(null)
-      setRightsConfirmed(false)
+      setVideoScriptText(data.video_script?.text || '')
+      setAssessmentQuestionCount('auto')
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Không thể tải trạng thái biên soạn')
     } finally {
@@ -246,6 +318,7 @@ export default function TeacherUpload() {
       const data = await action()
       setAuthoring(data)
       setSummaryText(data.summary?.text || '')
+      setVideoScriptText(data.video_script?.text || '')
       toast.success(successMessage)
     } catch (error) {
       const responseData = error.response?.data
@@ -259,14 +332,39 @@ export default function TeacherUpload() {
   }
 
   const handleGenerateVideo = async () => {
-    if (!portrait || !rightsConfirmed) {
-      toast.error('Hãy chọn ảnh và xác nhận quyền sử dụng')
-      return
-    }
     await runAuthoringAction(
-      'video',
-      () => courseService.generateLessonVideo(authoring.lesson_id, portrait),
-      'Video đã được đưa vào hàng đợi GPU',
+      'multimedia',
+      () => courseService.generateLessonMultimedia(authoring.lesson_id),
+      'Video slide đã được đưa vào hàng đợi local',
+    )
+  }
+
+  const handleGenerateVideoScript = async () => {
+    if (!window.confirm('Tạo kịch bản video 4–5 phút bằng 1 lượt AI? Kết quả vẫn là bản nháp để bạn duyệt.')) return
+    await runAuthoringAction(
+      'video-script',
+      () => courseService.generateLessonVideoScript(authoring.lesson_id),
+      'Đã tạo kịch bản video nháp',
+    )
+  }
+
+  const handleGenerateAssessment = async () => {
+    const recommended = authoring.assessment_generation?.recommended_question_count || 5
+    const resolvedCount = assessmentQuestionCount === 'auto'
+      ? recommended
+      : Number(assessmentQuestionCount)
+    const providerCalls = resolvedCount / 5
+    const confirmed = window.confirm(
+      `Tạo ${resolvedCount} câu hỏi qua ${providerCalls} lượt AI? Kết quả vẫn là bản nháp để bạn rà soát.`,
+    )
+    if (!confirmed) return
+    await runAuthoringAction(
+      'assessment',
+      () => courseService.generateLessonAssessment(
+        authoring.lesson_id,
+        assessmentQuestionCount,
+      ),
+      `Đã tạo assessment nháp ${resolvedCount} câu`,
     )
   }
 
@@ -503,56 +601,185 @@ export default function TeacherUpload() {
               </div>
 
               <div className="rounded-xl border border-white/15 p-4">
-                <h3 className="font-semibold">3. Assessment nháp</h3>
-                <p className="mt-1 text-sm text-white/60">Sinh 5 câu ở trạng thái draft; hãy kiểm tra đáp án và explanation trước khi publish.</p>
+                <h3 className="font-semibold">3. Kịch bản video 4–5 phút</h3>
+                <p className="mt-1 text-sm text-white/60">
+                  Kịch bản dài hơn bản tóm tắt và chỉ được dùng cho slide/Piper. Tạo AI dùng 1 lượt provider; bạn phải duyệt trước khi dựng video.
+                </p>
+                <Button
+                  onClick={handleGenerateVideoScript}
+                  disabled={authoring.summary?.status !== 'approved' || Boolean(authoringBusy)}
+                  className="mt-3 bg-orange-600 text-white hover:bg-orange-700"
+                >
+                  {authoringBusy === 'video-script' ? 'Đang tạo...' : authoring.video_script ? 'Tạo lại kịch bản nháp' : 'AI soạn kịch bản 4–5 phút'}
+                </Button>
+                {authoring.summary?.status !== 'approved' && (
+                  <p className="mt-2 text-sm text-amber-200">Hãy duyệt bản tóm tắt trước khi soạn kịch bản video.</p>
+                )}
+                {authoring.video_script && (
+                  <>
+                    <textarea
+                      value={videoScriptText}
+                      onChange={(event) => setVideoScriptText(event.target.value)}
+                      maxLength={authoring.video_script_limits?.max_chars || VIDEO_SCRIPT_MAX_CHARS}
+                      rows={14}
+                      className="mt-3 w-full rounded-lg border border-white/20 bg-black/20 p-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                    <div
+                      className={`mt-2 rounded-lg border p-3 text-sm ${
+                        videoScriptMetrics.isReady && videoScriptInTargetRange
+                          ? 'border-emerald-400/30 bg-emerald-950/30 text-emerald-100'
+                          : 'border-amber-400/40 bg-amber-950/30 text-amber-100'
+                      }`}
+                      role={videoScriptMetrics.isReady && videoScriptInTargetRange ? 'status' : 'alert'}
+                    >
+                      <p className="font-medium">
+                        Video dự kiến: {videoScriptMetrics.segmentCount} đoạn đọc · {videoScriptMetrics.slideCount} slide
+                      </p>
+                      <p className="mt-1 text-white/70">
+                        {videoScriptMetrics.characterCount}/{authoring.video_script_limits?.max_chars || VIDEO_SCRIPT_MAX_CHARS} ký tự · tối đa {authoring.video_script_limits?.max_segments || VIDEO_SCRIPT_MAX_SEGMENTS} đoạn đọc · tốc độ Piper {authoring.video_script_limits?.piper_length_scale || 1.12}x.
+                      </p>
+                      <p className="mt-1 text-white/70">Mục tiêu video 4–5 phút: khoảng {VIDEO_SCRIPT_TARGET_MIN_CHARS.toLocaleString('vi-VN')}–{VIDEO_SCRIPT_TARGET_MAX_CHARS.toLocaleString('vi-VN')} ký tự.</p>
+                      {!videoScriptMetrics.isReady && (
+                        <p className="mt-1">Hãy điều chỉnh kịch bản về giới hạn hiển thị trước khi duyệt.</p>
+                      )}
+                      {videoScriptMetrics.isReady && !videoScriptInTargetRange && (
+                        <p className="mt-1">Kịch bản hợp lệ nhưng thời lượng có thể nằm ngoài mục tiêu 4–5 phút.</p>
+                      )}
+                      {!authoring.video_script.is_current && (
+                        <p className="mt-1">Nguồn hoặc bản tóm tắt đã đổi. Hãy tạo lại kịch bản.</p>
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                      <span className={authoring.video_script.status === 'approved' ? 'text-emerald-300' : 'text-amber-300'}>
+                        {authoring.video_script.status === 'approved' ? 'Đã duyệt' : 'Đang chờ duyệt'}
+                      </span>
+                      <Button
+                        onClick={() => runAuthoringAction('approve-video-script', () => courseService.approveLessonVideoScript(authoring.lesson_id, videoScriptText), 'Đã duyệt kịch bản video')}
+                        disabled={!videoScriptMetrics.isReady || !authoring.video_script.is_current || Boolean(authoringBusy)}
+                        className="bg-emerald-700 text-white hover:bg-emerald-800"
+                      >
+                        {authoringBusy === 'approve-video-script' ? 'Đang lưu...' : 'Duyệt kịch bản video'}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/15 p-4">
+                <h3 className="font-semibold">4. Assessment nháp</h3>
+                <p className="mt-1 text-sm text-white/60">
+                  Hệ thống đề xuất số câu theo lượng knowledge chunks và sinh từng batch 5 câu. Assessment luôn là bản nháp để bạn rà soát.
+                </p>
                 {authoring.assessment ? (
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <span className="text-sm text-white/70">{authoring.assessment.question_count} câu · {authoring.assessment.is_published ? 'Đã publish' : 'Bản nháp'}</span>
                     <Button onClick={() => navigate(`/teacher/assessments?course=${selectedCourse}&lesson=${authoring.lesson_id}`)} className="bg-orange-600 text-white hover:bg-orange-700">Mở trang rà soát</Button>
                   </div>
                 ) : (
-                  <Button
-                    onClick={() => runAuthoringAction('assessment', () => courseService.generateLessonAssessment(authoring.lesson_id), 'Đã tạo assessment nháp')}
-                    disabled={!authoring.rag_ready || Boolean(authoringBusy)}
-                    className="mt-3 bg-orange-600 text-white hover:bg-orange-700"
-                  >
-                    {authoringBusy === 'assessment' ? 'Đang tạo...' : 'Tạo assessment nháp'}
-                  </Button>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,220px)_1fr] sm:items-end">
+                    <label className="text-sm font-medium text-white/80">
+                      Số câu hỏi
+                      <select
+                        value={assessmentQuestionCount}
+                        onChange={(event) => setAssessmentQuestionCount(event.target.value)}
+                        disabled={!authoring.rag_ready || Boolean(authoringBusy)}
+                        className="mt-1 block min-h-11 w-full rounded-lg border border-white/20 bg-slate-900 px-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      >
+                        <option value="auto">
+                          Tự động — {authoring.assessment_generation?.recommended_question_count || 5} câu
+                        </option>
+                        <option value="5">5 câu</option>
+                        <option value="10">10 câu</option>
+                        <option value="15">15 câu</option>
+                        <option value="20">20 câu</option>
+                      </select>
+                    </label>
+                    <div>
+                      <p className="mb-2 text-sm text-white/60">
+                        Nguồn hiện có {authoring.assessment_generation?.source_chunk_count || 0} chunks. Mỗi batch tương ứng một lượt gọi provider.
+                      </p>
+                      <Button
+                        onClick={handleGenerateAssessment}
+                        disabled={!authoring.rag_ready || Boolean(authoringBusy)}
+                        className="bg-orange-600 text-white hover:bg-orange-700"
+                      >
+                        {authoringBusy === 'assessment' ? 'Đang tạo...' : 'Tạo assessment nháp'}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
 
               <div className="rounded-xl border border-white/15 p-4">
-                <h3 className="font-semibold">4. Giọng đọc và SadTalker</h3>
-                <p className="mt-1 text-sm text-white/60">TTS local không cần key. Video cần ảnh chân dung có quyền sử dụng và GPU worker.</p>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="max-w-2xl">
+                    <h3 className="font-semibold">5. Video slide với AI Tutor</h3>
+                    <p className="mt-1 text-sm text-white/60">
+                      Piper đọc tiếng Việt, hệ thống dựng slide và đóng phụ đề bằng FFmpeg. Tất cả chạy local, không dùng API hoặc GPU.
+                    </p>
+                  </div>
+                  <div className="shrink-0 rounded-xl border border-orange-300/30 bg-white p-2">
+                    <img
+                      src="/images/AI_tutor.png"
+                      alt="Avatar AI Tutor sẽ xuất hiện trong video"
+                      className="h-20 w-20 object-contain"
+                    />
+                  </div>
+                </div>
+
                 <Button
-                  onClick={() => runAuthoringAction('narration', () => courseService.generateLessonNarration(authoring.lesson_id), 'Đã tạo giọng đọc local')}
-                  disabled={authoring.summary?.status !== 'approved' || Boolean(authoringBusy)}
-                  className="mt-3 bg-orange-600 text-white hover:bg-orange-700"
+                  onClick={handleGenerateVideo}
+                  disabled={
+                    authoring.video_script?.status !== 'approved'
+                    || !authoring.video_script?.is_current
+                    || videoScriptHasUnsavedChanges
+                    || !videoScriptMetrics.isReady
+                    || Boolean(authoringBusy)
+                    || ['queued', 'running'].includes(authoring.multimedia?.status)
+                  }
+                  className="mt-4 bg-orange-600 text-white hover:bg-orange-700"
                 >
-                  {authoringBusy === 'narration' ? 'Đang tạo giọng...' : authoring.narration ? 'Tạo lại giọng đọc' : 'Tạo giọng đọc'}
+                  {authoringBusy === 'multimedia' ? 'Đang đưa vào hàng đợi...' : authoring.multimedia?.status === 'completed' ? 'Tạo lại video slide' : 'Tạo video slide tiếng Việt'}
                 </Button>
-                {authoring.narration?.audio_url && <audio className="mt-3 w-full" controls src={authoring.narration.audio_url} />}
-                {authoring.narration && (
-                  <div className="mt-4 space-y-3">
-                    <label className="block text-sm font-medium">
-                      Ảnh chân dung JPEG/PNG
-                      <input type="file" accept="image/jpeg,image/png" onChange={(event) => setPortrait(event.target.files?.[0] || null)} className="mt-2 block w-full text-sm text-white/70" />
-                    </label>
-                    <label className="flex items-start gap-2 text-sm text-white/70">
-                      <input type="checkbox" checked={rightsConfirmed} onChange={(event) => setRightsConfirmed(event.target.checked)} className="mt-1" />
-                      Tôi xác nhận có quyền sử dụng ảnh, giọng đọc và kịch bản đã duyệt; video là nội dung tổng hợp.
-                    </label>
-                    <Button onClick={handleGenerateVideo} disabled={!portrait || !rightsConfirmed || Boolean(authoringBusy)} className="bg-orange-600 text-white hover:bg-orange-700">
-                      {authoringBusy === 'video' ? 'Đang đưa vào hàng đợi...' : 'Tạo video SadTalker'}
-                    </Button>
+
+                {authoring.video_script?.status !== 'approved' && (
+                  <p className="mt-2 text-sm text-amber-200">Hãy tạo và duyệt kịch bản video trước.</p>
+                )}
+                {authoring.video_script?.status === 'approved' && !videoScriptMetrics.isReady && (
+                  <p className="mt-2 text-sm text-amber-200">Kịch bản vượt giới hạn video. Hãy chỉnh và duyệt lại.</p>
+                )}
+
+                {authoring.multimedia && (
+                  <div className="mt-4 rounded-lg border border-white/10 bg-black/10 p-3 text-sm" aria-live="polite">
+                    <p className="font-medium">
+                      {MULTIMEDIA_STAGE_LABELS[authoring.multimedia.stage] || authoring.multimedia.stage}
+                    </p>
+                    {['queued', 'running'].includes(authoring.multimedia.status) && (
+                      <p className="mt-1 text-white/60">Bạn có thể rời trang; trạng thái thật được lưu trong hệ thống.</p>
+                    )}
+                    {authoring.multimedia.safe_error && (
+                      <p className="mt-1 text-red-300">{authoring.multimedia.safe_error}</p>
+                    )}
+                    {authoring.multimedia.status === 'completed' && (
+                      <p className="mt-1 text-white/60">
+                        {authoring.multimedia.scene_count} slide
+                        {authoring.multimedia.duration_seconds ? ` · ${Math.round(Number(authoring.multimedia.duration_seconds))} giây` : ''}
+                        {authoring.multimedia.render_duration_ms ? ` · dựng trong ${(authoring.multimedia.render_duration_ms / 1000).toFixed(1)} giây` : ''}
+                      </p>
+                    )}
+                    {authoring.multimedia.video_url && (
+                      <video className="mt-3 w-full rounded-lg bg-black" controls preload="metadata" src={authoring.multimedia.video_url}>
+                        Trình duyệt không hỗ trợ video.
+                      </video>
+                    )}
                   </div>
                 )}
-                {authoring.video && (
-                  <div className="mt-4 rounded-lg border border-white/10 p-3 text-sm">
-                    <p>Video job #{authoring.video.job_id}: {authoring.video.status}</p>
-                    {authoring.video.safe_error && <p className="mt-1 text-red-300">{authoring.video.safe_error}</p>}
-                    {authoring.video.video_url && <video className="mt-3 w-full rounded-lg" controls src={authoring.video.video_url} />}
-                  </div>
+
+                {authoring.narration?.audio_url && (
+                  <details className="mt-3 text-sm text-white/70">
+                    <summary className="cursor-pointer">Nghe riêng giọng đọc tiếng Việt</summary>
+                    <audio className="mt-2 w-full" controls preload="metadata" src={authoring.narration.audio_url} />
+                  </details>
                 )}
               </div>
             </div>

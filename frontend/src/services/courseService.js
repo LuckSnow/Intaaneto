@@ -59,6 +59,14 @@ export const courseService = {
     return response.data
   },
 
+  getLessonPdfBlob: async (lessonId) => {
+    const response = await api.get(
+      `/courses/lessons/${lessonId}/pdf/`,
+      { responseType: 'blob' },
+    )
+    return response.data
+  },
+
   // Check lesson AI processing status
   getLessonStatus: async (id) => {
     const response = await api.get(`/courses/lessons/${id}/processing_status/`)
@@ -87,24 +95,30 @@ export const courseService = {
     return response.data
   },
 
-  generateLessonAssessment: async (lessonId) => {
-    const response = await api.post(`/courses/lessons/${lessonId}/generate-assessment/`)
+  generateLessonVideoScript: async (lessonId) => {
+    const response = await api.post(`/courses/lessons/${lessonId}/generate-video-script/`)
     return response.data
   },
 
-  generateLessonNarration: async (lessonId) => {
-    const response = await api.post(`/courses/lessons/${lessonId}/generate-narration/`)
-    return response.data
-  },
-
-  generateLessonVideo: async (lessonId, portrait) => {
-    const formData = new FormData()
-    formData.append('portrait', portrait)
-    formData.append('rights_and_approval_confirmed', 'true')
+  approveLessonVideoScript: async (lessonId, text) => {
     const response = await api.post(
-      `/courses/lessons/${lessonId}/generate-video/`,
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
+      `/courses/lessons/${lessonId}/approve-video-script/`,
+      { text },
+    )
+    return response.data
+  },
+
+  generateLessonAssessment: async (lessonId, questionCount = 'auto') => {
+    const response = await api.post(
+      `/courses/lessons/${lessonId}/generate-assessment/`,
+      { question_count: questionCount },
+    )
+    return response.data
+  },
+
+  generateLessonMultimedia: async (lessonId) => {
+    const response = await api.post(
+      `/courses/lessons/${lessonId}/generate-multimedia/`,
     )
     return response.data
   },

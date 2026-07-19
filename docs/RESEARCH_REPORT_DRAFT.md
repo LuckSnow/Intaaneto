@@ -47,7 +47,8 @@ Nghiên cứu xây dựng hệ thống E-learning trên môi trường web tích
 - Failed attempt tạo weak objectives cho RAG reinforcement retrieval-only.
 - Blueprint importer kiểm tra teacher ownership, chỉ nhận lesson do corpus
   importer quản lý, không ghi đè attempt và chỉ publish khi có xác nhận review.
-- Với PDF/RAG ready, provider có thể tạo summary và assessment 5 câu dưới dạng
+- Với PDF/RAG ready, provider có thể tạo summary và assessment draft thích ứng
+  5/10/15 câu theo số chunk (teacher có thể chọn đến 20) dưới dạng
   draft. Teacher phải sửa/duyệt summary và review đáp án trước khi publish;
   output AI không tự quyết định nội dung learner hoặc điểm số.
 

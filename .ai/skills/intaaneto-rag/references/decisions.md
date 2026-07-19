@@ -325,3 +325,80 @@ affected files or migration.
   API key, but a technical smoke is not evidence of natural voice, lip-sync or
   pedagogical quality. Video remains optional; consented Vietnamese input and
   quality measurement are still required.
+
+## RAG-023 — Local slide video replaces talking-head generation in the web flow
+
+- Status: Implemented for the first deterministic multimedia slice
+- Date: 2026-07-19
+- Affected: `LessonMultimediaJob`/migration `courses.0008`, local Piper/Pillow/
+  FFmpeg services and task, authoring API/UI, Compose/runtime configuration,
+  focused tests, and `docs/LOCAL_MULTIMEDIA_SETUP.md`
+- Decision: Build optional lesson video only from the current teacher-approved
+  summary. Run Vietnamese Piper TTS, deterministic slide/caption rendering and
+  FFmpeg composition on the normal Celery worker, using the repository AI Tutor
+  asset as a fixed corner presenter. Keep SadTalker and D-ID outside the active
+  teacher web flow.
+- Reason: Static slide composition is CPU-local, bounded and materially faster
+  than the measured non-viable laptop SadTalker render while satisfying the
+  requirement that lesson video contain readable instructional text.
+- Constraint: The first two live local runs establish technical execution and
+  bounded performance only, not Vietnamese voice or pedagogical quality. The
+  owner approved the current voice and tutor asset for school research use;
+  public/commercial distribution requires a separate rights review. The model is
+  installed explicitly rather than downloaded during an HTTP request. Video
+  failure never changes RAG readiness, assessment, score, mastery or progression.
+
+## RAG-024 — Assessment coverage scales in atomic five-question batches
+
+- Status: Implemented for teacher-reviewed assessment authoring
+- Date: 2026-07-19
+- Affected: lesson authoring service/API/UI, generation prompt/settings, focused
+  authoring/provider tests, and current documentation
+- Decision: Recommend 5, 10 or 15 questions from the active RAG source's chunk
+  count, permit an explicit teacher override of 5, 10, 15 or 20, and generate
+  each group of five from a different bounded source region. Show and confirm the
+  resolved question count and provider-call count before generation.
+- Reason: A fixed five-question draft under-covers dense lessons, while a fixed
+  large minimum is wasteful for short material. Small batches preserve the
+  provider's strict structured-output contract and make coverage/cost visible.
+- Constraint: Each batch remains untrusted provider output. Reject duplicate or
+  incomplete batches and persist nothing until all batches pass validation and
+  the active source is rechecked. The result remains an unpublished teacher-
+  reviewed draft and never changes learner state automatically.
+
+## RAG-025 — Long-form video script is separate reviewed lesson state
+
+- Status: Implemented for local slide-video authoring
+- Date: 2026-07-19
+- Affected: `LessonVideoScriptDraft`/migration `courses.0009`, authoring provider,
+  service/API/UI, Piper configuration, multimedia queue/worker and focused tests
+- Decision: Keep the learner summary bounded and concise. Generate a separate
+  4–5 minute video-script draft from the current approved summary plus a bounded
+  start/middle/end sample of the active RAG source, disclose that this is one
+  provider call, and require explicit teacher approval. Bind the script to the
+  source and summary checksums before local narration/rendering.
+- Reason: Reusing a short summary forced short videos, while enlarging the
+  learner summary would mix two different pedagogical purposes. A dedicated
+  draft supports richer narration without silently changing learner-visible
+  summary content.
+- Constraint: Provider output remains untrusted and cannot enqueue video until
+  reviewed. Script input is capped at 4,800 characters/50 narration segments,
+  Piper uses a configurable `1.12` length scale, and measured audio must remain
+  at or below 300 seconds. No live provider call is implementation evidence.
+
+## RAG-026 — Protected native PDF viewer within existing ingestion bounds
+
+- Status: Implemented for authorized lesson reading
+- Date: 2026-07-19
+- Affected: owner/enrollment-scoped lesson PDF action, `PdfLessonViewer`, lesson
+  content UI, PDF authorization regression test and documentation
+- Decision: Stream the original PDF only through the existing accessible-lesson
+  queryset, load it into a browser-local blob, and embed the browser PDF viewer
+  for native search, page navigation and zoom with fullscreen/new-tab controls.
+- Reason: Extracted text is useful for RAG but is not an adequate reading UI for
+  structured or long PDFs. Reusing native PDF controls avoids loading every page
+  into the React tree or adding a second PDF rendering dependency.
+- Constraint: This does not raise ingestion limits. The development pipeline
+  remains capped at 20 MB, 100 pages and 250,000 extracted characters until PDF
+  parser wall-clock isolation, malware scanning and measured larger fixtures
+  justify a separate change.

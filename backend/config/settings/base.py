@@ -234,12 +234,58 @@ AI_MAX_HISTORY_MESSAGES = config('AI_MAX_HISTORY_MESSAGES', default=12, cast=int
 AI_AUTHORING_MAX_SOURCE_CHARS = config(
     'AI_AUTHORING_MAX_SOURCE_CHARS', default=12000, cast=int
 )
+AI_VIDEO_SCRIPT_MAX_TOKENS = config(
+    'AI_VIDEO_SCRIPT_MAX_TOKENS', default=2400, cast=int
+)
+AI_ASSESSMENT_FIVE_QUESTION_MAX_CHUNKS = config(
+    'AI_ASSESSMENT_FIVE_QUESTION_MAX_CHUNKS', default=6, cast=int
+)
+AI_ASSESSMENT_TEN_QUESTION_MAX_CHUNKS = config(
+    'AI_ASSESSMENT_TEN_QUESTION_MAX_CHUNKS', default=15, cast=int
+)
 
 # Local narration used before optional SadTalker rendering.
 TTS_ESPEAK_EXECUTABLE = config('TTS_ESPEAK_EXECUTABLE', default='espeak-ng')
 TTS_ESPEAK_VOICE = config('TTS_ESPEAK_VOICE', default='vi')
 TTS_ESPEAK_SPEED = config('TTS_ESPEAK_SPEED', default=155, cast=int)
 TTS_TIMEOUT_SECONDS = config('TTS_TIMEOUT_SECONDS', default=30, cast=int)
+
+# Fast local Vietnamese slide-video generation. Voice models are installed
+# explicitly into a private volume after their model card has been reviewed.
+PIPER_PYTHON_EXECUTABLE = config('PIPER_PYTHON_EXECUTABLE', default='python')
+PIPER_VOICE = config('PIPER_VOICE', default='vi_VN-vais1000-medium')
+PIPER_MODEL_PATH = config(
+    'PIPER_MODEL_PATH',
+    default='/app/tts-models/vi_VN-vais1000-medium.onnx',
+)
+PIPER_TIMEOUT_SECONDS = config('PIPER_TIMEOUT_SECONDS', default=120, cast=int)
+PIPER_LENGTH_SCALE = config('PIPER_LENGTH_SCALE', default=1.12, cast=float)
+MULTIMEDIA_FFMPEG_EXECUTABLE = config(
+    'MULTIMEDIA_FFMPEG_EXECUTABLE', default='ffmpeg'
+)
+MULTIMEDIA_TUTOR_IMAGE_PATH = config(
+    'MULTIMEDIA_TUTOR_IMAGE_PATH', default='/app/media-assets/AI_tutor.png'
+)
+MULTIMEDIA_FONT_PATH = config(
+    'MULTIMEDIA_FONT_PATH',
+    default='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+)
+MULTIMEDIA_BOLD_FONT_PATH = config(
+    'MULTIMEDIA_BOLD_FONT_PATH',
+    default='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+)
+MULTIMEDIA_TIMEOUT_SECONDS = config(
+    'MULTIMEDIA_TIMEOUT_SECONDS', default=180, cast=int
+)
+MULTIMEDIA_MAX_DURATION_SECONDS = config(
+    'MULTIMEDIA_MAX_DURATION_SECONDS', default=300, cast=int
+)
+MULTIMEDIA_MAX_OUTPUT_BYTES = config(
+    'MULTIMEDIA_MAX_OUTPUT_BYTES', default=100 * 1024 * 1024, cast=int
+)
+MULTIMEDIA_MAX_SENTENCES = config(
+    'MULTIMEDIA_MAX_SENTENCES', default=50, cast=int
+)
 LESSON_DISPLAY_CONTENT_MAX_CHARS = config(
     'LESSON_DISPLAY_CONTENT_MAX_CHARS', default=20000, cast=int
 )

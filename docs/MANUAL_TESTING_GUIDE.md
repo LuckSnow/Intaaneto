@@ -421,12 +421,16 @@ khi trạng thái completed, bấm **Biên soạn** để chạy luồng review 
    LessonPage và kiểm tra nội dung PDF hiện ra dù `Lesson.content` trống.
 3. Bấm tạo tóm tắt. Kết quả phải là **Bản nháp**, có thể sửa; learner chưa thấy
    cho tới khi teacher bấm duyệt. Sau khi duyệt, reload LessonPage để kiểm tra.
-4. Bấm tạo assessment. Mở link review, kiểm tra đủ 5 câu, 4 lựa chọn/câu, đáp án
-   và giải thích; assessment phải ở draft. Chỉ publish sau khi teacher xác minh.
-5. Tạo giọng đọc local, nghe WAV và kiểm tra nội dung vẫn khớp summary đã duyệt.
-6. Chọn JPEG/PNG có quyền sử dụng, tick xác nhận rồi tạo video. UI phải hiển thị
-   trạng thái DB `queued/running/completed/failed`; lỗi video không làm lesson
-   hoặc RAG mất khả dụng.
+4. Chọn Auto hoặc 5/10/15/20, bấm tạo assessment và xác nhận số câu/số lượt AI.
+   Mở link review, kiểm tra đủ số câu đã chọn, 4 lựa chọn/câu, đáp án và giải
+   thích; assessment phải ở draft. Chỉ publish sau khi teacher xác minh.
+5. Tạo kịch bản video riêng sau khi summary được duyệt, xác nhận đúng một lượt
+   AI, sửa về khoảng 3.800–4.600 ký tự rồi duyệt. Kiểm tra bộ đếm đoạn/slide.
+6. Enqueue Piper/slide/FFmpeg. UI phải hiển thị trạng thái DB
+   `queued/running/completed/failed`; lỗi video không làm lesson hoặc RAG mất
+   khả dụng.
+7. Ở trang học viên, mở tab nội dung và kiểm tra PDF viewer có zoom, tìm kiếm,
+   chuyển trang, toàn màn hình và mở tab mới.
 
 Không cần API key cho `espeak-ng` hoặc SadTalker. Hai nút sinh draft cần một
 generation provider được cấu hình và có thể gửi phần học liệu bị giới hạn tới
