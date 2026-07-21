@@ -78,15 +78,19 @@ export default function TeacherLogin() {
       <div className="pointer-events-none absolute -bottom-40 right-16 h-96 w-96 rounded-full bg-orange-600/15" />
 
       <section className="teacher-auth-shell relative w-full max-w-6xl overflow-hidden rounded-[2rem] border border-orange-200/20 bg-orange-800 shadow-2xl">
-        <div className="teacher-auth-visual relative z-10 flex flex-col overflow-hidden bg-orange-50 p-7 sm:p-9 lg:p-11">
-          <Link
-            to="/"
-            className="relative z-10 inline-flex w-fit rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2"
-            aria-label="Về trang chủ Intaaneto"
-          >
-            <img src={logoFull} alt="Intaaneto" className="h-10 w-auto object-contain sm:h-12" />
-          </Link>
+        <Link
+          to="/"
+          className="absolute right-7 top-5 z-30 block h-10 w-40 overflow-hidden rounded-md drop-shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-100 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-800 sm:right-9 sm:top-7"
+          aria-label="Về trang chủ Intaaneto"
+        >
+          <img
+            src={logoFull}
+            alt="Intaaneto"
+            className="pointer-events-none absolute left-1/2 top-1/2 w-40 max-w-none -translate-x-1/2 -translate-y-1/2"
+          />
+        </Link>
 
+        <div className="teacher-auth-visual relative z-10 flex flex-col overflow-hidden bg-orange-50 p-7 sm:p-9 lg:p-11">
           <div className="pointer-events-none absolute left-10 top-28 h-20 w-20 rounded-full bg-orange-200/35" />
           <div className="pointer-events-none absolute right-[18%] top-16 h-12 w-12 rounded-full bg-orange-200/30" />
           <img
