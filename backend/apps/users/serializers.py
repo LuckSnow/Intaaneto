@@ -7,6 +7,23 @@ from .models import Profile, TeacherApplication
 User = get_user_model()
 
 
+def validate_password_strength(value):
+    """Apply the product's explicit password rules without storing the value."""
+    if len(value) < 8:
+        raise serializers.ValidationError("Mật khẩu phải có ít nhất 8 ký tự.")
+    if not re.search(r'[A-Z]', value):
+        raise serializers.ValidationError("Mật khẩu phải có ít nhất 1 chữ cái viết hoa.")
+    if not re.search(r'[a-z]', value):
+        raise serializers.ValidationError("Mật khẩu phải có ít nhất 1 chữ cái viết thường.")
+    if not re.search(r'\d', value):
+        raise serializers.ValidationError("Mật khẩu phải có ít nhất 1 chữ số.")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', value):
+        raise serializers.ValidationError(
+            "Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)"
+        )
+    return value
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     """Profile Serializer"""
     
@@ -84,27 +101,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     def validate_password(self, value):
         """Validate password strength"""
-        # Check minimum length
-        if len(value) < 8:
-            raise serializers.ValidationError("Mật khẩu phải có ít nhất 8 ký tự.")
-        
-        # Check for uppercase letter
-        if not re.search(r'[A-Z]', value):
-            raise serializers.ValidationError("Mật khẩu phải có ít nhất 1 chữ cái viết hoa.")
-        
-        # Check for lowercase letter
-        if not re.search(r'[a-z]', value):
-            raise serializers.ValidationError("Mật khẩu phải có ít nhất 1 chữ cái viết thường.")
-        
-        # Check for digit
-        if not re.search(r'\d', value):
-            raise serializers.ValidationError("Mật khẩu phải có ít nhất 1 chữ số.")
-        
-        # Check for special character
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', value):
-            raise serializers.ValidationError("Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)")
-        
-        return value
+        return validate_password_strength(value)
     
     def validate(self, data):
         """Validate password confirmation"""
@@ -131,6 +128,35 @@ class ResendVerificationSerializer(serializers.Serializer):
     """Validate an email without exposing account existence."""
 
     email = serializers.EmailField()
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """Validate a reset address without exposing account existence."""
+
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Validate bounded reset-token and new-password input."""
+
+    uid = serializers.CharField(max_length=64)
+    token = serializers.CharField(max_length=128)
+    password = serializers.CharField(write_only=True, min_length=8, max_length=128)
+    password_confirm = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        max_length=128,
+    )
+
+    def validate_password(self, value):
+        return validate_password_strength(value)
+
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError({
+                'password': 'Mật khẩu xác nhận không khớp.'
+            })
+        return attrs
 
 
 class TeacherApplicationSerializer(serializers.ModelSerializer):

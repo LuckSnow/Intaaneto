@@ -9,13 +9,16 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from django.contrib.auth import password_validation
+from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.conf import settings
-from django.shortcuts import redirect
-from django.urls import reverse
+from django.db import transaction
 from django.utils import timezone
-from django.utils.crypto import get_random_string
+from django.utils.encoding import force_bytes, force_str
 from django.utils.html import escape
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from config.throttling import ActionScopedThrottleMixin
@@ -30,6 +33,7 @@ from .role_services import (
 from .serializers import (
     UserSerializer,
     RegisterSerializer, LoginSerializer, ResendVerificationSerializer,
+    PasswordResetConfirmSerializer, PasswordResetRequestSerializer,
     TeacherApplicationReviewSerializer, TeacherApplicationSerializer,
 )
 
@@ -38,6 +42,9 @@ logger = logging.getLogger(__name__)
 
 GENERIC_RESEND_MESSAGE = (
     'Nếu tài khoản tồn tại và chưa được xác thực, email hướng dẫn sẽ được gửi.'
+)
+GENERIC_PASSWORD_RESET_MESSAGE = (
+    'Nếu tài khoản tồn tại và có thể đặt lại mật khẩu, email hướng dẫn sẽ được gửi.'
 )
 
 
@@ -57,6 +64,8 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
         'google': 'auth_login',
         'verify_email': 'auth_verify',
         'resend_verification': 'auth_resend',
+        'password_reset_request': 'auth_password_reset_request',
+        'password_reset_confirm': 'auth_password_reset_confirm',
     }
 
     def _send_verification_email(self, user, request=None):
@@ -76,35 +85,75 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
             verify_url = f"{settings.FRONTEND_URL}/verify-email/{token}"
         safe_full_name = escape(user.full_name)
         safe_verify_url = escape(verify_url)
-        subject = 'Xác thực email - Intaaneto'
+        subject = 'Xác thực tài khoản Intaaneto'
         html_message = f"""
-        <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #ea580c; font-size: 28px; margin: 0;">Intaaneto</h1>
-                <p style="color: #666; margin-top: 5px;">Nền tảng học lập trình</p>
+        <!doctype html>
+        <html lang="vi">
+          <body style="margin:0; padding:0; background:#f8fafc; color:#0f172a; font-family:Arial, Helvetica, sans-serif;">
+            <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">
+              Hoàn tất xác thực để bắt đầu học trên Intaaneto.
             </div>
-            <div style="background: #fff7ed; border-radius: 16px; padding: 30px; border: 1px solid #fed7aa;">
-                <h2 style="color: #1a1a1a; font-size: 22px; margin-top: 0;">Xin chào {safe_full_name}!</h2>
-                <p style="color: #444; line-height: 1.6;">
-                    Cảm ơn bạn đã đăng ký tài khoản trên Intaaneto. 
-                    Vui lòng nhấn nút bên dưới để xác thực email của bạn:
-                </p>
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="{safe_verify_url}"
-                       style="display: inline-block; padding: 14px 40px; background: linear-gradient(to right, #f97316, #ef4444); 
-                              color: white; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px;">
-                        Xác thực Email
-                    </a>
-                </div>
-                <p style="color: #888; font-size: 13px; margin-bottom: 0;">
-                    Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email này.<br>
-                    Link xác thực sẽ hết hạn sau {settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS} giờ.
-                </p>
-            </div>
-        </div>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f8fafc;">
+              <tr>
+                <td align="center" style="padding:32px 16px;">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;">
+                    <tr>
+                      <td style="padding:0 0 20px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                          <tr>
+                            <td align="center" valign="middle" width="40" height="40" style="width:40px; height:40px; border-radius:10px; background:#c2410c; color:#ffffff; font-size:22px; font-weight:700;">I</td>
+                            <td style="padding-left:12px;">
+                              <div style="font-size:20px; line-height:24px; font-weight:700; color:#0f172a;">Intaaneto</div>
+                              <div style="font-size:13px; line-height:18px; color:#64748b;">Học từ nội dung đáng tin cậy</div>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:36px 32px;">
+                        <div style="font-size:12px; line-height:18px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#c2410c;">Xác thực tài khoản</div>
+                        <h1 style="margin:10px 0 16px; font-size:26px; line-height:34px; color:#0f172a;">Chào {safe_full_name},</h1>
+                        <p style="margin:0; font-size:16px; line-height:26px; color:#475569;">
+                          Cảm ơn bạn đã đăng ký Intaaneto. Hãy xác thực địa chỉ email để bảo vệ tài khoản và bắt đầu học.
+                        </p>
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0;">
+                          <tr>
+                            <td align="center" bgcolor="#c2410c" style="border-radius:10px;">
+                              <a href="{safe_verify_url}" style="display:inline-block; padding:14px 24px; color:#ffffff; font-size:16px; line-height:20px; font-weight:700; text-decoration:none;">Xác thực email</a>
+                            </td>
+                          </tr>
+                        </table>
+                        <div style="padding:16px; border-radius:10px; background:#fff7ed; border:1px solid #fed7aa;">
+                          <p style="margin:0; font-size:14px; line-height:22px; color:#7c2d12;">
+                            Liên kết chỉ dùng được một lần và hết hạn sau <strong>{settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS} giờ</strong>.
+                          </p>
+                        </div>
+                        <p style="margin:24px 0 8px; font-size:13px; line-height:20px; color:#64748b;">Nếu nút không hoạt động, sao chép liên kết này vào trình duyệt:</p>
+                        <p style="margin:0; font-size:12px; line-height:18px; word-break:break-all;">
+                          <a href="{safe_verify_url}" style="color:#c2410c; text-decoration:underline;">{safe_verify_url}</a>
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:20px 4px 0; font-size:12px; line-height:18px; color:#64748b;">
+                        Bạn nhận được email này vì địa chỉ của bạn vừa được dùng để đăng ký Intaaneto. Nếu đó không phải bạn, bạn có thể bỏ qua email này.
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
         """
         plain_message = (
-            f"Xin chào {user.full_name}, vui lòng xác thực email: {verify_url}"
+            f"Chào {user.full_name},\n\n"
+            "Cảm ơn bạn đã đăng ký Intaaneto. Xác thực email tại:\n"
+            f"{verify_url}\n\n"
+            "Liên kết chỉ dùng được một lần và hết hạn sau "
+            f"{settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS} giờ.\n\n"
+            "Nếu bạn không đăng ký tài khoản này, hãy bỏ qua email."
         )
 
         try:
@@ -119,6 +168,91 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
             return True
         except Exception:
             logger.warning('Verification email delivery failed for user %s', user.pk)
+            return False
+
+    def _send_password_reset_email(self, user):
+        """Send a bounded one-time password reset link without logging it."""
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
+        safe_full_name = escape(user.full_name)
+        safe_reset_url = escape(reset_url)
+        timeout_minutes = max(1, settings.PASSWORD_RESET_TIMEOUT // 60)
+        subject = 'Đặt lại mật khẩu Intaaneto'
+        html_message = f"""
+        <!doctype html>
+        <html lang="vi">
+          <body style="margin:0; padding:0; background:#f8fafc; color:#0f172a; font-family:Arial, Helvetica, sans-serif;">
+            <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">
+              Dùng liên kết bảo mật để đặt lại mật khẩu Intaaneto.
+            </div>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f8fafc;">
+              <tr>
+                <td align="center" style="padding:32px 16px;">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;">
+                    <tr>
+                      <td style="padding:0 0 20px; font-size:20px; line-height:26px; font-weight:700; color:#0f172a;">
+                        <span style="display:inline-block; width:40px; height:40px; margin-right:10px; border-radius:10px; background:#c2410c; color:#ffffff; line-height:40px; text-align:center;">I</span>
+                        Intaaneto
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:36px 32px;">
+                        <div style="font-size:12px; line-height:18px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#c2410c;">Bảo mật tài khoản</div>
+                        <h1 style="margin:10px 0 16px; font-size:26px; line-height:34px; color:#0f172a;">Chào {safe_full_name},</h1>
+                        <p style="margin:0; font-size:16px; line-height:26px; color:#475569;">
+                          Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản Intaaneto của bạn.
+                        </p>
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0;">
+                          <tr>
+                            <td align="center" bgcolor="#c2410c" style="border-radius:10px;">
+                              <a href="{safe_reset_url}" style="display:inline-block; padding:14px 24px; color:#ffffff; font-size:16px; line-height:20px; font-weight:700; text-decoration:none;">Đặt lại mật khẩu</a>
+                            </td>
+                          </tr>
+                        </table>
+                        <div style="padding:16px; border-radius:10px; background:#fff7ed; border:1px solid #fed7aa;">
+                          <p style="margin:0; font-size:14px; line-height:22px; color:#7c2d12;">
+                            Liên kết hết hạn sau <strong>{timeout_minutes} phút</strong> và mất hiệu lực ngay khi mật khẩu được đổi.
+                          </p>
+                        </div>
+                        <p style="margin:24px 0 8px; font-size:13px; line-height:20px; color:#64748b;">Nếu nút không hoạt động, sao chép liên kết này vào trình duyệt:</p>
+                        <p style="margin:0; font-size:12px; line-height:18px; word-break:break-all;">
+                          <a href="{safe_reset_url}" style="color:#c2410c; text-decoration:underline;">{safe_reset_url}</a>
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:20px 4px 0; font-size:12px; line-height:18px; color:#64748b;">
+                        Nếu bạn không yêu cầu đổi mật khẩu, hãy bỏ qua email này. Mật khẩu hiện tại vẫn được giữ nguyên.
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+        """
+        plain_message = (
+            f"Chào {user.full_name},\n\n"
+            "Đặt lại mật khẩu Intaaneto tại:\n"
+            f"{reset_url}\n\n"
+            f"Liên kết hết hạn sau {timeout_minutes} phút và mất hiệu lực sau khi dùng.\n\n"
+            "Nếu bạn không yêu cầu đổi mật khẩu, hãy bỏ qua email này."
+        )
+
+        try:
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            return True
+        except Exception:
+            logger.warning('Password reset email delivery failed for user %s', user.pk)
             return False
 
     @staticmethod
@@ -356,6 +490,71 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
         if user is not None and not user.is_verified:
             self._send_verification_email(user, request=request)
         return Response({'message': GENERIC_RESEND_MESSAGE})
+
+    @action(detail=False, methods=['post'])
+    def password_reset_request(self, request):
+        """Send a reset link while keeping account existence private."""
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = User.objects.filter(
+            email=serializer.validated_data['email'],
+            is_active=True,
+        ).first()
+        if user is not None and user.has_usable_password():
+            self._send_password_reset_email(user)
+        return Response({'message': GENERIC_PASSWORD_RESET_MESSAGE})
+
+    @action(detail=False, methods=['post'])
+    def password_reset_confirm(self, request):
+        """Atomically consume a reset token and replace the password."""
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            user_id = int(force_str(urlsafe_base64_decode(
+                serializer.validated_data['uid'],
+            )))
+        except (TypeError, ValueError, OverflowError, UnicodeDecodeError):
+            return Response(
+                {'error': 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            user = User.objects.select_for_update().filter(
+                pk=user_id,
+                is_active=True,
+            ).first()
+            if user is None or not default_token_generator.check_token(
+                user,
+                serializer.validated_data['token'],
+            ):
+                return Response(
+                    {'error': 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                password_validation.validate_password(
+                    serializer.validated_data['password'],
+                    user=user,
+                )
+            except DjangoValidationError as exc:
+                return Response(
+                    {'password': exc.messages},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user.set_password(serializer.validated_data['password'])
+            user.save(update_fields=['password'])
+
+        login_path = (
+            '/teacher/login'
+            if user.role in {'teacher', 'admin'}
+            else '/login'
+        )
+        return Response({
+            'message': 'Mật khẩu đã được đặt lại thành công.',
+            'login_path': login_path,
+        })
 
     @action(detail=False, methods=['post'])
     def google(self, request):

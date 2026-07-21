@@ -49,6 +49,11 @@ services:
       - media_files:/app/media
       - static_files:/app/staticfiles
       - model_cache:/root/.cache
+      - tts_models:/app/tts-models
+      - type: bind
+        source: ./frontend/public/images/AI_tutor.png
+        target: /app/media-assets/AI_tutor.png
+        read_only: true
     ports:
       - "8000:8000"
     environment:
@@ -93,6 +98,11 @@ services:
       - ./docs:/project-docs:ro
       - media_files:/app/media
       - model_cache:/home/appuser/.cache
+      - tts_models:/app/tts-models
+      - type: bind
+        source: ./frontend/public/images/AI_tutor.png
+        target: /app/media-assets/AI_tutor.png
+        read_only: true
     environment:
       - DEBUG=True
       - DB_NAME=intaaneto_db
@@ -149,6 +159,7 @@ volumes:
   static_files:
   redis_data:
   model_cache:
+  tts_models:
 
 networks:
   intaaneto_network:

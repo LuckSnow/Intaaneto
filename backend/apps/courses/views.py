@@ -1,3 +1,7 @@
+from hashlib import sha256
+
+from django.conf import settings
+from django.http import FileResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -15,30 +19,35 @@ from .models import (
     Lesson,
     LessonComment,
     LessonIngestionJob,
+    LessonMultimediaJob,
     LessonNarrationAudio,
     LessonSummaryDraft,
+    LessonVideoScriptDraft,
     LessonVideoGenerationJob,
     Review,
 )
 from .ingestion import IngestionQueueError, queue_pdf_ingestion
+from .multimedia_queue import MultimediaQueueError, queue_lesson_multimedia
 from .serializers import (
     CourseSerializer, CourseDetailSerializer, LessonSerializer,
     LessonUploadSerializer, LessonDetailSerializer, LessonCommentSerializer,
-    EnrollmentSerializer, ReviewSerializer, SummaryApprovalSerializer,
-    VideoGenerationRequestSerializer,
+    AssessmentGenerationRequestSerializer, EnrollmentSerializer,
+    ReviewSerializer, SummaryApprovalSerializer, VideoScriptApprovalSerializer,
 )
 from .content_authoring import (
     approve_summary_draft,
+    approve_video_script_draft,
+    assessment_generation_plan,
     generate_assessment_draft,
     generate_narration_audio,
     generate_summary_draft,
+    generate_video_script_draft,
 )
 from .services import (
     AssessmentRequiredError,
     complete_lesson,
 )
 from .video_generation import VideoGenerationError
-from .video_queue import VideoQueueError, queue_lesson_video
 
 
 class IsTeacher(BasePermission):
@@ -182,18 +191,21 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         'upload': 'lesson_upload',
         'reprocess': 'lesson_reprocess',
         'generate_summary': 'lesson_authoring',
+        'generate_video_script': 'lesson_authoring',
+        'approve_video_script': 'lesson_authoring',
         'approve_summary': 'lesson_authoring',
         'generate_assessment': 'lesson_authoring',
         'generate_narration': 'lesson_authoring',
-        'generate_video': 'video_generation',
+        'generate_multimedia': 'video_generation',
     }
 
     def get_permissions(self):
         if self.action in (
             'upload', 'create', 'update', 'partial_update', 'destroy',
             'reprocess', 'authoring_status', 'generate_summary',
-            'approve_summary', 'generate_assessment', 'generate_narration',
-            'generate_video',
+            'approve_summary', 'generate_video_script', 'approve_video_script',
+            'generate_assessment', 'generate_narration',
+            'generate_multimedia',
         ):
             permission_classes = [IsTeacher]
         else:
@@ -233,14 +245,41 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
             return self.request.build_absolute_uri(field.url)
 
         summary = LessonSummaryDraft.objects.filter(lesson=lesson).first()
+        video_script = LessonVideoScriptDraft.objects.filter(lesson=lesson).first()
         narration = LessonNarrationAudio.objects.filter(lesson=lesson).first()
         assessment = getattr(lesson, 'assessment', None)
         video_job = LessonVideoGenerationJob.objects.filter(
             lesson=lesson,
         ).order_by('-created_at', '-id').first()
+        multimedia_job = LessonMultimediaJob.objects.filter(
+            lesson=lesson,
+        ).order_by('-created_at', '-id').first()
         active_source = lesson.knowledge_sources.filter(
             is_active=True, status='ready',
         ).first()
+        generation_plan = (
+            assessment_generation_plan(active_source)
+            if active_source else None
+        )
+        summary_checksum = (
+            sha256(summary.text.encode('utf-8')).hexdigest()
+            if (
+                summary
+                and summary.status == 'approved'
+                and summary.text == lesson.ai_summary
+                and active_source
+                and summary.source_checksum == active_source.content_checksum
+                and summary.source_version == active_source.version
+            ) else None
+        )
+        video_script_current = bool(
+            video_script
+            and active_source
+            and summary_checksum
+            and video_script.source_checksum == active_source.content_checksum
+            and video_script.source_version == active_source.version
+            and video_script.summary_checksum == summary_checksum
+        )
         return {
             'lesson_id': lesson.id,
             'lesson_title': lesson.title,
@@ -253,6 +292,18 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
                 'text': summary.text,
                 'source_version': summary.source_version,
             } if summary else None),
+            'video_script': ({
+                'status': video_script.status,
+                'text': video_script.text,
+                'source_version': video_script.source_version,
+                'is_current': video_script_current,
+            } if video_script else None),
+            'video_script_limits': {
+                'max_chars': 4800,
+                'max_segments': settings.MULTIMEDIA_MAX_SENTENCES,
+                'max_duration_seconds': settings.MULTIMEDIA_MAX_DURATION_SECONDS,
+                'piper_length_scale': settings.PIPER_LENGTH_SCALE,
+            },
             'narration': ({
                 'ready': bool(narration.audio_file),
                 'provider': narration.provider,
@@ -264,6 +315,7 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
                 'is_published': assessment.is_published,
                 'question_count': assessment.questions.count(),
             } if assessment else None),
+            'assessment_generation': generation_plan,
             'video': ({
                 'job_id': video_job.id,
                 'status': video_job.status,
@@ -273,6 +325,19 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
                     media_url(video_job.output_file)
                 ),
             } if video_job else None),
+            'multimedia': ({
+                'job_id': multimedia_job.id,
+                'status': multimedia_job.status,
+                'stage': multimedia_job.stage,
+                'provider': multimedia_job.provider,
+                'voice': multimedia_job.voice,
+                'scene_count': multimedia_job.scene_count,
+                'duration_seconds': multimedia_job.duration_seconds,
+                'render_duration_ms': multimedia_job.render_duration_ms,
+                'failure_code': multimedia_job.failure_code,
+                'safe_error': multimedia_job.safe_error,
+                'video_url': media_url(multimedia_job.output_file),
+            } if multimedia_job else None),
         }
 
     @staticmethod
@@ -441,6 +506,22 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         lesson = self._managed_lesson()
         return Response(self._authoring_payload(lesson))
 
+    @action(detail=True, methods=['get'], url_path='pdf')
+    def pdf(self, request, pk=None):
+        lesson = self.get_object()
+        if not lesson.uploaded_file:
+            return Response(
+                {'detail': 'Bài học không có file PDF.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        lesson.uploaded_file.open('rb')
+        return FileResponse(
+            lesson.uploaded_file,
+            content_type='application/pdf',
+            as_attachment=False,
+            filename=f'lesson-{lesson.id}.pdf',
+        )
+
     @action(detail=True, methods=['post'], url_path='generate-summary')
     def generate_summary(self, request, pk=None):
         lesson = self._managed_lesson()
@@ -465,11 +546,41 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         )
         return Response(self._authoring_payload(lesson))
 
+    @action(detail=True, methods=['post'], url_path='generate-video-script')
+    def generate_video_script(self, request, pk=None):
+        lesson = self._managed_lesson()
+        try:
+            generate_video_script_draft(actor=request.user, lesson=lesson)
+        except AIProviderError:
+            return Response(
+                {'detail': 'Provider tạo kịch bản video tạm thời không khả dụng.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(self._authoring_payload(lesson), status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='approve-video-script')
+    def approve_video_script(self, request, pk=None):
+        lesson = self._managed_lesson()
+        serializer = VideoScriptApprovalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        approve_video_script_draft(
+            actor=request.user,
+            lesson=lesson,
+            text=serializer.validated_data['text'],
+        )
+        return Response(self._authoring_payload(lesson))
+
     @action(detail=True, methods=['post'], url_path='generate-assessment')
     def generate_assessment(self, request, pk=None):
         lesson = self._managed_lesson()
+        serializer = AssessmentGenerationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         try:
-            generate_assessment_draft(actor=request.user, lesson=lesson)
+            generate_assessment_draft(
+                actor=request.user,
+                lesson=lesson,
+                question_count=serializer.validated_data['question_count'],
+            )
         except AIProviderError:
             return Response(
                 {'detail': 'Provider tạo assessment tạm thời không khả dụng.'},
@@ -489,21 +600,15 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
             )
         return Response(self._authoring_payload(lesson), status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'], url_path='generate-video')
-    def generate_video(self, request, pk=None):
+    @action(detail=True, methods=['post'], url_path='generate-multimedia')
+    def generate_multimedia(self, request, pk=None):
         lesson = self._managed_lesson()
-        serializer = VideoGenerationRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
         try:
-            _, created = queue_lesson_video(
+            _, created = queue_lesson_multimedia(
                 actor=request.user,
                 lesson=lesson,
-                portrait=serializer.validated_data['portrait'],
-                rights_confirmed=serializer.validated_data[
-                    'rights_and_approval_confirmed'
-                ],
             )
-        except VideoQueueError as exc:
+        except MultimediaQueueError as exc:
             return Response(
                 {'detail': str(exc)},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,

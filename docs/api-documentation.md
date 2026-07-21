@@ -85,12 +85,20 @@ Teacher:
   narration, assessment và video job, owner/admin-only.
 - `POST /api/courses/lessons/{id}/generate-summary/`: tạo summary draft.
 - `POST /api/courses/lessons/{id}/approve-summary/`: duyệt text đã review.
-- `POST /api/courses/lessons/{id}/generate-assessment/`: tạo assessment 5 câu,
-  luôn unpublished để review/publish qua API assessment hiện có.
+- `POST /api/courses/lessons/{id}/generate-assessment/`: nhận `question_count`
+  là `auto`, `5`, `10`, `15` hoặc `20`; Auto đề xuất 5/10/15 câu theo số chunk
+  và tạo từng batch 5 câu; kết quả luôn unpublished để review/publish qua API
+  assessment hiện có.
+- `POST /api/courses/lessons/{id}/generate-video-script/`: tạo một kịch bản video
+  nháp riêng từ summary đã duyệt và nguồn RAG hiện tại; đây là một lượt provider.
+- `POST /api/courses/lessons/{id}/approve-video-script/`: giáo viên duyệt nội
+  dung tối đa 4.800 ký tự trước khi enqueue multimedia local.
+- `GET /api/courses/lessons/{id}/pdf/`: stream PDF qua scope bài học được phép
+  đọc để trình xem web dùng zoom, tìm kiếm và chuyển trang.
 - `POST /api/courses/lessons/{id}/generate-narration/`: tạo WAV local từ summary
   hiện tại đã duyệt.
-- `POST /api/courses/lessons/{id}/generate-video/`: multipart `portrait` và
-  `rights_confirmed=true`; chỉ enqueue queue `video`, không render trong HTTP.
+- `POST /api/courses/lessons/{id}/generate-multimedia/`: enqueue Piper/slide/
+  FFmpeg local từ kịch bản video đã duyệt.
 
 Upload multipart gồm `course`, `title`, `description`, `order`, `is_preview` và
 `uploaded_file`. Backend kiểm tra ownership và file bounds/signature trước khi

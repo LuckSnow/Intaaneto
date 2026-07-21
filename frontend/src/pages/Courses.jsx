@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ArrowRight, BookOpen, FileText, Inbox, Search, Star, Users } from 'lucide-react'
 import api from '../services/api'
 
 const DIFFICULTY_OPTIONS = [
@@ -69,7 +70,7 @@ export default function Courses() {
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           {/* Search */}
           <div className="flex-1 relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50">🔍</span>
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/50" aria-hidden="true" />
             <input
               type="text"
               placeholder="Tìm kiếm khóa học..."
@@ -109,7 +110,7 @@ export default function Courses() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
-            <span className="text-6xl mb-4 block">📭</span>
+            <Inbox className="mx-auto mb-4 h-14 w-14 text-white/60" aria-hidden="true" />
             <p className="text-2xl text-white/60 mb-2">Không tìm thấy khóa học</p>
             <p className="text-white/40">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
           </div>
@@ -128,7 +129,7 @@ export default function Courses() {
                       <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
-                        <span className="text-6xl">📚</span>
+                        <BookOpen className="h-14 w-14 text-orange-600" aria-hidden="true" />
                       </div>
                     )}
                     {/* Difficulty Badge */}
@@ -153,12 +154,12 @@ export default function Courses() {
 
                     <div className="border-t border-gray-100 pt-3 flex items-center justify-between mt-auto">
                       <div className="flex items-center gap-3 text-sm text-gray-400">
-                        <span className="flex items-center gap-1">👥 {course.total_students || 0}</span>
-                        <span className="flex items-center gap-1">⭐ {course.average_rating || '5.0'}</span>
-                        <span className="flex items-center gap-1">📄 {course.lessons_count || 0} bài</span>
+                        <span className="flex items-center gap-1"><Users className="h-4 w-4" aria-hidden="true" />{course.total_students || 0}</span>
+                        <span className="flex items-center gap-1"><Star className="h-4 w-4" aria-hidden="true" />{course.average_rating || '5.0'}</span>
+                        <span className="flex items-center gap-1"><FileText className="h-4 w-4" aria-hidden="true" />{course.lessons_count || 0} bài</span>
                       </div>
                       <span className="text-orange-500 font-semibold text-sm group-hover:text-orange-600 transition">
-                        Xem →
+                        Xem <ArrowRight className="inline h-4 w-4" aria-hidden="true" />
                       </span>
                     </div>
                   </div>

@@ -5,9 +5,11 @@ from .models import (
     Lesson,
     LessonComment,
     LessonIngestionJob,
+    LessonMultimediaJob,
     LessonNarrationAudio,
     LessonProgress,
     LessonSummaryDraft,
+    LessonVideoScriptDraft,
     LessonVideoGenerationJob,
     Review,
 )
@@ -160,6 +162,27 @@ class LessonSummaryDraftAdmin(admin.ModelAdmin):
         return False
 
 
+@admin.register(LessonVideoScriptDraft)
+class LessonVideoScriptDraftAdmin(admin.ModelAdmin):
+    list_display = ['lesson', 'status', 'source_version', 'generated_by', 'updated_at']
+    list_filter = ['status', 'provider', 'updated_at']
+    raw_id_fields = ['lesson', 'generated_by', 'approved_by']
+    readonly_fields = [
+        'lesson', 'text', 'status', 'source_checksum', 'source_version',
+        'summary_checksum', 'provider', 'model', 'generated_by', 'approved_by',
+        'created_at', 'updated_at', 'approved_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(LessonNarrationAudio)
 class LessonNarrationAudioAdmin(admin.ModelAdmin):
     list_display = ['lesson', 'provider', 'voice', 'generated_by', 'created_at']
@@ -167,6 +190,33 @@ class LessonNarrationAudioAdmin(admin.ModelAdmin):
     readonly_fields = [
         'lesson', 'summary_checksum', 'audio_file', 'audio_checksum',
         'provider', 'voice', 'generated_by', 'created_at',
+    ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(LessonMultimediaJob)
+class LessonMultimediaJobAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'lesson', 'requested_by', 'provider', 'status', 'stage',
+        'scene_count', 'created_at',
+    ]
+    list_filter = ['provider', 'status', 'stage', 'created_at']
+    search_fields = ['lesson__title', 'requested_by__full_name']
+    raw_id_fields = ['lesson', 'requested_by']
+    readonly_fields = [
+        'lesson', 'requested_by', 'provider', 'status', 'stage',
+        'approved_script', 'script_checksum', 'tutor_asset_checksum', 'voice',
+        'task_id', 'output_file', 'scene_count', 'duration_seconds',
+        'render_duration_ms', 'failure_code', 'safe_error', 'created_at',
+        'started_at', 'completed_at',
     ]
 
     def has_add_permission(self, request):

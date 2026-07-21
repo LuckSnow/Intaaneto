@@ -1,6 +1,6 @@
 # Current state
 
-Last repository inspection: 2026-07-17.
+Last repository inspection: 2026-07-19.
 
 This is a living factual snapshot, not a roadmap. Verify it against code before
 relying on it and update it after material implementation changes.
@@ -48,25 +48,62 @@ relying on it and update it after material implementation changes.
   diagnostics are not serialized.
 - The teacher upload page has a reviewed downstream-authoring panel for an owned
   ready lesson. It can generate an editable AI summary draft and only copy it to
-  `Lesson.ai_summary` after explicit approval. It can also generate exactly five
-  multiple-choice questions as an unpublished assessment draft; answer review
-  and publishing remain manual. Both paths require an active/ready source,
-  recheck mutable state, are owner/admin scoped and use OpenAI or Gemini.
-- An approved current summary can be converted to a bounded PCM WAV with local
-  Vietnamese `espeak-ng`; no TTS API key is used. Checksums bind narration and
-  later video work to the reviewed text.
-- An owner-scoped endpoint enqueues SadTalker only after current summary approval,
-  matching narration, validated portrait and explicit rights confirmation. A
-  dedicated one-at-a-time `video` Celery worker mounts the runtime read-only;
-  the normal worker consumes only the PDF/default queue. Video remains optional
-  and cannot block lesson, RAG or assessment readiness.
+  `Lesson.ai_summary` after explicit approval. Assessment generation recommends
+  5, 10 or 15 questions from the active source's chunk count; the teacher can
+  explicitly choose 5, 10, 15 or 20. It makes one bounded provider call per five
+  questions over distinct source regions, rejects duplicate/incomplete batches,
+  and persists only one complete unpublished draft. The UI confirms the resolved
+  question and provider-call count before generation. Answer review and
+  publishing remain manual. Both paths require an active/ready source, recheck
+  mutable state, are owner/admin scoped and use OpenAI or Gemini.
+- The legacy authoring endpoint can still convert an approved summary to a
+  bounded PCM WAV with Vietnamese `espeak-ng`. The current teacher multimedia
+  UI instead enqueues a local Piper slide-video job; no TTS API key is used.
+  The worker reauthorizes the teacher-owner, binds an immutable approved video
+  script plus source/summary and AI Tutor asset checksums, generates bounded WAV,
+  creates deterministic 1280x720 slides with burned-in Vietnamese captions, and
+  composes a validated MP4 with FFmpeg. Database stages are the polling contract,
+  and a completed output attaches through the existing `Lesson.video_file`.
+- Video narration is authored through a separate `LessonVideoScriptDraft` with
+  deterministic 180-character display segments. One explicit provider call drafts
+  about 3,800–4,600 characters from the approved summary and bounded active
+  source sample. The UI shows characters, narration segments and estimated
+  slides; teachers edit/approve up to 4,800 characters/50 segments. Source and
+  summary checksums are rechecked before the tutor asset, job creation and worker
+  render. Piper uses configurable `length_scale=1.12`; measured WAV duration is
+  still capped at 300 seconds. Assessment review links back with the selected
+  course/lesson and restores that owner-scoped authoring panel.
+- Authorized PDF lessons now use a protected lesson action and browser-local
+  blob viewer with native zoom/search/page controls, fullscreen and new-tab
+  fallback. Extracted text remains available in a bounded collapsible panel.
+  Ingestion limits remain 20 MB, 100 pages and 250,000 extracted characters;
+  a 500-page PDF is not currently accepted for RAG processing.
+- The local multimedia software seam is covered by fourteen focused tests for
+  Vietnamese pronunciation normalization, active-job deduplication, owner and
+  worker reauthorization, stale summary rejection, missing-model fail-closed,
+  approved-summary whitespace normalization, bounded API state, and fake-provider
+  WAV/slide/MP4 attachment. The Piper `vi_VN-vais1000-medium` model is installed
+  in the local `tts_models` volume. Two real CPU-local runs on a 1,602-character
+  approved PHP summary produced 12-slide, 1280x720 H.264 videos of about 78.9
+  seconds in 14.285 seconds and 13.663 seconds. Both attached a Piper WAV and MP4
+  to lesson 141 without a network provider call. Human voice/caption-timing
+  quality review and any public/commercial distribution decision remain open.
+- The SadTalker command, adapter, durable-job evidence and optional isolated GPU
+  worker remain for the historical PoC/report. The teacher UI and lesson API no
+  longer expose portrait upload or SadTalker enqueue. Video remains optional and
+  cannot block lesson, RAG or assessment readiness.
 - AI generation now uses a provider adapter with the supported OpenAI client,
   configurable model/timeout, bounded history, and explicit provider failures.
-- AI Tutor generation can now select `openai` or `gemini` through
-  `AI_GENERATION_PROVIDER`. Gemini uses its OpenAI-compatible endpoint behind a
-  dedicated adapter, key, base URL, and model setting; missing keys and unknown
-  providers fail closed without exposing credentials. Local embeddings and the
-  lesson retrieval/citation path are unchanged.
+- AI Tutor generation can select `openai`, `gemini`, or `groq` through
+  `AI_GENERATION_PROVIDER`. Gemini and Groq use their OpenAI-compatible endpoints
+  behind dedicated adapters, keys, base URLs, and model settings; missing keys and
+  unknown providers fail closed without exposing credentials. The grounded-answer
+  evaluation command can explicitly select one provider without changing the
+  application default. A first Groq `llama-3.3-70b-versatile` baseline ran on
+  2026-07-21: contract pass `0.75`, citation scope `1.00`, refusal `1.00`, and
+  mean latency `1343.75 ms`; human review and a multi-lesson holdout remain before
+  changing the default. Local embeddings and the lesson retrieval/citation path
+  are unchanged.
 - Slice 1 lesson indexing is implemented synchronously in
   `ai_assistant.rag_services`. It authorizes the teacher-owner or admin before
   reading lesson text, prefers non-empty `Lesson.extracted_text` over
@@ -489,24 +526,25 @@ relying on it and update it after material implementation changes.
   tuning the provisional `0.45` threshold, changing the 384-dimensional model,
   or adding an ANN index. Exact pgvector search is sufficient for the current
   small corpus baseline.
-- The reviewed summary/assessment authoring seam, local TTS, durable SadTalker
-  web queue and dedicated GPU worker are implemented. A consented Vietnamese
-  render and measured voice/video-quality record remain; do not present the
-  local WAV smoke or upstream demo render as pedagogical-quality evidence.
-- Next video slice: follow `docs/DID_POC_HANDOFF.md`. First validate a 30-second
-  non-sensitive Studio clip within the trial, then add a mocked/tested D-ID
-  provider before any explicitly confirmed live API call. Do not treat trial
-  registration or a key in local `.env` as implementation evidence.
+- The reviewed summary/assessment authoring seam and durable local Piper/Pillow/
+  FFmpeg slide-video seam are implemented in software. `AI_tutor.png` is rendered
+  as a fixed corner presenter; this is not photorealistic lip-sync. The project
+  owner accepted the current Piper voice and tutor asset for school research use,
+  and the first cold/warm-style local renders are recorded above. Human Vietnamese
+  voice quality, caption timing, public distribution rights and generated-media
+  retention still require review.
+- D-ID remains only a deferred handoff in `docs/DID_POC_HANDOFF.md`. No live
+  provider call, key use or credit spend occurred in the local multimedia slice.
 - Collaborators should run migrations and `seed_demo_data` locally rather than
   sharing development database volumes or dumps containing accounts and chats.
 - The worktree contains intentional uncommitted changes from stabilization,
   Docker/docs/environment cleanup, authorization/chat work, and frontend
   Firebase fallback. Inspect and preserve them; do not reset or overwrite them.
-- Baseline verification on 2026-07-17: all `235` backend tests, Django check,
-  migration drift check, frontend lint/build, local Vietnamese WAV smoke and
-  dedicated `video` worker startup passed. For the next slice rerun `pytest`, `python manage.py check`,
-  `python manage.py makemigrations --check --dry-run`, `npm run lint`, and
-  `npm run build`. Docker development startup is documented in `docs/SETUP.md`.
+- Baseline verification on 2026-07-19: all `265` backend tests, Django check,
+  migration drift check, frontend lint/build, the mocked multimedia contract and
+  the approved-summary normalization regression passed. Docker is available, the
+  voice model is installed, and two live Piper/FFmpeg jobs completed. Docker
+  development startup is documented in `docs/SETUP.md`.
 
 ## Existing files to inspect first
 

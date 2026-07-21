@@ -106,8 +106,13 @@ hiển thị before/after; đây chỉ là association quan sát, không phải 
 ## 5. Giảng viên video ảo
 
 Teacher-owner có thể tạo summary draft từ source RAG ready, sửa và duyệt; tạo
-assessment 5 câu ở trạng thái draft để review đáp án trước khi publish. Summary
-đã duyệt có thể chuyển thành PCM WAV bằng `espeak-ng` local.
+assessment draft tự động 5/10/15 câu theo số chunk hoặc chọn 5/10/15/20 câu để
+review đáp án trước khi publish. Mỗi 5 câu dùng một vùng nguồn riêng và một lượt
+provider; UI xác nhận số lượt trước khi gọi. Summary
+đã duyệt có thể enqueue một job multimedia local: Piper tạo WAV tiếng Việt,
+Pillow dựng slide 1280x720 có phụ đề và ảnh AI Tutor ở góc, sau đó FFmpeg ghép
+MP4. Worker kiểm tra lại owner và checksum summary/asset; video vẫn là enhancement
+tùy chọn và không cần API key hoặc GPU.
 
 Adapter SadTalker có management command và endpoint enqueue owner-scoped. Nó nhận
 kịch bản/WAV đã bind bằng checksum và JPEG/PNG có xác nhận quyền sử dụng, chạy
@@ -120,11 +125,16 @@ trên NVIDIA T1200; vẫn chưa có portrait/audio học liệu được duyệt
 lip-sync/tiếng Việt. Xem
 [SADTALKER_POC.md](SADTALKER_POC.md).
 
+SadTalker được giữ làm bằng chứng PoC/báo cáo; teacher UI hiện không còn upload
+portrait hoặc enqueue GPU job. D-ID vẫn chỉ là handoff chưa triển khai.
+
 ## 6. Thành phần chưa triển khai
 
-- Production broker HA/monitoring cho worker SadTalker GPU riêng.
-- Natural/neural TTS đã đánh giá chất lượng, storyboard, slide/image generation
-  và ghép cảnh. `espeak-ng` local hiện chỉ là baseline kỹ thuật.
+- Production broker HA/monitoring và generated-media retention/cleanup.
+- Piper/model card và provenance của voice/avatar chưa được duyệt cho phát hành;
+  chưa có live benchmark cold/warm hoặc đánh giá chất lượng giọng Việt/caption.
+- Storyboard hiện deterministic từ summary đã duyệt; chưa có editor riêng cho
+  từng slide hoặc lip-sync khuôn mặt.
 - WebSocket/realtime processing progress.
 - AI dialogue assessment ảnh hưởng điểm hoặc progression.
 - Grounded-answer/assessment evaluation đa lesson, holdout và hai người chấm.
