@@ -101,6 +101,9 @@ PIPER_VOICE=vi_VN-vais1000-medium
 PIPER_MODEL_PATH=/app/tts-models/vi_VN-vais1000-medium.onnx
 PIPER_TIMEOUT_SECONDS=120
 PIPER_LENGTH_SCALE=1.12
+# Khoảng lặng chèn sau dấu phẩy/chấm phẩy/hai chấm và sau câu hoàn chỉnh.
+PIPER_CLAUSE_PAUSE_MS=160
+PIPER_SENTENCE_PAUSE_MS=500
 MULTIMEDIA_FFMPEG_EXECUTABLE=ffmpeg
 MULTIMEDIA_TUTOR_IMAGE_PATH=/app/media-assets/AI_tutor.png
 MULTIMEDIA_TIMEOUT_SECONDS=180
@@ -109,6 +112,11 @@ MULTIMEDIA_MAX_DURATION_SECONDS=300
 
 Không đặt các giá trị trên trong `VITE_*`. Không có secret nào cần cấu hình cho
 pipeline này.
+
+Piper tạo WAV riêng cho từng mệnh đề/câu, nối bằng khoảng lặng cấu hình và dùng
+thời lượng WAV thực tế của từng câu để giữ caption trên slide đúng với lời đọc.
+Tăng `PIPER_LENGTH_SCALE` để đọc chậm hơn; sau khi đổi cấu hình, recreate
+`backend` và `worker`, rồi tạo một job video mới. Các WAV/MP4 đã có không thay đổi.
 
 ## Benchmark và bằng chứng báo cáo
 

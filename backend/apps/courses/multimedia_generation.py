@@ -125,6 +125,16 @@ def narration_text(script):
     return text
 
 
+def _split_narration_phrases(sentence):
+    """Keep short clauses while retaining punctuation for Piper prosody."""
+
+    return tuple(
+        phrase.strip()
+        for phrase in re.split(r"(?<=[,;:])\s+", sentence)
+        if phrase.strip()
+    )
+
+
 def _bounded_file(path, *, maximum_bytes, suffixes, label):
     resolved = Path(path).expanduser().resolve()
     if not resolved.is_file() or resolved.suffix.lower() not in suffixes:
@@ -181,7 +191,7 @@ def validate_wav(path):
 class PiperVietnameseProvider:
     provider_name = "piper-local"
 
-    def generate(self, *, text, output_path):
+    def _model_path(self):
         model = _bounded_file(
             settings.PIPER_MODEL_PATH,
             maximum_bytes=250 * 1024 * 1024,
@@ -195,6 +205,9 @@ class PiperVietnameseProvider:
             suffixes={".json"},
             label="Cấu hình model Piper",
         )
+        return model
+
+    def _generate_segment(self, *, model, text, output_path):
         command = [
             settings.PIPER_PYTHON_EXECUTABLE,
             "-m",
@@ -226,6 +239,98 @@ class PiperVietnameseProvider:
                 "tts_failed", "Không thể tạo giọng đọc tiếng Việt bằng Piper."
             ) from exc
         return validate_wav(output_path)[0]
+
+    def generate(self, *, text, output_path):
+        """Generate one WAV for compatibility with simple provider callers."""
+
+        return self._generate_segment(
+            model=self._model_path(), text=text, output_path=output_path
+        )
+
+    def generate_with_timing(self, *, sentences, output_path):
+        """Generate sentence WAVs, append controlled pauses, and return timings."""
+
+        if not sentences:
+            raise MultimediaGenerationError(
+                "invalid_script", "Bản tóm tắt đã duyệt không hợp lệ."
+            )
+        model = self._model_path()
+        sentence_durations = []
+        reference_params = None
+        with tempfile.TemporaryDirectory(
+            prefix="intaaneto-piper-", dir=output_path.parent
+        ) as directory:
+            fragments = []
+            for sentence_index, sentence in enumerate(sentences):
+                duration = 0.0
+                phrases = _split_narration_phrases(sentence)
+                for phrase_index, phrase in enumerate(phrases):
+                    fragment_path = Path(directory) / (
+                        f"sentence-{sentence_index:03d}-{phrase_index:02d}.wav"
+                    )
+                    fragment = self._generate_segment(
+                        model=model,
+                        text=narration_text(phrase),
+                        output_path=fragment_path,
+                    )
+                    fragments.append((fragment, sentence_index))
+                    _, fragment_duration = validate_wav(fragment)
+                    duration += fragment_duration
+                    is_last_phrase = phrase_index == len(phrases) - 1
+                    is_last_sentence = sentence_index == len(sentences) - 1
+                    pause_ms = (
+                        settings.PIPER_SENTENCE_PAUSE_MS
+                        if is_last_phrase and not is_last_sentence
+                        else settings.PIPER_CLAUSE_PAUSE_MS if not is_last_phrase else 0
+                    )
+                    if pause_ms < 0:
+                        raise MultimediaGenerationError(
+                            "invalid_audio", "Cấu hình khoảng nghỉ Piper không hợp lệ."
+                        )
+                    if pause_ms:
+                        fragments.append((pause_ms, sentence_index))
+                        duration += pause_ms / 1000
+                sentence_durations.append(duration)
+
+            with wave.open(str(output_path), "wb") as output:
+                for fragment, _ in fragments:
+                    if isinstance(fragment, int):
+                        if reference_params is None:
+                            raise MultimediaGenerationError(
+                                "invalid_audio", "Giọng đọc Piper không hợp lệ."
+                            )
+                        frame_count = round(
+                            reference_params.framerate * fragment / 1000
+                        )
+                        output.writeframes(
+                            b"\x00"
+                            * frame_count
+                            * reference_params.nchannels
+                            * reference_params.sampwidth
+                        )
+                        continue
+                    with wave.open(str(fragment), "rb") as source:
+                        params = source.getparams()
+                        if reference_params is None:
+                            reference_params = params
+                            output.setparams(params)
+                        elif (
+                            params.nchannels,
+                            params.sampwidth,
+                            params.framerate,
+                            params.comptype,
+                        ) != (
+                            reference_params.nchannels,
+                            reference_params.sampwidth,
+                            reference_params.framerate,
+                            reference_params.comptype,
+                        ):
+                            raise MultimediaGenerationError(
+                                "invalid_audio",
+                                "Các đoạn giọng đọc Piper không tương thích.",
+                            )
+                        output.writeframes(source.readframes(source.getnframes()))
+        return validate_wav(output_path)[0], tuple(sentence_durations)
 
 
 def _font(path, size):
@@ -351,10 +456,14 @@ def _sentence_durations(sentences, total_duration):
     return durations
 
 
-def render_slide_frames(*, scenes, audio_duration, tutor_path, work_dir):
+def render_slide_frames(*, scenes, sentence_durations, tutor_path, work_dir):
     tutor = _load_tutor(tutor_path)
     sentences = [sentence for scene in scenes for sentence in scene.sentences]
-    durations = _sentence_durations(sentences, audio_duration)
+    if len(sentence_durations) != len(sentences):
+        raise MultimediaGenerationError(
+            "invalid_audio", "Thời lượng giọng đọc và câu phụ đề không khớp."
+        )
+    durations = sentence_durations
     frames = []
     sentence_index = 0
     for scene in scenes:
@@ -486,8 +595,7 @@ def process_multimedia_job(
         or summary.source_version != source.version
         or draft.source_checksum != source.content_checksum
         or draft.source_version != source.version
-        or draft.summary_checksum
-        != sha256(summary.text.encode("utf-8")).hexdigest()
+        or draft.summary_checksum != sha256(summary.text.encode("utf-8")).hexdigest()
     ):
         raise MultimediaGenerationError(
             "stale_summary",
@@ -511,17 +619,26 @@ def process_multimedia_job(
 
         job.stage = "narrating"
         job.save(update_fields=["stage"])
-        narration_provider.generate(
-            text=narration_text(script),
-            output_path=audio_path,
-        )
+        sentences = [sentence for scene in scenes for sentence in scene.sentences]
+        if hasattr(narration_provider, "generate_with_timing"):
+            _, sentence_durations = narration_provider.generate_with_timing(
+                sentences=sentences,
+                output_path=audio_path,
+            )
+        else:
+            narration_provider.generate(
+                text=narration_text(script),
+                output_path=audio_path,
+            )
+            _, generated_duration = validate_wav(audio_path)
+            sentence_durations = _sentence_durations(sentences, generated_duration)
         audio, duration = validate_wav(audio_path)
 
         job.stage = "rendering_slides"
         job.save(update_fields=["stage"])
         frames = render_slide_frames(
             scenes=scenes,
-            audio_duration=duration,
+            sentence_durations=sentence_durations,
             tutor_path=tutor_path,
             work_dir=work_dir,
         )

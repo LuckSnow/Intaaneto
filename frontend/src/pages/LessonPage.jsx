@@ -5,16 +5,16 @@ import { useAuthStore } from '../store/authStore'
 import { courseService } from '../services/courseService'
 import { aiService } from '../services/aiService'
 import toast from 'react-hot-toast'
-import { AlertCircle, ArrowRight, BookOpen, Bot, CheckCircle2, ClipboardCheck, Send } from 'lucide-react'
+import { AlertCircle, ArrowRight, BookOpen, Bot, Brain, CheckCircle2, ClipboardCheck, FileText, Lightbulb, MessageCircle, Send, X, XCircle } from 'lucide-react'
 import PdfLessonViewer from '../components/lesson/PdfLessonViewer'
 
 const STATUS_MAP = {
   pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: '⏳' },
-  extracting: { label: 'Đang trích xuất văn bản...', color: 'text-blue-400', icon: '📄' },
-  summarizing: { label: 'AI đang tóm tắt...', color: 'text-purple-400', icon: '🤖' },
-  generating_video: { label: 'Đang tạo video AI...', color: 'text-cyan-400', icon: '🎬' },
-  completed: { label: 'Sẵn sàng', color: 'text-green-400', icon: '✅' },
-  failed: { label: 'Thất bại', color: 'text-red-400', icon: '❌' },
+  extracting: { label: 'Đang trích xuất văn bản...', color: 'text-blue-400', icon: FileText },
+  summarizing: { label: 'AI đang tóm tắt...', color: 'text-purple-400', icon: Bot },
+  generating_video: { label: 'Đang tạo video AI...', color: 'text-cyan-400', icon: Bot },
+  completed: { label: 'Sẵn sàng', color: 'text-green-400', icon: CheckCircle2 },
+  failed: { label: 'Thất bại', color: 'text-red-400', icon: XCircle },
 }
 
 export default function LessonPage() {
@@ -398,8 +398,8 @@ export default function LessonPage() {
           <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6 mb-6 flex items-center gap-4">
             <div className="animate-spin h-8 w-8 border-2 border-orange-400 border-t-transparent rounded-full" />
             <div>
-              <p className={`font-semibold ${st.color}`}>
-                {st.icon} {st.label}
+              <p className={`flex items-center gap-2 font-semibold ${st.color}`}>
+                <st.icon className="h-5 w-5" aria-hidden="true" />{st.label}
               </p>
               <p className="text-white/50 text-sm">AI đang xử lý bài giảng. Trang sẽ tự cập nhật khi hoàn tất.</p>
             </div>
@@ -408,7 +408,7 @@ export default function LessonPage() {
 
         {lesson.processing_status === 'failed' && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 mb-6">
-            <p className="text-red-400 font-semibold">❌ Xử lý thất bại</p>
+            <p className="flex items-center gap-2 text-red-400 font-semibold"><XCircle className="h-5 w-5" aria-hidden="true" />Xử lý thất bại</p>
             {lesson.processing_error && <p className="text-red-300/70 text-sm mt-1">{lesson.processing_error}</p>}
           </div>
         )}
@@ -434,7 +434,7 @@ export default function LessonPage() {
               ) : (
                 <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
                   <div className="text-center">
-                    <span className="text-6xl block mb-4">{st.icon}</span>
+                    <st.icon className={`mx-auto mb-4 h-14 w-14 ${st.color}`} aria-hidden="true" />
                     <p className={`text-lg font-semibold ${st.color}`}>{st.label}</p>
                   </div>
                 </div>
@@ -444,10 +444,10 @@ export default function LessonPage() {
             {/* Tabs */}
             <div className="flex gap-2 flex-wrap">
               {[
-                { key: 'video', label: '📖 Nội dung' },
-                { key: 'summary', label: '🤖 Tóm tắt AI' },
-                { key: 'comments', label: '💬 Bình luận' },
-                { key: 'chat', label: '🧠 Hỏi AI' },
+                { key: 'video', label: 'Nội dung', icon: BookOpen },
+                { key: 'summary', label: 'Tóm tắt AI', icon: Bot },
+                { key: 'comments', label: 'Bình luận', icon: MessageCircle },
+                { key: 'chat', label: 'Hỏi AI', icon: Brain },
                 ...(user?.role === 'student' ? [{ key: 'assessment', label: 'Bài đánh giá' }] : []),
               ].map((tab) => (
                 <button
@@ -459,7 +459,7 @@ export default function LessonPage() {
                       : 'bg-white/10 border border-white/20 text-white/70 hover:bg-white/20'
                   }`}
                 >
-                  {tab.label}
+                  {tab.icon && <tab.icon className="mr-2 inline h-4 w-4" aria-hidden="true" />}{tab.label}
                 </button>
               ))}
             </div>
@@ -506,7 +506,7 @@ export default function LessonPage() {
 
               {activeTab === 'summary' && (
                 <div>
-                  <h2 className="text-xl font-bold text-white mb-4">🤖 Tóm tắt bởi AI</h2>
+                  <h2 className="flex items-center gap-2 text-xl font-bold text-white mb-4"><Bot className="h-5 w-5" aria-hidden="true" />Tóm tắt bởi AI</h2>
                   {lesson.ai_summary ? (
                     <div className="text-white/80 whitespace-pre-wrap leading-relaxed">{lesson.ai_summary}</div>
                   ) : (
@@ -517,7 +517,7 @@ export default function LessonPage() {
 
               {activeTab === 'comments' && (
                 <div>
-                  <h2 className="text-xl font-bold text-white mb-4">💬 Bình luận</h2>
+                  <h2 className="flex items-center gap-2 text-xl font-bold text-white mb-4"><MessageCircle className="h-5 w-5" aria-hidden="true" />Bình luận</h2>
 
                   {/* Comment input */}
                   {isAuthenticated && (
@@ -526,7 +526,7 @@ export default function LessonPage() {
                         <div className="flex items-center gap-2 mb-2 text-sm text-white/60">
                           <span>Trả lời {replyTo.user_name}:</span>
                           <button onClick={() => setReplyTo(null)} className="text-red-400 hover:text-red-300">
-                            ✕ Hủy
+                            <X className="mr-1 inline h-4 w-4" aria-hidden="true" />Hủy
                           </button>
                         </div>
                       )}
@@ -972,7 +972,7 @@ export default function LessonPage() {
                 <div className="flex justify-between text-white/70">
                   <span>Trạng thái</span>
                   <span className={st.color}>
-                    {st.icon} {st.label}
+                    <st.icon className="mr-1 inline h-4 w-4" aria-hidden="true" />{st.label}
                   </span>
                 </div>
                 {lesson.duration_minutes && (
@@ -1001,7 +1001,7 @@ export default function LessonPage() {
                     className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-green-700/60 text-white font-semibold border-0 transition-colors"
                   >
                     {completion?.is_completed
-                      ? '✓ Đã hoàn thành'
+                      ? <><CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />Đã hoàn thành</>
                       : assessment && !assessment.passed
                         ? 'Làm bài đánh giá'
                         : 'Đánh dấu hoàn thành'}
@@ -1028,12 +1028,12 @@ export default function LessonPage() {
 
             {/* Quick tips */}
             <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-white mb-3">💡 Mẹo học tập</h3>
+              <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-3"><Lightbulb className="h-5 w-5" aria-hidden="true" />Mẹo học tập</h3>
               <ul className="space-y-2 text-white/60 text-sm">
-                <li>🎯 Xem video AI tóm tắt trước khi đọc chi tiết</li>
-                <li>💬 Đặt câu hỏi cho AI nếu chưa hiểu</li>
-                <li>📝 Ghi chú lại những điểm quan trọng</li>
-                <li>👥 Trao đổi với bạn học qua bình luận</li>
+                <li>Xem video AI tóm tắt trước khi đọc chi tiết.</li>
+                <li>Đặt câu hỏi cho AI nếu chưa hiểu.</li>
+                <li>Ghi chú lại những điểm quan trọng.</li>
+                <li>Trao đổi với bạn học qua bình luận.</li>
               </ul>
             </div>
           </div>

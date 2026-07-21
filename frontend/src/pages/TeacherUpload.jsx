@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { CheckCircle2, ChartNoAxesCombined, FileText, Paperclip, Upload, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '../store/authStore'
 import { courseService } from '../services/courseService'
@@ -13,10 +14,10 @@ import {
 import toast from 'react-hot-toast'
 
 const STATUS_MAP = {
-  pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: '⏳' },
-  extracting: { label: 'Đang trích xuất văn bản...', color: 'text-blue-400', icon: '📄' },
-  completed: { label: 'Đã lập chỉ mục và sẵn sàng hỏi đáp', color: 'text-green-400', icon: '✅' },
-  failed: { label: 'Xử lý thất bại', color: 'text-red-400', icon: '❌' },
+  pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: FileText },
+  extracting: { label: 'Đang trích xuất văn bản...', color: 'text-blue-400', icon: FileText },
+  completed: { label: 'Đã lập chỉ mục và sẵn sàng hỏi đáp', color: 'text-green-400', icon: CheckCircle2 },
+  failed: { label: 'Xử lý thất bại', color: 'text-red-400', icon: XCircle },
 }
 
 const MULTIMEDIA_STAGE_LABELS = {
@@ -382,7 +383,7 @@ export default function TeacherUpload() {
             className="text-4xl font-bold text-white mb-3"
             style={{ textShadow: '0 0 20px rgba(249,115,22,0.6)' }}
           >
-            📤 Tải Bài Giảng
+            <Upload className="mr-2 h-5 w-5" aria-hidden="true" />Tải Bài Giảng
           </h1>
           <p className="text-lg text-white/70">
             Tải lên một file PDF để trích xuất nội dung và lập chỉ mục cho AI Tutor
@@ -458,7 +459,7 @@ export default function TeacherUpload() {
               </div>
               {file && (
                 <p className="mt-2 text-white/60 text-sm">
-                  📎 {file.name} ({(file.size / (1024 * 1024)).toFixed(1)} MB)
+                  <Paperclip className="mr-1 inline h-4 w-4" aria-hidden="true" />{file.name} ({(file.size / (1024 * 1024)).toFixed(1)} MB)
                 </p>
               )}
             </div>
@@ -484,16 +485,17 @@ export default function TeacherUpload() {
         {/* Processing Status List */}
         {uploadedLessons.length > 0 && (
           <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8">
-            <h2 className="text-xl font-bold text-white mb-6">📊 Trạng thái xử lý</h2>
+            <h2 className="flex items-center gap-2 text-xl font-bold text-white mb-6"><ChartNoAxesCombined className="h-5 w-5" aria-hidden="true" />Trạng thái xử lý</h2>
             <div className="space-y-4">
               {uploadedLessons.map((lesson) => {
                 const st = STATUS_MAP[lesson.status] || STATUS_MAP.pending
+                const StatusIcon = st.icon
                 return (
                   <div
                     key={lesson.id}
                     className="bg-white/5 border border-white/10 rounded-xl p-5 flex items-center gap-4"
                   >
-                    <span className="text-2xl">{st.icon}</span>
+                    <StatusIcon className={`h-6 w-6 ${st.color}`} aria-hidden="true" />
                     <div className="flex-1 min-w-0">
                       <h3 className="text-white font-semibold truncate">{lesson.title}</h3>
                       <p className={`text-sm ${st.color}`}>{st.label}</p>

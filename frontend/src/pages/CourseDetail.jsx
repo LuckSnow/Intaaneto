@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { BookOpen, GraduationCap, ListChecks, LockKeyhole, Star, UnlockKeyhole, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '../store/authStore'
 import api from '../services/api'
@@ -44,7 +45,7 @@ export default function CourseDetail() {
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
-      toast('Vui lòng đăng nhập để bắt đầu học', { icon: '🔐' })
+      toast('Vui lòng đăng nhập để bắt đầu học')
       navigate('/login')
       return
     }
@@ -67,7 +68,7 @@ export default function CourseDetail() {
 
   const handleStartLearning = () => {
     if (!isAuthenticated) {
-      toast('Vui lòng đăng nhập để tiếp tục học', { icon: '🔐' })
+      toast('Vui lòng đăng nhập để tiếp tục học')
       navigate('/login')
       return
     }
@@ -109,7 +110,7 @@ export default function CourseDetail() {
                 <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
-                  <span className="text-8xl">📚</span>
+                  <BookOpen className="h-16 w-16 text-orange-600" aria-hidden="true" />
                 </div>
               )}
             </div>
@@ -124,7 +125,6 @@ export default function CourseDetail() {
                 }`}>
                   {course.difficulty === 'beginner' ? 'Cơ bản' : course.difficulty === 'intermediate' ? 'Trung bình' : 'Nâng cao'}
                 </span>
-                <span className="text-gray-400">⏱️ {course.duration_hours || 40} giờ</span>
               </div>
 
               <h1 className="text-3xl font-bold text-gray-900 mb-4 font-heading">
@@ -137,15 +137,15 @@ export default function CourseDetail() {
 
               <div className="flex items-center gap-6 mb-8 text-gray-500">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">👥</span>
+                  <Users className="h-5 w-5" aria-hidden="true" />
                   <span className="text-sm">{course.total_students || 0} học viên</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">⭐</span>
+                  <Star className="h-5 w-5" aria-hidden="true" />
                   <span className="text-sm">{course.average_rating || '5.0'} / 5.0</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">📝</span>
+                  <ListChecks className="h-5 w-5" aria-hidden="true" />
                   <span className="text-sm">{course.lessons?.length || 0} bài học</span>
                 </div>
               </div>
@@ -165,7 +165,7 @@ export default function CourseDetail() {
                     disabled={enrolling}
                     className="w-full py-4 text-lg rounded-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold shadow-lg border-0 transition-all duration-300 hover:shadow-[0_0_20px_rgba(239,68,68,0.8)]"
                   >
-                    {enrolling ? 'Đang xử lý...' : '🎓 Bắt đầu học ngay'}
+                    {enrolling ? 'Đang xử lý...' : <><GraduationCap className="mr-2 h-5 w-5" aria-hidden="true" />Bắt đầu học ngay</>}
                   </Button>
                 )}
                 {!isAuthenticated && (
@@ -198,12 +198,11 @@ export default function CourseDetail() {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-gray-800 font-semibold">{lesson.title}</h3>
-                      <p className="text-gray-400 text-sm">{lesson.duration_minutes || 30} phút</p>
                     </div>
                     {isEnrolled ? (
-                      <span className="text-green-500 text-sm">🔓</span>
+                      <UnlockKeyhole className="h-4 w-4 text-green-500" aria-label="Có thể truy cập" />
                     ) : (
-                      <span className="text-gray-300 text-sm">🔒</span>
+                      <LockKeyhole className="h-4 w-4 text-gray-300" aria-label="Cần đăng ký" />
                     )}
                   </div>
                 </button>

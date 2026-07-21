@@ -94,11 +94,16 @@ relying on it and update it after material implementation changes.
   cannot block lesson, RAG or assessment readiness.
 - AI generation now uses a provider adapter with the supported OpenAI client,
   configurable model/timeout, bounded history, and explicit provider failures.
-- AI Tutor generation can now select `openai` or `gemini` through
-  `AI_GENERATION_PROVIDER`. Gemini uses its OpenAI-compatible endpoint behind a
-  dedicated adapter, key, base URL, and model setting; missing keys and unknown
-  providers fail closed without exposing credentials. Local embeddings and the
-  lesson retrieval/citation path are unchanged.
+- AI Tutor generation can select `openai`, `gemini`, or `groq` through
+  `AI_GENERATION_PROVIDER`. Gemini and Groq use their OpenAI-compatible endpoints
+  behind dedicated adapters, keys, base URLs, and model settings; missing keys and
+  unknown providers fail closed without exposing credentials. The grounded-answer
+  evaluation command can explicitly select one provider without changing the
+  application default. A first Groq `llama-3.3-70b-versatile` baseline ran on
+  2026-07-21: contract pass `0.75`, citation scope `1.00`, refusal `1.00`, and
+  mean latency `1343.75 ms`; human review and a multi-lesson holdout remain before
+  changing the default. Local embeddings and the lesson retrieval/citation path
+  are unchanged.
 - Slice 1 lesson indexing is implemented synchronously in
   `ai_assistant.rag_services`. It authorizes the teacher-owner or admin before
   reading lesson text, prefers non-empty `Lesson.extracted_text` over

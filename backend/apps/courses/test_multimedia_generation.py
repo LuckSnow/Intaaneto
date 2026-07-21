@@ -23,10 +23,12 @@ from .models import (
 from .multimedia_generation import (
     MultimediaGenerationError,
     PiperVietnameseProvider,
+    _split_narration_phrases,
     build_storyboard,
     narration_text,
     process_multimedia_job,
     tutor_asset_checksum,
+    validate_wav,
 )
 from .multimedia_queue import MultimediaQueueError, queue_lesson_multimedia
 from .tasks import process_lesson_multimedia_job
@@ -119,6 +121,14 @@ def test_storyboard_keeps_display_terms_but_normalizes_vietnamese_narration(sett
     assert "hát tê tê pi ét" in narration_text(script)
 
 
+def test_narration_phrases_keep_punctuation_for_controlled_pauses():
+    assert _split_narration_phrases("Đầu tiên, kiểm tra dữ liệu; rồi lưu lại.") == (
+        "Đầu tiên,",
+        "kiểm tra dữ liệu;",
+        "rồi lưu lại.",
+    )
+
+
 @pytest.mark.django_db
 def test_other_teacher_is_denied_before_tutor_asset_read(
     multimedia_lesson,
@@ -201,9 +211,7 @@ def test_queue_preserves_approved_summary_before_narration_normalization(
             "apps.courses.multimedia_queue.tutor_asset_checksum",
             return_value="b" * 64,
         ),
-        patch(
-            "apps.courses.tasks.process_lesson_multimedia_job.apply_async"
-        ),
+        patch("apps.courses.tasks.process_lesson_multimedia_job.apply_async"),
     ):
         job, created = queue_lesson_multimedia(
             actor=teacher_user,
@@ -449,6 +457,32 @@ def test_piper_uses_configured_slower_length_scale(settings, tmp_path):
 
     command = run.call_args.args[0]
     assert command[command.index("--length-scale") + 1] == "1.12"
+
+
+def test_piper_adds_configured_pause_and_returns_sentence_timings(settings, tmp_path):
+    model = tmp_path / "voice.onnx"
+    model.write_bytes(b"model")
+    Path(f"{model}.json").write_text("{}", encoding="utf-8")
+    settings.PIPER_MODEL_PATH = str(model)
+    settings.PIPER_CLAUSE_PAUSE_MS = 100
+    settings.PIPER_SENTENCE_PAUSE_MS = 300
+    provider = PiperVietnameseProvider()
+
+    def fake_run(command, **kwargs):
+        output_path = Path(command[command.index("-f") + 1])
+        output_path.write_bytes(_wav_bytes(seconds=1))
+
+    with patch(
+        "apps.courses.multimedia_generation.subprocess.run", side_effect=fake_run
+    ) as run:
+        audio, durations = provider.generate_with_timing(
+            sentences=("Một, hai.", "Ba."), output_path=tmp_path / "out.wav"
+        )
+
+    assert run.call_count == 3
+    assert durations == pytest.approx((2.4, 1.0))
+    _, duration = validate_wav(audio)
+    assert duration == pytest.approx(3.4)
 
 
 @pytest.mark.django_db

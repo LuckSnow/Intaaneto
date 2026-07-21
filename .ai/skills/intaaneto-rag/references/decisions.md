@@ -115,12 +115,13 @@ affected files or migration.
 ## RAG-010 — Explicit online generation provider selection
 
 - Status: Implemented
-- Date: 2026-07-15
+- Date: 2026-07-21
 - Affected: `backend/apps/ai_assistant/services.py`, generation settings,
   environment example, and provider tests
-- Decision: Select direct OpenAI or Gemini generation explicitly through a
-  server-side setting. Keep separate credentials and use Gemini's
-  OpenAI-compatible endpoint through the existing SDK and provider protocol.
+- Decision: Select direct OpenAI, Gemini, or Groq generation explicitly through a
+  server-side setting. Keep separate credentials and use each compatible endpoint
+  through the existing SDK and provider protocol. Permit an evaluation command to
+  select a provider explicitly without changing the runtime default.
 - Reason: Provider choice must be replaceable without coupling lesson indexing,
   authorized retrieval, prompts, or application-owned citations to one vendor.
 - Constraint: Fail closed for a missing key or unknown provider. Free-tier
