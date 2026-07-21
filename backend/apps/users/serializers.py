@@ -1,5 +1,6 @@
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from PIL import Image, UnidentifiedImageError
+from rest_framework import serializers
 import re
 from .models import Profile, TeacherApplication
 
@@ -39,6 +40,8 @@ class UserSerializer(serializers.ModelSerializer):
     """User Serializer"""
 
     profile = ProfileSerializer(read_only=True)
+    MAX_AVATAR_BYTES = 5 * 1024 * 1024
+    MAX_AVATAR_PIXELS = 8_000_000
 
     class Meta:
         model = User
@@ -51,6 +54,39 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'role', 'is_active', 'is_verified', 'created_at', 'updated_at'
         ]
+
+    def validate_avatar(self, value):
+        if value is None:
+            return value
+        if value.size <= 0 or value.size > self.MAX_AVATAR_BYTES:
+            raise serializers.ValidationError(
+                'Ảnh đại diện vượt quá giới hạn 5MB.'
+            )
+
+        position = value.tell()
+        try:
+            value.seek(0)
+            with Image.open(value) as image:
+                image.verify()
+            value.seek(0)
+            with Image.open(value) as image:
+                width, height = image.size
+                if (
+                    image.format not in ('JPEG', 'PNG', 'WEBP')
+                    or min(width, height) < 64
+                    or max(width, height) > 4096
+                    or width * height > self.MAX_AVATAR_PIXELS
+                ):
+                    raise serializers.ValidationError(
+                        'Ảnh đại diện phải là JPEG, PNG hoặc WebP hợp lệ.'
+                    )
+        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            raise serializers.ValidationError(
+                'Ảnh đại diện không hợp lệ.'
+            ) from exc
+        finally:
+            value.seek(position)
+        return value
 
 
 class RegisterSerializer(serializers.ModelSerializer):

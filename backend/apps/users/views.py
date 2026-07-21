@@ -22,7 +22,8 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from config.throttling import ActionScopedThrottleMixin
-from .models import User, TeacherApplication
+from .activity_services import record_daily_activity
+from .models import DailyActivity, User, TeacherApplication
 from .permissions import IsRoleAdmin
 from .role_services import (
     TeacherApplicationError,
@@ -59,6 +60,7 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
         'register': 'auth_register',
         'login': 'auth_login',
         'teacher_login': 'auth_login',
+        'teacher_google': 'auth_login',
         'google': 'auth_login',
         'verify_email': 'auth_verify',
         'resend_verification': 'auth_resend',
@@ -255,6 +257,7 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
 
     @staticmethod
     def _token_response(user):
+        record_daily_activity(user=user, count_login=True)
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,
@@ -350,6 +353,54 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
                 {'error': 'Tài khoản không có quyền truy cập cổng giáo viên'},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        return self._token_response(user)
+
+    @action(detail=False, methods=['post'])
+    def teacher_google(self, request):
+        """Authenticate an existing teacher/admin with a verified Google identity."""
+        token = request.data.get('id_token')
+        if not token:
+            return Response(
+                {'error': 'id_token is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            decoded_token = id_token.verify_firebase_token(
+                token,
+                google_requests.Request(),
+                audience=settings.FIREBASE_PROJECT_ID,
+            )
+        except Exception:
+            return Response(
+                {'error': 'Google token không hợp lệ'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        email = decoded_token.get('email')
+        if not email or decoded_token.get('email_verified') is not True:
+            return Response(
+                {'error': 'Tài khoản Google chưa xác thực email'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        user = User.objects.filter(email__iexact=email).first()
+        if (
+            user is None
+            or not user.is_active
+            or not user.is_verified
+            or user.role not in {'teacher', 'admin'}
+        ):
+            return Response(
+                {'error': 'Tài khoản Google không có quyền truy cập cổng giáo viên'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        picture = decoded_token.get('picture', '')
+        if picture and user.google_avatar != picture:
+            user.google_avatar = picture
+            user.save(update_fields=['google_avatar'])
+
         return self._token_response(user)
     
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
@@ -561,6 +612,7 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
                 user.save(update_fields=['google_avatar'])
 
         # Generate JWT tokens
+        record_daily_activity(user=user, count_login=True)
         refresh = RefreshToken.for_user(user)
 
         return Response({
@@ -589,8 +641,32 @@ class UserViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
     @action(detail=False, methods=['get'])
     def me(self, request):
         """Get current user profile"""
+        record_daily_activity(user=request.user)
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='daily-activity')
+    def daily_activity(self, request):
+        """Return the actor's bounded daily sign-in history."""
+        record_daily_activity(user=request.user)
+        today = timezone.localdate()
+        start_date = today - timedelta(days=370)
+        activities = DailyActivity.objects.filter(
+            user=request.user,
+            activity_date__gte=start_date,
+            activity_date__lte=today,
+        ).values('activity_date', 'login_count')
+        return Response({
+            'start_date': start_date,
+            'end_date': today,
+            'activities': [
+                {
+                    'date': activity['activity_date'],
+                    'login_count': activity['login_count'],
+                }
+                for activity in activities
+            ],
+        })
     
     @action(detail=False, methods=['put', 'patch'])
     def update_profile(self, request):

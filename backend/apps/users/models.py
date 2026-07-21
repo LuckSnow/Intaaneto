@@ -125,6 +125,39 @@ class Profile(models.Model):
         return f"Profile of {self.user.full_name}"
 
 
+class DailyActivity(models.Model):
+    """Server-owned daily sign-in activity for the profile heatmap."""
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='daily_activities',
+    )
+    activity_date = models.DateField()
+    login_count = models.PositiveIntegerField(default=1)
+    first_seen_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['activity_date']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'activity_date'],
+                name='unique_user_daily_activity',
+            ),
+            models.CheckConstraint(
+                check=models.Q(login_count__gte=1),
+                name='daily_activity_login_count_gte_1',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['user', 'activity_date']),
+        ]
+
+    def __str__(self):
+        return f"Daily activity for user {self.user_id} on {self.activity_date}"
+
+
 class TeacherApplication(models.Model):
     """Auditable request for a verified learner to receive teacher privileges."""
 

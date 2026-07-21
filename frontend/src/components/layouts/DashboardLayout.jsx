@@ -21,8 +21,8 @@ export default function DashboardLayout() {
     navigate('/', { replace: true })
   }
 
-  // Get user avatar - prefer Google avatar, fallback to uploaded avatar
-  const userAvatar = user?.google_avatar || user?.avatar || null
+  // Prefer the avatar explicitly uploaded by the user over the Google fallback.
+  const userAvatar = user?.avatar || user?.google_avatar || null
 
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard' },

@@ -39,6 +39,7 @@ api.interceptors.response.use(
     const publicAuthRequest = [
       '/auth/login/',
       '/auth/teacher_login/',
+      '/auth/teacher_google/',
       '/auth/register/',
       '/auth/google/',
       '/auth/verify_email/',
