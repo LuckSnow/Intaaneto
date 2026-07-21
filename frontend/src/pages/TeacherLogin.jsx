@@ -1,16 +1,33 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { LockKeyhole, Mail, ShieldCheck } from 'lucide-react'
+import {
+  LockKeyhole,
+  Mail,
+  ShieldCheck,
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { Button } from '@/components/ui/button'
+import logoFull from '../assets/images/logo-full.png'
+import teacherLoginIllustration from '../assets/images/teacher-login-illustration.png'
 import { authService } from '../services/authService'
 import { useAuthStore } from '../store/authStore'
 
 
+function GoogleIcon() {
+  return (
+    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.28-4.74 3.28-8.09Z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.99.66-2.24 1.05-3.72 1.05-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
+      <path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.49 12c0-.73.13-1.43.35-2.1V7.07H2.18A11 11 0 0 0 1 12c0 1.78.43 3.45 1.18 4.93l3.66-2.83Z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A10.58 10.58 0 0 0 12 1a11 11 0 0 0-9.82 6.07L5.84 9.9A6.57 6.57 0 0 1 12 5.38Z" />
+    </svg>
+  )
+}
+
 export default function TeacherLogin() {
   const navigate = useNavigate()
-  const { teacherLogin, isLoading } = useAuthStore()
+  const { teacherLogin, teacherGoogleLogin, isLoading } = useAuthStore()
   const [needVerification, setNeedVerification] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [formData, setFormData] = useState({ email: '', password: '' })
@@ -30,6 +47,22 @@ export default function TeacherLogin() {
     }
   }
 
+  const handleGoogleLogin = async () => {
+    setNeedVerification(false)
+    setErrorMessage('')
+    try {
+      await teacherGoogleLogin()
+      toast.success('Đăng nhập Google vào cổng giáo viên thành công')
+      navigate('/teacher/upload', { replace: true })
+    } catch (error) {
+      if (error.code === 'auth/popup-closed-by-user') return
+      const message = error.code === 'firebase/not-configured'
+        ? error.message
+        : error.response?.data?.error || 'Không thể đăng nhập giáo viên bằng Google.'
+      setErrorMessage(message)
+    }
+  }
+
   const handleResend = async () => {
     try {
       const response = await authService.resendVerification(formData.email)
@@ -40,122 +73,131 @@ export default function TeacherLogin() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10 sm:py-16">
-      <div className="mx-auto w-full max-w-md">
-        <Link
-          to="/"
-          className="mb-8 inline-flex min-h-11 items-center text-lg font-semibold text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2"
-        >
-          Intaaneto
-        </Link>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-orange-950 px-4 py-7 sm:px-6 lg:px-8">
+      <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-orange-500/15" />
+      <div className="pointer-events-none absolute -bottom-40 right-16 h-96 w-96 rounded-full bg-orange-600/15" />
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8">
-          <div className="mb-6">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-orange-50 text-orange-700">
-              <ShieldCheck aria-hidden="true" size={22} />
-            </div>
-            <h1 className="text-2xl font-semibold text-slate-950">
-              Đăng nhập giáo viên
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Truy cập khu vực tải và quản lý học liệu. Tài khoản giáo viên phải
-              được quản trị viên cấp quyền và xác thực email trước khi đăng nhập.
+      <section className="teacher-auth-shell relative w-full max-w-6xl overflow-hidden rounded-[2rem] border border-orange-200/20 bg-orange-800 shadow-2xl">
+        <div className="teacher-auth-visual relative z-10 flex flex-col overflow-hidden bg-orange-50 p-7 sm:p-9 lg:p-11">
+          <Link
+            to="/"
+            className="relative z-10 inline-flex w-fit rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2"
+            aria-label="Về trang chủ Intaaneto"
+          >
+            <img src={logoFull} alt="Intaaneto" className="h-10 w-auto object-contain sm:h-12" />
+          </Link>
+
+          <div className="pointer-events-none absolute left-10 top-28 h-20 w-20 rounded-full bg-orange-200/35" />
+          <div className="pointer-events-none absolute right-[18%] top-16 h-12 w-12 rounded-full bg-orange-200/30" />
+          <img
+            src={teacherLoginIllustration}
+            alt="Giáo viên hướng dẫn học viên học công nghệ cùng máy tính"
+            className="relative z-10 my-auto w-full max-w-[620px] object-contain sm:-ml-3 sm:w-[92%] lg:w-full"
+          />
+          <div className="relative z-10 max-w-sm pb-3 sm:pb-0">
+            <p className="text-sm font-semibold text-orange-700">Không gian dành cho giảng viên</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Quản lý học liệu, bài đánh giá và tiến độ học tập tại một nơi.
             </p>
           </div>
+        </div>
 
-          {errorMessage && (
-            <div
-              role="alert"
-              className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-            >
-              <p>{errorMessage}</p>
-              {needVerification && (
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  className="mt-2 min-h-11 font-semibold text-orange-700 underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600"
-                >
-                  Gửi lại hướng dẫn xác thực
-                </button>
-              )}
+        <div className="teacher-auth-form relative flex items-center bg-orange-800 p-6 text-white sm:p-7 lg:px-12">
+          <div className="mx-auto w-full max-w-sm py-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-orange-100 ring-1 ring-white/15">
+              <ShieldCheck aria-hidden="true" size={23} />
             </div>
-          )}
+            <h1 className="mt-5 text-3xl font-bold">Đăng nhập giáo viên</h1>
+            <p className="mt-2 text-sm leading-6 text-orange-100">
+              Truy cập khu vực quản lý nội dung và lớp học của bạn.
+            </p>
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="teacher-email" className="text-sm font-medium text-slate-800">
-                Email công việc
-              </label>
-              <div className="relative mt-2">
-                <Mail
-                  aria-hidden="true"
-                  size={18}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                />
-                <input
-                  id="teacher-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={(event) => setFormData({
-                    ...formData,
-                    email: event.target.value,
-                  })}
-                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-3 text-slate-950 outline-none placeholder:text-slate-400 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
-                  placeholder="giaovien@example.com"
-                />
+            {errorMessage && (
+              <div role="alert" className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                <p>{errorMessage}</p>
+                {needVerification && (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    className="mt-2 min-h-11 font-semibold text-orange-700 underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600"
+                  >
+                    Gửi lại hướng dẫn xác thực
+                  </button>
+                )}
               </div>
-            </div>
+            )}
 
-            <div>
-              <label htmlFor="teacher-password" className="text-sm font-medium text-slate-800">
-                Mật khẩu
+            <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
+              <label className="block" htmlFor="teacher-email">
+                <span className="text-sm font-medium text-orange-50">Email công việc</span>
+                <span className="relative mt-2 block">
+                  <Mail aria-hidden="true" size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-orange-100/70" />
+                  <input
+                    id="teacher-email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={formData.email}
+                    onChange={(event) => setFormData({ ...formData, email: event.target.value })}
+                    className="min-h-12 w-full rounded-lg border border-white/20 bg-orange-950/35 py-2 pl-10 pr-3 text-white outline-none placeholder:text-orange-100/50 focus:border-orange-200 focus:ring-2 focus:ring-orange-200/30"
+                    placeholder="giaovien@example.com"
+                  />
+                </span>
               </label>
-              <div className="relative mt-2">
-                <LockKeyhole
-                  aria-hidden="true"
-                  size={18}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                />
-                <input
-                  id="teacher-password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={formData.password}
-                  onChange={(event) => setFormData({
-                    ...formData,
-                    password: event.target.value,
-                  })}
-                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-3 text-slate-950 outline-none placeholder:text-slate-400 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
-                  placeholder="Nhập mật khẩu"
-                />
-              </div>
+
+              <label className="block" htmlFor="teacher-password">
+                <span className="text-sm font-medium text-orange-50">Mật khẩu</span>
+                <span className="relative mt-2 block">
+                  <LockKeyhole aria-hidden="true" size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-orange-100/70" />
+                  <input
+                    id="teacher-password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={formData.password}
+                    onChange={(event) => setFormData({ ...formData, password: event.target.value })}
+                    className="min-h-12 w-full rounded-lg border border-white/20 bg-orange-950/35 py-2 pl-10 pr-3 text-white outline-none placeholder:text-orange-100/50 focus:border-orange-200 focus:ring-2 focus:ring-orange-200/30"
+                    placeholder="Nhập mật khẩu"
+                  />
+                </span>
+              </label>
+
+              <Button type="submit" disabled={isLoading} className="min-h-12 w-full bg-white font-semibold text-orange-800 hover:bg-orange-50 hover:text-orange-900 focus-visible:ring-orange-100">
+                {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập cổng giáo viên'}
+              </Button>
+            </form>
+
+            <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wider text-orange-100/70" aria-hidden="true">
+              <span className="h-px flex-1 bg-white/20" />
+              hoặc
+              <span className="h-px flex-1 bg-white/20" />
             </div>
 
             <Button
-              type="submit"
+              type="button"
+              variant="outline"
               disabled={isLoading}
-              className="min-h-11 w-full bg-orange-700 text-white hover:bg-orange-800 focus-visible:ring-orange-600"
+              onClick={handleGoogleLogin}
+              className="min-h-12 w-full gap-3 border-white bg-white text-slate-800 hover:bg-orange-50 hover:text-slate-950 focus-visible:ring-orange-100"
             >
-              {isLoading ? 'Đang đăng nhập…' : 'Đăng nhập cổng giáo viên'}
+              <GoogleIcon />
+              Đăng nhập giáo viên với Google
             </Button>
-          </form>
+            <p className="mt-3 text-center text-xs leading-5 text-orange-100/75">
+              Email Google phải trùng với tài khoản giáo viên đã được phê duyệt.
+            </p>
 
-          <p className="mt-6 border-t border-slate-200 pt-5 text-center text-sm text-slate-600">
-            Bạn là học viên?{' '}
-            <Link
-              to="/login"
-              className="font-semibold text-orange-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600"
-            >
-              Đăng nhập tại đây
-            </Link>
-          </p>
-        </section>
-      </div>
+            <p className="mt-7 border-t border-white/20 pt-5 text-center text-sm text-orange-100">
+              Bạn là học viên?{' '}
+              <Link to="/login" className="font-semibold text-white underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-100">
+                Đăng nhập tại đây
+              </Link>
+            </p>
+          </div>
+        </div>
+      </section>
     </main>
   )
 }

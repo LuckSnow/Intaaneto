@@ -131,3 +131,37 @@
     @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
   }
 }
+
+/* Teacher portal auth uses an explicit early split to preserve the reference
+   composition in narrow embedded/browser preview panes. */
+.teacher-auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.teacher-auth-visual {
+  min-height: 390px;
+  border-radius: 0 0 32% 32%;
+}
+
+.teacher-auth-form {
+  min-width: 0;
+}
+
+@media (min-width: 480px) {
+  .teacher-auth-shell {
+    min-height: 680px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .teacher-auth-visual {
+    min-height: 100%;
+    border-radius: 0 42% 46% 0 / 0 52% 48% 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .teacher-auth-shell {
+    grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+  }
+}

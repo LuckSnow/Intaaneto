@@ -88,6 +88,25 @@ export const useAuthStore = create((set) => ({
     }
   },
 
+  teacherGoogleLogin: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const data = await authService.teacherGoogleLogin()
+      set({
+        user: data.user,
+        isAuthenticated: true,
+        isLoading: false,
+      })
+      return data
+    } catch (error) {
+      set({
+        error: error.response?.data?.error || 'Teacher Google login failed',
+        isLoading: false,
+      })
+      throw error
+    }
+  },
+
   register: async (userData) => {
     set({ isLoading: true, error: null })
     try {
