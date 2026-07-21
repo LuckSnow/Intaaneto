@@ -107,6 +107,16 @@ export const authService = {
     return response.data
   },
 
+  requestPasswordReset: async (email) => {
+    const response = await api.post('/auth/password_reset_request/', { email })
+    return response.data
+  },
+
+  confirmPasswordReset: async (resetData) => {
+    const response = await api.post('/auth/password_reset_confirm/', resetData)
+    return response.data
+  },
+
   // Update profile
   updateProfile: async (userData) => {
     const response = await api.put('/auth/users/update_profile/', userData)

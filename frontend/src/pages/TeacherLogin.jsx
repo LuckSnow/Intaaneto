@@ -131,52 +131,39 @@ export default function TeacherLogin() {
               </div>
             )}
 
-            <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
-              <label className="block" htmlFor="teacher-email">
-                <span className="text-sm font-medium text-orange-50">Email công việc</span>
-                <span className="relative mt-2 block">
-                  <Mail aria-hidden="true" size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-orange-100/70" />
-                  <input
-                    id="teacher-email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={formData.email}
-                    onChange={(event) => setFormData({ ...formData, email: event.target.value })}
-                    className="min-h-12 w-full rounded-lg border border-white/20 bg-orange-950/35 py-2 pl-10 pr-3 text-white outline-none placeholder:text-orange-100/50 focus:border-orange-200 focus:ring-2 focus:ring-orange-200/30"
-                    placeholder="giaovien@example.com"
-                  />
-                </span>
-              </label>
-
-              <label className="block" htmlFor="teacher-password">
-                <span className="text-sm font-medium text-orange-50">Mật khẩu</span>
-                <span className="relative mt-2 block">
-                  <LockKeyhole aria-hidden="true" size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-orange-100/70" />
-                  <input
-                    id="teacher-password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={formData.password}
-                    onChange={(event) => setFormData({ ...formData, password: event.target.value })}
-                    className="min-h-12 w-full rounded-lg border border-white/20 bg-orange-950/35 py-2 pl-10 pr-3 text-white outline-none placeholder:text-orange-100/50 focus:border-orange-200 focus:ring-2 focus:ring-orange-200/30"
-                    placeholder="Nhập mật khẩu"
-                  />
-                </span>
-              </label>
-
-              <Button type="submit" disabled={isLoading} className="min-h-12 w-full bg-white font-semibold text-orange-800 hover:bg-orange-50 hover:text-orange-900 focus-visible:ring-orange-100">
-                {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập cổng giáo viên'}
-              </Button>
-            </form>
-
-            <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wider text-orange-100/70" aria-hidden="true">
-              <span className="h-px flex-1 bg-white/20" />
-              hoặc
-              <span className="h-px flex-1 bg-white/20" />
+            <div>
+              <div className="flex items-center justify-between gap-4">
+                <label htmlFor="teacher-password" className="text-sm font-medium text-slate-800">
+                  Mật khẩu
+                </label>
+                <Link
+                  to="/forgot-password?portal=teacher"
+                  className="text-sm font-semibold text-orange-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600"
+                >
+                  Quên mật khẩu?
+                </Link>
+              </div>
+              <div className="relative mt-2">
+                <LockKeyhole
+                  aria-hidden="true"
+                  size={18}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                />
+                <input
+                  id="teacher-password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={formData.password}
+                  onChange={(event) => setFormData({
+                    ...formData,
+                    password: event.target.value,
+                  })}
+                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-3 text-slate-950 outline-none placeholder:text-slate-400 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
+                  placeholder="Nhập mật khẩu"
+                />
+              </div>
             </div>
 
             <Button

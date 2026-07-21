@@ -44,6 +44,8 @@ api.interceptors.response.use(
       '/auth/google/',
       '/auth/verify_email/',
       '/auth/resend_verification/',
+      '/auth/password_reset_request/',
+      '/auth/password_reset_confirm/',
       '/auth/token/refresh/',
     ].some((path) => originalRequest?.url?.includes(path))
     const refreshToken = getStoredRefreshToken()

@@ -6,7 +6,16 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Lesson, LessonIngestionJob, LessonVideoGenerationJob
+from .models import (
+    Lesson,
+    LessonIngestionJob,
+    LessonMultimediaJob,
+    LessonVideoGenerationJob,
+)
+from .multimedia_generation import (
+    MultimediaGenerationError,
+    process_multimedia_job,
+)
 from .services import PDFIngestionError, process_pdf_lesson
 from .video_generation import (
     VideoGenerationError,
@@ -176,5 +185,71 @@ def process_sadtalker_video_job(self, job_id):
                     cleared_fields.append(field_name)
             if cleared_fields:
                 job.save(update_fields=cleared_fields)
+        return {'job_id': job.id, 'status': 'failed'}
+    return {'job_id': job.id, 'status': 'completed'}
+
+
+def _mark_multimedia_failed(job_id, *, code, message):
+    with transaction.atomic():
+        job = LessonMultimediaJob.objects.select_for_update().filter(pk=job_id).first()
+        if job is None or job.status == 'completed':
+            return False
+        job.status = 'failed'
+        job.stage = 'failed'
+        job.failure_code = code[:50]
+        job.safe_error = message[:255]
+        job.completed_at = timezone.now()
+        job.save(update_fields=[
+            'status', 'stage', 'failure_code', 'safe_error', 'completed_at',
+        ])
+    return True
+
+
+@shared_task(bind=True, acks_late=True, reject_on_worker_lost=True)
+def process_lesson_multimedia_job(self, job_id):
+    """Render one idempotent local slide-video job on the normal worker."""
+
+    with transaction.atomic():
+        job = (
+            LessonMultimediaJob.objects.select_for_update()
+            .select_related('lesson__course', 'requested_by')
+            .filter(pk=job_id)
+            .first()
+        )
+        if job is None:
+            return {'job_id': job_id, 'status': 'discarded'}
+        if job.status in ('completed', 'failed'):
+            return {'job_id': job.id, 'status': job.status}
+        if (
+            job.status == 'running'
+            and str(job.task_id) != str(getattr(self.request, 'id', ''))
+        ):
+            return {'job_id': job.id, 'status': 'running'}
+        job.status = 'running'
+        job.started_at = timezone.now()
+        job.failure_code = ''
+        job.safe_error = ''
+        job.save(update_fields=[
+            'status', 'started_at', 'failure_code', 'safe_error',
+        ])
+
+    try:
+        process_multimedia_job(job=job)
+    except PermissionDenied:
+        _mark_multimedia_failed(
+            job.id,
+            code='authorization_revoked',
+            message='Quyền tạo video đã bị thu hồi.',
+        )
+        return {'job_id': job.id, 'status': 'failed'}
+    except MultimediaGenerationError as exc:
+        _mark_multimedia_failed(job.id, code=exc.code, message=str(exc))
+        return {'job_id': job.id, 'status': 'failed'}
+    except Exception:
+        _mark_multimedia_failed(
+            job.id,
+            code='unexpected_failure',
+            message='Không thể tạo video bài giảng.',
+        )
         return {'job_id': job.id, 'status': 'failed'}
     return {'job_id': job.id, 'status': 'completed'}

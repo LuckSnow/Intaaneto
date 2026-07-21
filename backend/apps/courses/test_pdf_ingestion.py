@@ -187,6 +187,43 @@ def test_upload_rejects_pdf_over_configured_size(
 
 
 @pytest.mark.django_db
+def test_pdf_viewer_stream_is_owner_scoped(
+    api_client,
+    teacher_user,
+    owned_course,
+):
+    lesson = Lesson.objects.create(
+        course=owned_course,
+        title='PDF được bảo vệ',
+        slug='pdf-duoc-bao-ve',
+        uploaded_file=SimpleUploadedFile(
+            'protected.pdf', make_pdf('Protected lesson content.')
+        ),
+        processing_status='completed',
+    )
+    api_client.force_authenticate(teacher_user)
+
+    allowed = api_client.get(f'/api/courses/lessons/{lesson.id}/pdf/')
+
+    assert allowed.status_code == 200
+    assert allowed['Content-Type'] == 'application/pdf'
+    assert b''.join(allowed.streaming_content).startswith(b'%PDF-')
+
+    outsider = User.objects.create_user(
+        email='pdf-viewer-outsider@example.invalid',
+        username='pdf-viewer-outsider',
+        password='LocalTestOnly-123!',
+        role='teacher',
+        is_verified=True,
+    )
+    api_client.force_authenticate(outsider)
+
+    denied = api_client.get(f'/api/courses/lessons/{lesson.id}/pdf/')
+
+    assert denied.status_code == 404
+
+
+@pytest.mark.django_db
 def test_other_teacher_is_denied_before_pdf_processing(
     api_client, teacher_user, owned_course,
 ):

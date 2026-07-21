@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   AlertCircle,
+  ArrowLeft,
   ClipboardCheck,
   Loader2,
   Plus,
@@ -8,7 +9,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { assessmentService } from '../services/assessmentService'
@@ -282,18 +283,30 @@ export default function TeacherAssessments() {
   }
 
   const busy = loadingCourses || loadingLessons || loadingAssessment
+  const authoringHref = courseId && lessonId
+    ? `/teacher/upload?course=${encodeURIComponent(courseId)}&lesson=${encodeURIComponent(lessonId)}`
+    : '/teacher/upload'
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-slate-50 py-8">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <header className="mb-8">
-          <div className="flex items-center gap-3">
-            <ClipboardCheck className="h-7 w-7 text-orange-700" aria-hidden="true" />
-            <h1 className="text-2xl font-bold text-slate-950">Biên soạn bài đánh giá</h1>
+        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <ClipboardCheck className="h-7 w-7 text-orange-700" aria-hidden="true" />
+              <h1 className="text-2xl font-bold text-slate-950">Biên soạn bài đánh giá</h1>
+            </div>
+            <p className="mt-2 max-w-3xl text-slate-600">
+              Tạo câu hỏi trắc nghiệm theo mục tiêu học tập. Điểm, ngưỡng đạt và tiến độ được backend xác định.
+            </p>
           </div>
-          <p className="mt-2 max-w-3xl text-slate-600">
-            Tạo câu hỏi trắc nghiệm theo mục tiêu học tập. Điểm, ngưỡng đạt và tiến độ được backend xác định.
-          </p>
+          <Link
+            to={authoringHref}
+            className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+            Quay lại biên soạn
+          </Link>
         </header>
 
         <section className="mb-6 grid gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2" aria-label="Chọn bài học">

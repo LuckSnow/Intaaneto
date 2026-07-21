@@ -21,7 +21,12 @@ sách tính năng dự kiến.
   blueprint/27 câu được giữ tách khỏi RAG và import ở trạng thái draft.
 - Teacher application/admin approval, email verification và teacher login có
   boundary backend; CSV/objective/reinforcement reports chỉ theo course sở hữu.
+- Assessment authoring đề xuất 5/10/15 câu theo độ lớn source, cho teacher chọn
+  tối đa 20 và sinh theo batch 5 câu trước khi lưu một draft để review/publish.
 - SadTalker adapter có consent/bounds/audit; technical GPU smoke đã tạo MP4.
+- Teacher web flow có seam video slide local dùng Piper/Pillow/FFmpeg, phụ đề
+  đóng vào slide và ảnh AI Tutor cố định; không cần API key/GPU. Contract đã có
+  test, nhưng model chưa được tải hoặc live-benchmark trước license review.
 - Docker Compose development cho PostgreSQL, Redis, backend, non-root Celery
   ingestion worker, frontend và Adminer.
 - Bộ test backend cô lập bằng SQLite; lint/build frontend đã chạy được ở lần kiểm
@@ -36,8 +41,9 @@ sách tính năng dự kiến.
   chất lượng RAG hay tác động giáo dục.
 - AI dialogue grading chưa ảnh hưởng điểm; baseline tin cậy vẫn là trắc nghiệm
   deterministic do teacher duyệt.
-- SadTalker chưa có automatic TTS và chưa có render học liệu bằng portrait/audio
-  đã duyệt kèm đánh giá tiếng Việt/lip-sync.
+- SadTalker được giữ làm PoC không còn là web flow ưu tiên. Piper voice/model card,
+  provenance avatar, chất lượng tiếng Việt, caption timing và cold/warm latency
+  của video slide chưa có bằng chứng live.
 - Frontend chưa có test runner tự động riêng; Docker Compose là development.
 - Một số frontend pages vẫn là prototype/placeholder; không nên xem các app model
   và endpoint tồn tại là bằng chứng UI end-to-end đã hoàn tất.
@@ -49,8 +55,9 @@ sách tính năng dự kiến.
 2. Mở rộng RAG evaluation sang nhiều lesson, tách holdout và human review trước
    khi tune threshold/model.
 3. Bổ sung durable background processing và production storage/security.
-4. Chạy SadTalker với asset tiếng Việt có quyền sử dụng và ghi rubric tài nguyên,
-   lip-sync, artifact; video vẫn là enhancement tùy chọn.
+4. Sau khi duyệt license Piper/model và quyền asset, chạy một video slide tiếng
+   Việt 30–60 giây, ghi cold/warm latency và rà soát giọng/caption; video vẫn là
+   enhancement tùy chọn.
 
 ## Tiêu chí không được tuyên bố sớm
 

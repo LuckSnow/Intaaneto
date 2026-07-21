@@ -7,15 +7,17 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
-from apps.ai_assistant.models import KnowledgeSource
+from apps.ai_assistant.models import KnowledgeChunk, KnowledgeSource
 from apps.exercises.models import LessonAssessment
 from apps.users.models import User
 
+from .content_authoring import assessment_generation_plan
 from .models import (
     Course,
     Lesson,
     LessonNarrationAudio,
     LessonSummaryDraft,
+    LessonVideoScriptDraft,
     LessonVideoGenerationJob,
 )
 from .video_queue import VideoQueueError, queue_lesson_video
@@ -51,6 +53,41 @@ def _record_approved_summary(*, lesson, teacher):
         generated_by=teacher,
         approved_by=teacher,
     )
+
+
+def _assessment_batch(*, start=1):
+    return {
+        "title": "Kiểm tra PHP",
+        "instructions": "Chọn đáp án phù hợp.",
+        "questions": [
+            {
+                "prompt": f"Câu PHP {index}?",
+                "choices": ["A", "B", "C", "D"],
+                "correct_choice": 0,
+                "learning_objective": f"Mục tiêu {index}",
+                "explanation": "Giải thích dành cho giáo viên.",
+                "order": index,
+            }
+            for index in range(start, start + 5)
+        ],
+    }
+
+
+def _add_source_chunks(lesson, count):
+    source = lesson.knowledge_sources.get(is_active=True)
+    KnowledgeChunk.objects.bulk_create([
+        KnowledgeChunk(
+            source=source,
+            ordinal=index,
+            text=f"Phần kiến thức PHP {index}",
+            start_offset=index * 30,
+            end_offset=index * 30 + 25,
+            char_count=25,
+            embedding=[0.1, 0.2],
+        )
+        for index in range(count)
+    ])
+    return source
 
 
 @pytest.fixture
@@ -165,24 +202,78 @@ def test_stale_summary_cannot_be_approved(api_client, teacher_user, authoring_le
 
 
 @pytest.mark.django_db
+def test_video_script_is_separate_reviewed_draft_from_current_summary(
+    api_client,
+    teacher_user,
+    authoring_lesson,
+):
+    summary_text = "Tóm tắt PHP đã được duyệt."
+    authoring_lesson.ai_summary = summary_text
+    authoring_lesson.save(update_fields=["ai_summary"])
+    _record_approved_summary(lesson=authoring_lesson, teacher=teacher_user)
+    api_client.force_authenticate(teacher_user)
+
+    with patch(
+        "apps.courses.content_authoring.AIService.generate_video_script_draft",
+        return_value={"text": "Kịch bản PHP chi tiết hơn.", "tokens_used": 20},
+    ) as provider:
+        generated = api_client.post(
+            f"/api/courses/lessons/{authoring_lesson.id}/generate-video-script/"
+        )
+
+    draft = LessonVideoScriptDraft.objects.get(lesson=authoring_lesson)
+    assert generated.status_code == 201
+    assert generated.data["video_script"]["status"] == "draft"
+    assert generated.data["video_script"]["is_current"] is True
+    assert draft.text != authoring_lesson.ai_summary
+    provider.assert_called_once()
+
+    approved = api_client.post(
+        f"/api/courses/lessons/{authoring_lesson.id}/approve-video-script/",
+        {"text": "Kịch bản đã được giáo viên rà soát."},
+        format="json",
+    )
+
+    draft.refresh_from_db()
+    assert approved.status_code == 200
+    assert draft.status == "approved"
+    assert draft.text == "Kịch bản đã được giáo viên rà soát."
+
+
+@pytest.mark.django_db
+def test_other_teacher_is_denied_before_video_script_provider(
+    api_client,
+    teacher_user,
+    authoring_lesson,
+):
+    authoring_lesson.ai_summary = "Tóm tắt đã duyệt."
+    authoring_lesson.save(update_fields=["ai_summary"])
+    _record_approved_summary(lesson=authoring_lesson, teacher=teacher_user)
+    outsider = User.objects.create_user(
+        email="video-script-outsider@example.invalid",
+        username="video-script-outsider",
+        password="LocalTestOnly-123!",
+        role="teacher",
+        is_verified=True,
+    )
+    api_client.force_authenticate(outsider)
+
+    with patch(
+        "apps.courses.content_authoring.AIService.generate_video_script_draft"
+    ) as provider:
+        response = api_client.post(
+            f"/api/courses/lessons/{authoring_lesson.id}/generate-video-script/"
+        )
+
+    assert response.status_code == 404
+    provider.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_generated_assessment_is_unpublished_reviewable_draft(
     api_client, teacher_user, authoring_lesson
 ):
-    generated = {
-        "title": "Kiểm tra PHP",
-        "instructions": "Chọn đáp án phù hợp.",
-        "questions": [
-            {
-                "prompt": f"Câu PHP {index}?",
-                "choices": ["A", "B", "C", "D"],
-                "correct_choice": 0,
-                "learning_objective": f"Mục tiêu {index}",
-                "explanation": "Giải thích dành cho giáo viên.",
-                "order": index,
-            }
-            for index in range(1, 6)
-        ],
-    }
+    generated = _assessment_batch()
     api_client.force_authenticate(teacher_user)
     with patch(
         "apps.courses.content_authoring.AIService.generate_assessment_draft",
@@ -197,6 +288,132 @@ def test_generated_assessment_is_unpublished_reviewable_draft(
     assert assessment.is_published is False
     assert assessment.questions.count() == 5
     assert response.data["assessment"]["is_published"] is False
+
+
+@pytest.mark.django_db
+def test_auto_assessment_uses_two_source_batches_for_medium_lesson(
+    api_client, teacher_user, authoring_lesson
+):
+    source = _add_source_chunks(authoring_lesson, 7)
+    source.normalized_text = "\n".join(
+        f"Vùng kiến thức PHP số {index}." for index in range(1, 41)
+    )
+    source.save(update_fields=["normalized_text"])
+    api_client.force_authenticate(teacher_user)
+
+    with patch(
+        "apps.courses.content_authoring.AIService.generate_assessment_draft",
+        side_effect=[_assessment_batch(start=1), _assessment_batch(start=6)],
+    ) as provider:
+        response = api_client.post(
+            f"/api/courses/lessons/{authoring_lesson.id}/generate-assessment/",
+            {"question_count": "auto"},
+            format="json",
+        )
+
+    assessment = LessonAssessment.objects.get(lesson=authoring_lesson)
+    assert response.status_code == 201
+    assert assessment.questions.count() == 10
+    assert list(assessment.questions.values_list("order", flat=True)) == list(
+        range(1, 11)
+    )
+    assert response.data["assessment_generation"] == {
+        "source_chunk_count": 7,
+        "recommended_question_count": 10,
+        "question_count": 10,
+        "provider_call_count": 2,
+    }
+    assert provider.call_count == 2
+    first_call, second_call = provider.call_args_list
+    assert first_call.kwargs["batch_index"] == 1
+    assert second_call.kwargs["batch_index"] == 2
+    assert first_call.kwargs["batch_count"] == 2
+    assert first_call.kwargs["source_text"] != second_call.kwargs["source_text"]
+
+
+@pytest.mark.django_db
+def test_assessment_plan_recommends_fifteen_and_allows_twenty_question_override(
+    authoring_lesson,
+):
+    source = _add_source_chunks(authoring_lesson, 16)
+
+    assert assessment_generation_plan(source) == {
+        "source_chunk_count": 16,
+        "recommended_question_count": 15,
+        "question_count": 15,
+        "provider_call_count": 3,
+    }
+    assert assessment_generation_plan(source, "20") == {
+        "source_chunk_count": 16,
+        "recommended_question_count": 15,
+        "question_count": 20,
+        "provider_call_count": 4,
+    }
+
+
+@pytest.mark.django_db
+def test_invalid_assessment_count_is_rejected_before_provider(
+    api_client, teacher_user, authoring_lesson
+):
+    api_client.force_authenticate(teacher_user)
+    with patch(
+        "apps.courses.content_authoring.AIService.generate_assessment_draft"
+    ) as provider:
+        response = api_client.post(
+            f"/api/courses/lessons/{authoring_lesson.id}/generate-assessment/",
+            {"question_count": "7"},
+            format="json",
+        )
+
+    assert response.status_code == 400
+    assert not LessonAssessment.objects.filter(lesson=authoring_lesson).exists()
+    provider.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_duplicate_batch_output_does_not_persist_partial_assessment(
+    api_client, teacher_user, authoring_lesson
+):
+    _add_source_chunks(authoring_lesson, 7)
+    api_client.force_authenticate(teacher_user)
+    duplicate_batch = _assessment_batch()
+    with patch(
+        "apps.courses.content_authoring.AIService.generate_assessment_draft",
+        side_effect=[duplicate_batch, duplicate_batch],
+    ):
+        response = api_client.post(
+            f"/api/courses/lessons/{authoring_lesson.id}/generate-assessment/",
+            {"question_count": "10"},
+            format="json",
+        )
+
+    assert response.status_code == 503
+    assert not LessonAssessment.objects.filter(lesson=authoring_lesson).exists()
+
+
+@pytest.mark.django_db
+def test_other_teacher_is_denied_before_assessment_provider(
+    api_client, authoring_lesson
+):
+    outsider = User.objects.create_user(
+        email="assessment-authoring-outsider@example.invalid",
+        username="assessment-authoring-outsider",
+        password="LocalTestOnly-123!",
+        role="teacher",
+        is_verified=True,
+    )
+    api_client.force_authenticate(outsider)
+    with patch(
+        "apps.courses.content_authoring.AIService.generate_assessment_draft"
+    ) as provider:
+        response = api_client.post(
+            f"/api/courses/lessons/{authoring_lesson.id}/generate-assessment/",
+            {"question_count": "20"},
+            format="json",
+        )
+
+    assert response.status_code == 404
+    provider.assert_not_called()
 
 
 @pytest.mark.django_db

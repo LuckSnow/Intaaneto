@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { BookOpen, Star, Users } from 'lucide-react'
 import api from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { getDefaultAuthenticatedPath } from '../utils/authNavigation'
@@ -87,7 +88,7 @@ export default function Landing() {
                           <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
-                            <span className="text-6xl">📚</span>
+                            <BookOpen className="h-14 w-14 text-orange-600" aria-hidden="true" />
                           </div>
                         )}
                         {/* Difficulty Badge */}
@@ -112,9 +113,8 @@ export default function Landing() {
                         
                         <div className="border-t border-gray-100 pt-3 flex items-center justify-between mt-auto">
                           <div className="flex items-center gap-3 text-sm text-gray-400">
-                            <span className="flex items-center gap-1">👥 {course.total_students || 0}</span>
-                            <span className="flex items-center gap-1">⭐ {course.average_rating || '5.0'}</span>
-                            <span className="flex items-center gap-1">⏱️ {course.duration_hours || 40}h</span>
+                            <span className="flex items-center gap-1"><Users className="h-4 w-4" aria-hidden="true" />{course.total_students || 0}</span>
+                            <span className="flex items-center gap-1"><Star className="h-4 w-4" aria-hidden="true" />{course.average_rating || '5.0'}</span>
                           </div>
                           <span className="text-orange-500 font-semibold text-sm group-hover:text-orange-600 transition">
                             Xem →

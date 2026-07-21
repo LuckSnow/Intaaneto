@@ -2,7 +2,6 @@ from rest_framework import serializers
 from django.conf import settings
 from django.db.models import Q
 from django.utils.text import slugify
-from PIL import Image, UnidentifiedImageError
 
 from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
 
@@ -83,40 +82,15 @@ class SummaryApprovalSerializer(serializers.Serializer):
     text = serializers.CharField(min_length=1, max_length=4000, trim_whitespace=True)
 
 
-class VideoGenerationRequestSerializer(serializers.Serializer):
-    portrait = serializers.ImageField()
-    rights_and_approval_confirmed = serializers.BooleanField()
+class VideoScriptApprovalSerializer(serializers.Serializer):
+    text = serializers.CharField(min_length=1, max_length=4800, trim_whitespace=True)
 
-    def validate_rights_and_approval_confirmed(self, value):
-        if value is not True:
-            raise serializers.ValidationError(
-                'Cần xác nhận quyền sử dụng ảnh, giọng đọc và kịch bản.'
-            )
-        return value
 
-    def validate_portrait(self, value):
-        if value.size <= 0 or value.size > settings.SADTALKER_MAX_PORTRAIT_BYTES:
-            raise serializers.ValidationError('Ảnh chân dung vượt giới hạn.')
-        position = value.tell()
-        try:
-            value.seek(0)
-            with Image.open(value) as image:
-                image.verify()
-            value.seek(0)
-            with Image.open(value) as image:
-                width, height = image.size
-                if (
-                    image.format not in ('JPEG', 'PNG')
-                    or min(width, height) < 256
-                    or max(width, height) > 4096
-                    or width * height > settings.SADTALKER_MAX_PORTRAIT_PIXELS
-                ):
-                    raise serializers.ValidationError('Ảnh chân dung không hợp lệ.')
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
-            raise serializers.ValidationError('Ảnh chân dung không hợp lệ.') from exc
-        finally:
-            value.seek(position)
-        return value
+class AssessmentGenerationRequestSerializer(serializers.Serializer):
+    question_count = serializers.ChoiceField(
+        choices=('auto', '5', '10', '15', '20'),
+        default='auto',
+    )
 
 
 class LessonCommentSerializer(serializers.ModelSerializer):
