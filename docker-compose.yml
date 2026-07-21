@@ -58,6 +58,7 @@ services:
       - "8000:8000"
     environment:
       - DEBUG=True
+      - EMAIL_BACKEND=anymail.backends.mailjet.EmailBackend
       - DB_NAME=intaaneto_db
       - DB_USER=postgres
       - DB_PASSWORD=postgres

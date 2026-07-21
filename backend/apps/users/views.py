@@ -66,7 +66,7 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
         'password_reset_confirm': 'auth_password_reset_confirm',
     }
 
-    def _send_verification_email(self, user):
+    def _send_verification_email(self, user, request=None):
         """Send email verification link to user"""
         token = secrets.token_urlsafe(48)
         user.verification_token = _hash_verification_token(token)
@@ -76,7 +76,11 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
             'verification_token_created_at',
         ])
 
-        verify_url = f"{settings.FRONTEND_URL}/verify-email/{token}"
+        if request is not None:
+            verify_path = reverse('auth-verify-email-link', kwargs={'token': token})
+            verify_url = request.build_absolute_uri(verify_path)
+        else:
+            verify_url = f"{settings.FRONTEND_URL}/verify-email/{token}"
         safe_full_name = escape(user.full_name)
         safe_verify_url = escape(verify_url)
         subject = 'Xác thực tài khoản Intaaneto'
@@ -304,7 +308,15 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
         user.save(update_fields=['is_verified'])
 
         # Send verification email
-        email_sent = self._send_verification_email(user)
+        email_sent = self._send_verification_email(user, request=request)
+        if not email_sent:
+            return Response(
+                {
+                    'error': 'Không thể gửi email xác thực. Vui lòng thử lại sau hoặc liên hệ quản trị viên.',
+                    'email_sent': False,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         return Response({
             'message': 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
@@ -401,6 +413,23 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
 
         return Response({'message': 'Email đã được xác thực thành công!'})
 
+    @action(detail=False, methods=['get'], url_path=r'verify-email/(?P<token>[^/.]+)')
+    def verify_email_link(self, request, token=None):
+        """Verify user email from a clickable email link."""
+        if not token:
+            return Response({'error': 'Token không hợp lệ'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(verification_token=token)
+        except User.DoesNotExist:
+            return Response({'error': 'Token không hợp lệ hoặc đã hết hạn'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.is_verified = True
+        user.verification_token = ''
+        user.save(update_fields=['is_verified', 'verification_token'])
+
+        return redirect(f"{settings.FRONTEND_URL}/login?verified=1")
+
     @action(detail=False, methods=['post'])
     def resend_verification(self, request):
         """Resend verification email"""
@@ -408,7 +437,7 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         user = User.objects.filter(email=serializer.validated_data['email']).first()
         if user is not None and not user.is_verified:
-            self._send_verification_email(user)
+            self._send_verification_email(user, request=request)
         return Response({'message': GENERIC_RESEND_MESSAGE})
 
     @action(detail=False, methods=['post'])

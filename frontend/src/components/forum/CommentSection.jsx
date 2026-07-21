@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ChevronDown, CheckCircle, MoreHorizontal, Trash2, Flag, Reply as ReplyIcon } from 'lucide-react'
 import CommentInput from './CommentInput'
 import ReactionButton from './ReactionButton'
@@ -14,10 +14,21 @@ function timeAgo(dateStr) {
   return date.toLocaleDateString('vi-VN')
 }
 
-function CommentItem({ comment, postId, currentUser, isPostAuthor, onReply, onDelete, onReact, onMarkSolution, onReport, depth = 0 }) {
+function countCommentTree(items = []) {
+  return items.reduce((total, item) => total + 1 + countCommentTree(item.replies || []), 0)
+}
+
+function CommentItem({ comment, postId, currentUser, isPostAuthor, onReply, onDelete, onReact, onMarkSolution, onReport, onOpenImage, depth = 0 }) {
   const [showReplies, setShowReplies] = useState(depth === 0)
   const [showMenu, setShowMenu] = useState(false)
   const isAuthor = currentUser?.id === comment.author?.id
+
+  const handleReplyClick = (event) => {
+    if (event.target.closest('button, a, input, textarea, select, option')) {
+      return
+    }
+    onReply?.(comment)
+  }
 
   return (
     <div className={`${depth > 0 ? 'ml-8 pl-4 border-l border-white/5' : ''}`}>
@@ -28,7 +39,18 @@ function CommentItem({ comment, postId, currentUser, isPostAuthor, onReply, onDe
             {comment.author?.full_name?.charAt(0) || 'U'}
           </div>
 
-          <div className="flex-1 min-w-0">
+          <div
+            className="flex-1 min-w-0 cursor-pointer rounded-xl transition-colors hover:bg-white/[0.03]"
+            onClick={handleReplyClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onReply?.(comment)
+              }
+            }}
+          >
             {/* Header */}
             <div className="flex items-center gap-2 mb-1">
               <span className="text-white text-sm font-medium">{comment.author?.full_name}</span>
@@ -42,7 +64,11 @@ function CommentItem({ comment, postId, currentUser, isPostAuthor, onReply, onDe
               {/* Menu */}
               <div className="relative ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
-                  onClick={() => setShowMenu(!showMenu)}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setShowMenu(!showMenu)
+                  }}
                   className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white/60"
                 >
                   <MoreHorizontal className="w-3.5 h-3.5" />
@@ -81,7 +107,20 @@ function CommentItem({ comment, postId, currentUser, isPostAuthor, onReply, onDe
 
             {/* Image */}
             {comment.image && (
-              <img src={comment.image} alt="" className="mt-2 max-h-48 rounded-lg border border-white/10" />
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onOpenImage?.(comment.image)
+                }}
+                className="mt-2 block text-left"
+              >
+                <img
+                  src={comment.image}
+                  alt=""
+                  className="max-h-48 rounded-lg border border-white/10 cursor-zoom-in"
+                />
+              </button>
             )}
 
             {/* Actions */}
@@ -91,7 +130,11 @@ function CommentItem({ comment, postId, currentUser, isPostAuthor, onReply, onDe
                 onReact={(type) => onReact?.(comment.id, type)}
               />
               <button
-                onClick={() => onReply?.(comment)}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onReply?.(comment)
+                }}
                 className="flex items-center gap-1 text-white/30 hover:text-white/60 text-xs transition-colors"
               >
                 <ReplyIcon className="w-3 h-3" /> Trả lời
@@ -124,6 +167,8 @@ function CommentItem({ comment, postId, currentUser, isPostAuthor, onReply, onDe
             onReact={onReact}
             onMarkSolution={onMarkSolution}
             onReport={onReport}
+            onOpenImage={onOpenImage}
+            onReply={onReply}
             depth={depth + 1}
           />
         ))}
@@ -134,6 +179,8 @@ function CommentItem({ comment, postId, currentUser, isPostAuthor, onReply, onDe
 
 export default function CommentSection({ postId, comments = [], currentUser, isPostAuthor, onRefresh, onReport }) {
   const [replyTo, setReplyTo] = useState(null)
+  const [lightboxImg, setLightboxImg] = useState(null)
+  const commentCount = countCommentTree(comments)
 
   const handleSubmit = async ({ content, image, parent_id }) => {
     await forumService.createComment({
@@ -165,7 +212,7 @@ export default function CommentSection({ postId, comments = [], currentUser, isP
     <div className="space-y-1">
       <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
         💬 Bình luận
-        <span className="text-white/30 font-normal">({comments.length})</span>
+        <span className="text-white/30 font-normal">({commentCount})</span>
       </h3>
 
       {/* Comment input */}
@@ -191,6 +238,7 @@ export default function CommentSection({ postId, comments = [], currentUser, isP
             onReact={handleReact}
             onMarkSolution={handleMarkSolution}
             onReport={onReport}
+            onOpenImage={setLightboxImg}
           />
         ))}
       </div>
@@ -198,6 +246,15 @@ export default function CommentSection({ postId, comments = [], currentUser, isP
       {comments.length === 0 && (
         <div className="text-center py-8 text-white/20 text-sm">
           Chưa có bình luận nào. Hãy là người đầu tiên!
+        </div>
+      )}
+
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-8 cursor-pointer"
+          onClick={() => setLightboxImg(null)}
+        >
+          <img src={lightboxImg} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
         </div>
       )}
     </div>
