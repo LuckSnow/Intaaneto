@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, BookOpen, CheckCircle2, Download, Target, Users } from 'lucide-react'
+import { AlertCircle, ArrowRight, BookOpen, CheckCircle2, Download, Pencil, Target, Users } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { analyticsService } from '../services/analyticsService'
+import { courseService } from '../services/courseService'
 import { useAuthStore } from '../store/authStore'
+import { getUserAvatar } from '../utils/avatar'
 
 const formatPercentage = (value) => `${Number(value || 0).toFixed(0)}%`
 const formatScore = (value) => value == null ? 'Chưa có' : Number(value).toFixed(1)
@@ -26,6 +28,193 @@ function StatCard({ icon: Icon, label, value }) {
   )
 }
 
+const difficultyLabels = {
+  beginner: 'Cơ bản',
+  intermediate: 'Trung bình',
+  advanced: 'Nâng cao',
+}
+
+function CourseThumbnail({ course, className = '' }) {
+  return course?.thumbnail ? (
+    <img src={course.thumbnail} alt="" className={`object-cover ${className}`} />
+  ) : (
+    <div className={`flex items-center justify-center bg-orange-500/15 text-orange-300 ${className}`}>
+      <BookOpen className="h-6 w-6" aria-hidden="true" />
+    </div>
+  )
+}
+
+function StudentDashboard({ user, report, catalogCourses }) {
+  const summary = report.summary
+  const enrolledIds = new Set(report.courses.map((course) => course.course_id))
+  const catalogById = new Map(catalogCourses.map((course) => [course.id, course]))
+  const recommendations = catalogCourses.filter((course) => !enrolledIds.has(course.id)).slice(0, 3)
+  const myCourses = report.courses.slice(0, 5)
+  const avatar = getUserAvatar(user)
+
+  return (
+    <div className="space-y-7">
+      <header>
+        <h1 className="text-3xl font-bold text-white">Chào mừng trở lại, {user?.full_name || user?.username}</h1>
+        <p className="mt-2 text-white/75">Tiếp tục khóa học gần nhất và theo dõi tiến độ của bạn.</p>
+        <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-3 border-y border-white/15 py-3 text-sm">
+          <div className="flex items-center gap-2">
+            <dt className="text-white/65">Đang học</dt>
+            <dd className="font-bold text-white">{summary.courses_enrolled}</dd>
+          </div>
+          <div className="flex items-center gap-2">
+            <dt className="text-white/65">Bài đã hoàn thành</dt>
+            <dd className="font-bold text-white">{summary.lessons_completed}</dd>
+          </div>
+          <div className="flex items-center gap-2">
+            <dt className="text-white/65">Tiến độ trung bình</dt>
+            <dd className="font-bold text-orange-300">{formatPercentage(summary.average_progress_percentage)}</dd>
+          </div>
+        </dl>
+      </header>
+
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
+        <div className="min-w-0 space-y-8">
+          <section aria-labelledby="discover-courses-title">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h2 id="discover-courses-title" className="text-xl font-bold text-white">Khám phá khóa học</h2>
+              <Link to="/courses" className="text-sm font-semibold text-orange-300 hover:text-orange-200">Xem tất cả</Link>
+            </div>
+
+            {recommendations.length > 0 ? (
+              <div className="flex snap-x gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible">
+                {recommendations.map((course) => (
+                  <article key={course.id} className="w-[250px] shrink-0 snap-start overflow-hidden rounded-2xl border border-white/15 bg-slate-950/45 backdrop-blur-md md:w-auto">
+                    <CourseThumbnail course={course} className="aspect-[16/9] w-full" />
+                    <div className="p-4">
+                      <h3 className="line-clamp-2 min-h-10 font-semibold leading-5 text-white">{course.title}</h3>
+                      <p className="mt-2 text-xs text-white/60">
+                        {course.lessons_count || 0} bài · {difficultyLabels[course.difficulty] || course.difficulty}
+                      </p>
+                      <Link to={`/courses/${course.id}`} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">
+                        Xem khóa học <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-white/15 bg-slate-950/40 p-5 text-sm text-white/70">
+                Bạn đã đăng ký tất cả khóa học đang hiển thị. <Link to="/courses" className="font-semibold text-orange-300">Xem danh sách khóa học</Link>
+              </div>
+            )}
+          </section>
+
+          <section aria-labelledby="my-courses-title">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h2 id="my-courses-title" className="text-xl font-bold text-white">Khóa học của tôi</h2>
+              {report.courses.length > 5 && <Link to="/profile" className="text-sm font-semibold text-orange-300 hover:text-orange-200">Xem tất cả</Link>}
+            </div>
+
+            {myCourses.length === 0 ? (
+              <div className="rounded-xl border border-white/15 bg-slate-950/40 p-5 text-sm text-white/70">
+                Bạn chưa đăng ký khóa học nào. <Link to="/courses" className="font-semibold text-orange-300">Khám phá khóa học</Link>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/10 border-y border-white/15">
+                {myCourses.map((course) => {
+                  const catalogCourse = catalogById.get(course.course_id)
+                  const destination = course.last_accessed_lesson
+                    ? `/lessons/${course.last_accessed_lesson.id}`
+                    : `/courses/${course.course_id}`
+                  return (
+                    <article key={course.course_id} className="grid gap-3 py-4 sm:grid-cols-[52px_minmax(0,1fr)_90px_auto] sm:items-center">
+                      <CourseThumbnail course={catalogCourse} className="h-12 w-12 rounded-lg" />
+                      <div className="min-w-0">
+                        <h3 className="truncate font-semibold text-white">{course.course_title}</h3>
+                        <p className="mt-1 truncate text-sm text-white/60">
+                          {course.completed_at
+                            ? 'Đã hoàn thành khóa học'
+                            : course.last_accessed_lesson
+                              ? `Đang học: ${course.last_accessed_lesson.title}`
+                              : 'Chưa bắt đầu'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-orange-300">{formatPercentage(course.progress_percentage)}</p>
+                        <p className="mt-0.5 text-xs text-white/50">{course.lessons_completed}/{course.lessons_available} bài</p>
+                      </div>
+                      <Link to={destination} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-orange-600 px-4 text-sm font-bold text-white hover:bg-orange-700">
+                        {course.last_accessed_lesson ? 'Tiếp tục học' : 'Bắt đầu học'}
+                      </Link>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <aside className="space-y-6">
+          <section className="rounded-2xl border border-white/15 bg-slate-950/50 p-5 backdrop-blur-md" aria-labelledby="student-profile-title">
+            <div className="flex items-start justify-between gap-3">
+              <h2 id="student-profile-title" className="text-lg font-bold text-white">Hồ sơ</h2>
+              <Link to="/profile" className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-white/65 hover:bg-white/10 hover:text-white" aria-label="Chỉnh sửa hồ sơ">
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
+            <div className="mt-3 flex items-center gap-4">
+              {avatar ? (
+                <img src={avatar} alt={user?.full_name || 'Ảnh đại diện'} className="h-16 w-16 rounded-full border-2 border-orange-300/60 object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-500/20 text-xl font-bold text-orange-200">
+                  {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-white">{user?.full_name || user?.username}</p>
+                <p className="mt-1 text-sm text-white/60">Học viên</p>
+              </div>
+            </div>
+          </section>
+
+          <section aria-labelledby="learning-progress-title">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 id="learning-progress-title" className="text-lg font-bold text-white">Tiến độ học tập</h2>
+              {report.courses.length > 4 && <Link to="/profile" className="text-xs font-semibold text-orange-300">Xem toàn bộ</Link>}
+            </div>
+            <div className="space-y-3">
+              {report.courses.slice(0, 4).map((course) => {
+                const progress = Math.min(100, Math.max(0, Number(course.progress_percentage || 0)))
+                const destination = course.last_accessed_lesson
+                  ? `/lessons/${course.last_accessed_lesson.id}`
+                  : `/courses/${course.course_id}`
+                return (
+                  <article key={course.course_id} className="rounded-xl border border-white/15 bg-slate-950/45 p-4 backdrop-blur-md">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-semibold text-white">{course.course_title}</h3>
+                        <p className="mt-1 text-xs text-white/55">{course.lessons_completed}/{course.lessons_available} bài hoàn thành</p>
+                      </div>
+                      <Link to={destination} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-orange-300 hover:bg-white/10" aria-label={`Mở ${course.course_title}`}>
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </div>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10" aria-label={`Tiến độ ${formatPercentage(progress)}`}>
+                      <div className="h-full rounded-full bg-orange-500" style={{ width: `${progress}%` }} />
+                    </div>
+                    <p className="mt-2 text-xs text-white/60">
+                      {progress > 0
+                        ? `${formatPercentage(progress)} · ${course.last_accessed_lesson?.title || 'Đang học'}`
+                        : 'Chưa bắt đầu · Bắt đầu bài đầu tiên'}
+                    </p>
+                  </article>
+                )
+              })}
+              {report.courses.length === 0 && <p className="rounded-xl border border-white/15 p-4 text-sm text-white/65">Chưa có khóa học để theo dõi.</p>}
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const { user } = useAuthStore()
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin'
@@ -36,6 +225,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [courseLoading, setCourseLoading] = useState(false)
   const [exportingCourseId, setExportingCourseId] = useState(null)
+  const [catalogCourses, setCatalogCourses] = useState([])
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -57,6 +247,25 @@ export default function Dashboard() {
       cancelled = true
     }
   }, [user?.role])
+
+  useEffect(() => {
+    if (isTeacher) {
+      setCatalogCourses([])
+      return
+    }
+
+    let active = true
+    courseService.getCourses()
+      .then((courses) => {
+        if (active) setCatalogCourses(courses)
+      })
+      .catch(() => {
+        if (active) setCatalogCourses([])
+      })
+    return () => {
+      active = false
+    }
+  }, [isTeacher])
 
   const loadCourseLearners = async (courseId) => {
     setCourseLoading(true)
@@ -105,14 +314,14 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <header>
+      {isTeacher && <header>
         <h1 className="text-3xl font-bold text-white">Chào mừng, {user?.full_name}</h1>
         <p className="mt-2 text-white/75">
           {isTeacher
             ? 'Theo dõi tiến độ từ dữ liệu hoàn thành và bài đánh giá đã ghi nhận.'
             : 'Tiến độ và mức độ nắm vững kiến thức của bạn được tính độc lập.'}
         </p>
-      </header>
+      </header>}
 
       {loading && (
         <div className="rounded-xl border border-white/20 bg-white p-5 text-slate-600" role="status">
@@ -128,54 +337,7 @@ export default function Dashboard() {
       )}
 
       {!loading && learnerSummary && (
-        <>
-          <section aria-labelledby="learner-summary-title">
-            <h2 id="learner-summary-title" className="sr-only">Tổng quan học tập</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard icon={BookOpen} label="Khóa học đã đăng ký" value={learnerSummary.courses_enrolled} />
-              <StatCard icon={CheckCircle2} label="Bài học hoàn thành" value={learnerSummary.lessons_completed} />
-              <StatCard icon={Target} label="Tiến độ trung bình" value={formatPercentage(learnerSummary.average_progress_percentage)} />
-              <StatCard icon={Target} label="Mức độ nắm vững" value={formatPercentage(learnerSummary.average_mastery_percentage)} />
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-slate-200 bg-white p-5" aria-labelledby="course-progress-title">
-            <h2 id="course-progress-title" className="text-xl font-semibold text-slate-950">Tiến độ theo khóa học</h2>
-            {report.courses.length === 0 ? (
-              <p className="mt-3 text-slate-600">Bạn chưa đăng ký khóa học nào.</p>
-            ) : (
-              <div className="mt-4 space-y-3">
-                {report.courses.map((course) => (
-                  <article key={course.course_id} className="rounded-lg border border-slate-200 p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <h3 className="font-semibold text-slate-950">{course.course_title}</h3>
-                        <p className="mt-1 text-sm text-slate-600">
-                          {course.lessons_completed}/{course.lessons_available} bài hoàn thành · {course.assessments_passed}/{course.assessments_published} đánh giá đạt
-                        </p>
-                      </div>
-                      <div className="flex gap-5 text-sm">
-                        <div><span className="block text-slate-500">Tiến độ</span><strong className="text-slate-950">{formatPercentage(course.progress_percentage)}</strong></div>
-                        <div><span className="block text-slate-500">Nắm vững</span><strong className="text-slate-950">{formatPercentage(course.mastery_percentage)}</strong></div>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      {course.last_accessed_lesson ? (
-                        <Link className="text-sm font-medium text-orange-700 hover:text-orange-800" to={`/lessons/${course.last_accessed_lesson.id}`}>
-                          Tiếp tục: {course.last_accessed_lesson.title}
-                        </Link>
-                      ) : (
-                        <Link className="text-sm font-medium text-orange-700 hover:text-orange-800" to={`/courses/${course.course_id}`}>
-                          Mở khóa học
-                        </Link>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-        </>
+        <StudentDashboard user={user} report={report} catalogCourses={catalogCourses} />
       )}
 
       {!loading && teacherSummary && (
@@ -358,7 +520,7 @@ export default function Dashboard() {
         </>
       )}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5" aria-labelledby="quick-actions-title">
+      {isTeacher && <section className="rounded-xl border border-slate-200 bg-white p-5" aria-labelledby="quick-actions-title">
         <h2 id="quick-actions-title" className="text-xl font-semibold text-slate-950">
           {isTeacher ? 'Thao tác giảng viên' : 'Tiếp tục học tập'}
         </h2>
@@ -369,18 +531,12 @@ export default function Dashboard() {
               <p className="mt-1 text-sm text-slate-600">Trích xuất và lập chỉ mục tài liệu cho AI Tutor.</p>
             </Link>
           )}
-          {!isTeacher && (
-            <Link to="/courses" className="rounded-lg border border-slate-200 p-4 hover:border-orange-400">
-              <h3 className="font-semibold text-orange-700">Danh sách khóa học</h3>
-              <p className="mt-1 text-sm text-slate-600">Mở khóa học và tiếp tục bài gần nhất.</p>
-            </Link>
-          )}
           <Link to="/forum" className="rounded-lg border border-slate-200 p-4 hover:border-orange-400">
             <h3 className="font-semibold text-orange-700">Diễn đàn</h3>
             <p className="mt-1 text-sm text-slate-600">Trao đổi với giảng viên và cộng đồng.</p>
           </Link>
         </div>
-      </section>
+      </section>}
     </div>
   )
 }

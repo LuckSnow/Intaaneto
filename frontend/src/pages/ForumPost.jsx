@@ -1,23 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
-  ArrowLeft, Clock, Eye, Pin, CheckCircle, Lock,
+  Clock, Eye, Pin, CheckCircle, Lock,
   MoreHorizontal, Trash2, Flag, Share2, Bookmark
 } from 'lucide-react'
 import CommentSection from '../components/forum/CommentSection'
 import ReactionButton from '../components/forum/ReactionButton'
 import ReportModal from '../components/forum/ReportModal'
 import UserProfileCard from '../components/forum/UserProfileCard'
-import TagBadge from '../components/forum/TagBadge'
 import { forumService } from '../services/forumService'
 import { useAuthStore } from '../store/authStore'
-
-const CATEGORY_STYLES = {
-  question: { label: 'Câu hỏi', icon: '❓', color: 'from-blue-500 to-cyan-500' },
-  discussion: { label: 'Thảo luận', icon: '💬', color: 'from-purple-500 to-pink-500' },
-  showcase: { label: 'Chia sẻ', icon: '🚀', color: 'from-orange-500 to-red-500' },
-  announcement: { label: 'Thông báo', icon: '📢', color: 'from-yellow-500 to-orange-500' },
-}
+import { getUserAvatar } from '../utils/avatar'
 
 function timeAgo(dateStr) {
   const now = new Date()
@@ -132,8 +125,8 @@ export default function ForumPost() {
     )
   }
 
-  const cat = CATEGORY_STYLES[post.category] || CATEGORY_STYLES.question
   const images = [post.image_1, post.image_2, post.image_3, post.image_4].filter(Boolean)
+  const authorAvatar = getUserAvatar(post.author)
   const isAuthor = user?.id === post.author?.id
   const isAdmin = user?.role === 'admin'
   const isTeacher = user?.role === 'teacher'
@@ -145,11 +138,6 @@ export default function ForumPost() {
       <div className="absolute top-20 right-1/3 w-72 h-72 bg-red-500/3 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 py-6">
-        {/* Back */}
-        <Link to="/forum" className="inline-flex items-center gap-2 text-white/40 hover:text-white/70 text-sm mb-6 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Quay lại diễn đàn
-        </Link>
-
         <div className="flex gap-6">
           {/* Main content */}
           <div className="flex-1 min-w-0">
@@ -158,9 +146,11 @@ export default function ForumPost() {
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center text-white font-bold">
-                    {post.author?.full_name?.charAt(0) || 'U'}
-                  </div>
+                  {authorAvatar ? (
+                    <img src={authorAvatar} alt="" className="h-12 w-12 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/20 font-bold text-orange-200">{post.author?.full_name?.charAt(0) || 'U'}</div>
+                  )}
                   <div>
                     <p className="text-white font-medium">{post.author?.full_name}</p>
                     <div className="flex items-center gap-2 text-white/40 text-xs">
@@ -189,9 +179,11 @@ export default function ForumPost() {
                       <Lock className="w-3 h-3" /> Đã đóng
                     </span>
                   )}
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r ${cat.color} text-white`}>
-                    {cat.icon} {cat.label}
-                  </span>
+                  {post.course && (
+                    <Link to={`/forum?course=${encodeURIComponent(post.course.slug)}`} title={post.course.title} className="max-w-48 truncate rounded-full border border-orange-400/30 bg-orange-500/10 px-2.5 py-1 text-xs font-semibold text-orange-300 transition-colors hover:border-orange-400/60 hover:bg-orange-500/20 hover:text-orange-200">
+                      #{post.course.slug}
+                    </Link>
+                  )}
 
                   {/* Actions menu */}
                   {user && (
@@ -279,15 +271,6 @@ export default function ForumPost() {
                 </div>
               )}
 
-              {/* Tags */}
-              {post.tags?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {post.tags.map(tag => (
-                    <TagBadge key={tag.id} tag={tag} size="sm" />
-                  ))}
-                </div>
-              )}
-
               {/* Reactions bar */}
               <div className="flex items-center justify-between pt-4 border-t border-white/5">
                 <ReactionButton
@@ -327,28 +310,6 @@ export default function ForumPost() {
             {/* Author card */}
             <UserProfileCard user={post.author} currentUserId={user?.id} />
 
-            {/* Post info */}
-            <div className="bg-white/[0.05] backdrop-blur-md border border-white/10 rounded-2xl p-4">
-              <h3 className="text-white font-semibold text-sm mb-3">📊 Thông tin bài viết</h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-white/40">Bình luận</span>
-                  <span className="text-white/70">{post.comments_count || post.comments?.length || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40">Lượt xem</span>
-                  <span className="text-white/70">{post.views_count || 0} người</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40">Phản hồi</span>
-                  <span className="text-white/70">{post.reactions_summary?.total || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40">Đăng lúc</span>
-                  <span className="text-white/70">{new Date(post.created_at).toLocaleDateString('vi-VN')}</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

@@ -1,15 +1,15 @@
 import { useEffect, useState, useRef } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '../store/authStore'
 import { courseService } from '../services/courseService'
 import { aiService } from '../services/aiService'
 import toast from 'react-hot-toast'
-import { AlertCircle, ArrowRight, BookOpen, Bot, Brain, CheckCircle2, ClipboardCheck, FileText, Lightbulb, MessageCircle, Send, X, XCircle } from 'lucide-react'
+import { AlertCircle, ArrowRight, BookOpen, Bot, Brain, CheckCircle2, ChevronDown, Circle, ClipboardCheck, Clock3, FileText, Lightbulb, MessageCircle, Send, X, XCircle } from 'lucide-react'
 import PdfLessonViewer from '../components/lesson/PdfLessonViewer'
 
 const STATUS_MAP = {
-  pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: '⏳' },
+  pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: Clock3 },
   extracting: { label: 'Đang trích xuất văn bản...', color: 'text-blue-400', icon: FileText },
   summarizing: { label: 'AI đang tóm tắt...', color: 'text-purple-400', icon: Bot },
   generating_video: { label: 'Đang tạo video AI...', color: 'text-cyan-400', icon: Bot },
@@ -23,6 +23,8 @@ export default function LessonPage() {
   const { user, isAuthenticated } = useAuthStore()
 
   const [lesson, setLesson] = useState(null)
+  const [course, setCourse] = useState(null)
+  const [courseNavigationOpen, setCourseNavigationOpen] = useState(true)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('video') // video | summary | comments | chat
 
@@ -161,6 +163,12 @@ export default function LessonPage() {
     try {
       const data = await courseService.getLesson(id)
       setLesson(data)
+      try {
+        const courseData = await courseService.getCourse(data.course)
+        setCourse(courseData)
+      } catch {
+        setCourse(null)
+      }
       if (data.processing_status && !['completed', 'failed'].includes(data.processing_status)) {
         setPolling(true)
       }
@@ -369,34 +377,16 @@ export default function LessonPage() {
 
   return (
     <div className="min-h-screen">
-      <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat -z-10"
-        style={{ backgroundImage: 'url(/images/background2.png)' }}
-      />
-
-      <div className="max-w-7xl mx-auto px-4 py-8 pt-24">
-        {/* Back link + title */}
-        <div className="mb-6 flex items-center gap-4">
-          <Link
-            to={lesson.course ? `/courses/${lesson.course}` : '/courses'}
-            className="text-white/60 hover:text-white transition text-sm"
-          >
-            ← Quay lại khóa học
-          </Link>
-        </div>
-
-        <h1
-          className="text-3xl font-bold text-white mb-2"
-          style={{ textShadow: '0 0 20px rgba(249,115,22,0.5)' }}
-        >
+      <div className="mx-auto max-w-[1600px] px-4 pb-12 pt-8 sm:px-6 lg:px-8">
+        <h1 className="mb-2 max-w-4xl text-3xl font-bold leading-tight text-white sm:text-4xl">
           {lesson.title}
         </h1>
         {lesson.description && <p className="text-white/60 mb-6">{lesson.description}</p>}
 
         {/* Processing Status Banner */}
         {!isReady && lesson.processing_status && lesson.processing_status !== 'failed' && (
-          <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6 mb-6 flex items-center gap-4">
-            <div className="animate-spin h-8 w-8 border-2 border-orange-400 border-t-transparent rounded-full" />
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-white/20 bg-slate-950/45 p-4 backdrop-blur-md" role="status">
+            <div className="h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-orange-400 border-t-transparent" />
             <div>
               <p className={`flex items-center gap-2 font-semibold ${st.color}`}>
                 <st.icon className="h-5 w-5" aria-hidden="true" />{st.label}
@@ -413,10 +403,30 @@ export default function LessonPage() {
           </div>
         )}
 
+        <div className="mb-6 xl:hidden">
+          <CourseNavigator
+            course={course}
+            currentLessonId={id}
+            isOpen={courseNavigationOpen}
+            onToggle={() => setCourseNavigationOpen((open) => !open)}
+            onSelectLesson={(lessonId) => navigate(`/lessons/${lessonId}`)}
+          />
+        </div>
+
         {/* Main Content */}
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[320px_minmax(0,1fr)_280px]">
+          <aside className="sticky top-20 hidden max-h-[calc(100vh-6rem)] self-start overflow-y-auto xl:block" aria-label="Điều hướng khóa học">
+            <CourseNavigator
+              course={course}
+              currentLessonId={id}
+              isOpen={courseNavigationOpen}
+              onToggle={() => setCourseNavigationOpen((open) => !open)}
+              onSelectLesson={(lessonId) => navigate(`/lessons/${lessonId}`)}
+            />
+          </aside>
+
           {/* Left: Video + Tabs */}
-          <div className="lg:col-span-2 space-y-6">
+          <main className="min-w-0 space-y-6">
             {/* Video Player */}
             <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl overflow-hidden">
               {isReady && videoUrl ? (
@@ -442,7 +452,7 @@ export default function LessonPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Nội dung bài học">
               {[
                 { key: 'video', label: 'Nội dung', icon: BookOpen },
                 { key: 'summary', label: 'Tóm tắt AI', icon: Bot },
@@ -453,9 +463,11 @@ export default function LessonPage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  role="tab"
+                  aria-selected={activeTab === tab.key}
+                  className={`min-h-11 shrink-0 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                     activeTab === tab.key
-                      ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
+                      ? 'bg-orange-600 text-white'
                       : 'bg-white/10 border border-white/20 text-white/70 hover:bg-white/20'
                   }`}
                 >
@@ -961,10 +973,10 @@ export default function LessonPage() {
                 </div>
               )}
             </div>
-          </div>
+          </main>
 
           {/* Right Sidebar */}
-          <div className="space-y-6">
+          <aside className="sticky top-20 self-start space-y-6">
             {/* Lesson Info Card */}
             <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
               <h3 className="text-lg font-bold text-white mb-4">Thông tin bài học</h3>
@@ -1036,10 +1048,71 @@ export default function LessonPage() {
                 <li>Trao đổi với bạn học qua bình luận.</li>
               </ul>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </div>
+  )
+}
+
+function CourseNavigator({ course, currentLessonId, isOpen, onToggle, onSelectLesson }) {
+  const lessons = course?.lessons || []
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-white/20 bg-slate-950/55 text-white backdrop-blur-md">
+      <div className="border-b border-white/15 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-orange-300">Nội dung khóa học</p>
+        <h2 className="mt-2 line-clamp-2 font-bold">{course?.title || 'Khóa học hiện tại'}</h2>
+        <p className="mt-2 text-xs text-slate-300">{lessons.length} bài học</p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-white/15 px-4 py-3 text-left text-sm font-semibold hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400"
+        aria-expanded={isOpen}
+        aria-controls="lesson-course-navigation"
+      >
+        Danh sách bài học
+        <ChevronDown className={`h-5 w-5 shrink-0 text-orange-300 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+      </button>
+
+      {isOpen && (
+        <ol id="lesson-course-navigation" className="max-h-[calc(100vh-16rem)] overflow-y-auto py-2">
+          {lessons.map((courseLesson, index) => {
+            const isCurrent = String(courseLesson.id) === String(currentLessonId)
+            return (
+              <li key={courseLesson.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelectLesson(courseLesson.id)}
+                  aria-current={isCurrent ? 'step' : undefined}
+                  className={`flex min-h-14 w-full items-start gap-3 border-l-2 px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400 ${
+                    isCurrent
+                      ? 'border-orange-400 bg-orange-500/15 text-white'
+                      : 'border-transparent text-slate-300 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  {isCurrent
+                    ? <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" aria-hidden="true" />
+                    : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs text-slate-400">Bài {index + 1}</span>
+                    <span className="mt-0.5 block text-sm font-medium leading-5">{courseLesson.title}</span>
+                    {courseLesson.duration_minutes > 0 && (
+                      <span className="mt-1 block text-xs text-slate-400">{courseLesson.duration_minutes} phút</span>
+                    )}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+
+          {!course && <li className="px-4 py-5 text-sm text-slate-400">Không thể tải danh sách bài học.</li>}
+          {course && lessons.length === 0 && <li className="px-4 py-5 text-sm text-slate-400">Khóa học chưa có bài học khác.</li>}
+        </ol>
+      )}
+    </section>
   )
 }
 

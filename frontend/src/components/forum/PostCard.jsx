@@ -2,13 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MessageCircle, Eye, Pin, CheckCircle, Clock } from 'lucide-react'
 import ReactionButton from './ReactionButton'
-
-const CATEGORY_STYLES = {
-  question: { label: 'Câu hỏi', icon: '❓', color: 'from-blue-500 to-cyan-500' },
-  discussion: { label: 'Thảo luận', icon: '💬', color: 'from-purple-500 to-pink-500' },
-  showcase: { label: 'Chia sẻ', icon: '🚀', color: 'from-orange-500 to-red-500' },
-  announcement: { label: 'Thông báo', icon: '📢', color: 'from-yellow-500 to-orange-500' },
-}
+import { getUserAvatar } from '../../utils/avatar'
 
 function timeAgo(dateStr) {
   const now = new Date()
@@ -21,23 +15,22 @@ function timeAgo(dateStr) {
   return date.toLocaleDateString('vi-VN')
 }
 
-export default function PostCard({ post, onReact }) {
-  const cat = CATEGORY_STYLES[post.category] || CATEGORY_STYLES.question
+export default function PostCard({ post, onReact, onCourseClick }) {
   const images = [post.image_1, post.image_2, post.image_3, post.image_4].filter(Boolean)
   const [lightboxImg, setLightboxImg] = useState(null)
+  const authorAvatar = getUserAvatar(post.author)
 
   return (
     <div className="group relative">
-      {/* Glow on hover */}
-      <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/0 to-red-500/0 group-hover:from-orange-500/20 group-hover:to-red-500/20 rounded-2xl blur transition-all duration-300" />
-
-      <div className="relative bg-white/[0.07] backdrop-blur-md border border-white/10 rounded-2xl p-5 hover:bg-white/[0.1] transition-all duration-300">
+      <div className="relative rounded-2xl border border-white/10 bg-slate-950/45 p-4 backdrop-blur-md transition-colors hover:border-white/20 hover:bg-slate-950/55 sm:p-5">
         {/* Top row: author + category + time */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-              {post.author?.full_name?.charAt(0) || 'U'}
-            </div>
+            {authorAvatar ? (
+              <img src={authorAvatar} alt="" className="h-10 w-10 flex-shrink-0 rounded-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-200 font-bold text-sm flex-shrink-0">{post.author?.full_name?.charAt(0) || 'U'}</div>
+            )}
             <div>
               <p className="text-white font-medium text-sm">{post.author?.full_name}</p>
               <div className="flex items-center gap-2 text-white/50 text-xs">
@@ -58,18 +51,18 @@ export default function PostCard({ post, onReact }) {
                 <CheckCircle className="w-3 h-3" /> Đã giải
               </span>
             )}
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r ${cat.color} text-white`}>
-              {cat.icon} {cat.label}
-            </span>
           </div>
         </div>
 
         {/* Title */}
-        <Link to={`/forum/${post.id}`} className="block mb-2">
-          <h3 className="text-lg font-bold text-white hover:text-orange-400 transition-colors line-clamp-2">
-            {post.title}
-          </h3>
-        </Link>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Link to={`/forum/${post.id}`} className="min-w-0">
+            <h3 className="line-clamp-2 text-lg font-bold text-white transition-colors hover:text-orange-300">{post.title}</h3>
+          </Link>
+          {post.course && (
+            <button type="button" onClick={() => onCourseClick?.(post.course.slug)} title={post.course.title} className="max-w-full shrink-0 truncate rounded-full border border-orange-400/30 bg-orange-500/10 px-2.5 py-1 text-xs font-semibold text-orange-300 transition-colors hover:border-orange-400/60 hover:bg-orange-500/20 hover:text-orange-200">#{post.course.slug}</button>
+          )}
+        </div>
 
         {/* Content preview */}
         <p className="text-white/60 text-sm line-clamp-3 mb-3">
@@ -84,9 +77,9 @@ export default function PostCard({ post, onReact }) {
             'grid-cols-2'
           }`}>
             {images.slice(0, 4).map((img, idx) => (
-              <button key={idx} type="button" onClick={() => setLightboxImg(img)} className={`rounded-xl overflow-hidden border border-white/10 text-left ${
-                images.length === 1 ? 'max-h-72' :
-                images.length === 3 && idx === 0 ? 'row-span-2' : 'max-h-36'
+              <button key={idx} type="button" onClick={() => setLightboxImg(img)} className={`w-full overflow-hidden rounded-xl border border-white/10 text-left ${
+                images.length === 1 ? 'h-52 sm:h-72' :
+                images.length === 3 && idx === 0 ? 'row-span-2 h-full min-h-52 max-h-72' : 'h-32 sm:h-40'
               }`}>
                 <img
                   src={img}
@@ -94,21 +87,6 @@ export default function PostCard({ post, onReact }) {
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-zoom-in"
                 />
               </button>
-            ))}
-          </div>
-        )}
-
-        {/* Tags */}
-        {post.tags?.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {post.tags.map(tag => (
-              <span
-                key={tag.id}
-                className="px-2 py-0.5 rounded-full text-[10px] font-medium text-white/90"
-                style={{ backgroundColor: tag.color + '33', color: tag.color }}
-              >
-                #{tag.name}
-              </span>
             ))}
           </div>
         )}

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.users.models import User
+from apps.courses.models import Course
 
 from .models import Comment, Follow, Post, Reaction, Report, Tag
 
@@ -106,11 +107,12 @@ class PostListSerializer(serializers.ModelSerializer):
         source='comments_count_field', default=0, read_only=True
     )
     reactions_summary = serializers.SerializerMethodField()
+    course = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
         fields = [
-            'id', 'author', 'title', 'content', 'category',
+            'id', 'author', 'title', 'content', 'category', 'course',
             'image_1', 'image_2', 'image_3', 'image_4',
             'tags', 'views_count', 'likes_count', 'comments_count',
             'is_pinned', 'is_closed', 'is_solved',
@@ -120,6 +122,15 @@ class PostListSerializer(serializers.ModelSerializer):
 
     def get_reactions_summary(self, obj):
         return _reaction_summary(obj.reactions.all(), self.context.get('request'))
+
+    def get_course(self, obj):
+        if obj.course is None:
+            return None
+        return {
+            'id': obj.course_id,
+            'title': obj.course.title,
+            'slug': obj.course.slug,
+        }
 
 
 class PostWriteSerializer(serializers.ModelSerializer):
@@ -131,12 +142,18 @@ class PostWriteSerializer(serializers.ModelSerializer):
         required=False,
         write_only=True,
     )
+    course_id = serializers.PrimaryKeyRelatedField(
+        source='course',
+        queryset=Course.objects.filter(is_published=True),
+        write_only=True,
+        required=True,
+    )
 
     class Meta:
         model = Post
         fields = [
             'id', 'title', 'content', 'category',
-            'image_1', 'image_2', 'image_3', 'image_4', 'tag_ids',
+            'image_1', 'image_2', 'image_3', 'image_4', 'tag_ids', 'course_id',
         ]
         read_only_fields = ['id']
 

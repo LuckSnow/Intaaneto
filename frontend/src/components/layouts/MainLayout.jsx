@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Upload } from 'lucide-react'
 import logoFull from '../../assets/images/logo-full.png'
 import { useAuthStore } from '../../store/authStore'
+import { getUserAvatar } from '../../utils/avatar'
+import AppBreadcrumbs from '../navigation/AppBreadcrumbs'
 
 export default function MainLayout() {
   const { isAuthenticated, user, logout } = useAuthStore()
@@ -21,8 +23,7 @@ export default function MainLayout() {
     window.location.href = '/'
   }
 
-  // Get user avatar - prefer Google avatar, fallback to uploaded avatar
-  const userAvatar = user?.google_avatar || user?.avatar || null
+  const userAvatar = getUserAvatar(user)
 
   const isActive = (href) => location.pathname === href || location.pathname.startsWith(href + '/')
 
@@ -148,6 +149,7 @@ export default function MainLayout() {
         </div>
       </nav>
       <main className="pt-14">
+        <AppBreadcrumbs className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" />
         <Outlet />
       </main>
     </div>

@@ -3,6 +3,7 @@ import { CheckCircle2, LockKeyhole } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
+import AuthLayout from '../components/auth/AuthLayout'
 import { authService } from '../services/authService'
 
 
@@ -41,8 +42,8 @@ export default function ResetPassword() {
 
   if (loginPath) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-10 sm:py-16">
-        <section className="mx-auto w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 text-center sm:p-8">
+      <AuthLayout>
+        <section className="auth-card w-full max-w-md p-6 text-center sm:p-8">
           <CheckCircle2 aria-hidden="true" className="mx-auto text-emerald-700" size={40} />
           <h1 className="mt-4 text-2xl font-semibold text-slate-950">Đã đặt lại mật khẩu</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -55,13 +56,13 @@ export default function ResetPassword() {
             Đi đến trang đăng nhập
           </Link>
         </section>
-      </main>
+      </AuthLayout>
     )
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10 sm:py-16">
-      <section className="mx-auto w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 sm:p-8">
+    <AuthLayout>
+      <section className="auth-card w-full max-w-md p-6 sm:p-8">
         <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-orange-50 text-orange-700">
           <LockKeyhole aria-hidden="true" size={22} />
         </div>
@@ -88,7 +89,7 @@ export default function ResetPassword() {
               maxLength={128}
               value={formData.password}
               onChange={(event) => setFormData({ ...formData, password: event.target.value })}
-              className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
+              className="auth-input mt-2 px-3"
             />
           </div>
           <div>
@@ -103,18 +104,18 @@ export default function ResetPassword() {
               maxLength={128}
               value={formData.password_confirm}
               onChange={(event) => setFormData({ ...formData, password_confirm: event.target.value })}
-              className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
+              className="auth-input mt-2 px-3"
             />
           </div>
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="min-h-11 w-full bg-orange-700 text-white hover:bg-orange-800 focus-visible:ring-orange-600"
+            className="auth-primary-button"
           >
             {isSubmitting ? 'Đang cập nhật…' : 'Đặt mật khẩu mới'}
           </Button>
         </form>
       </section>
-    </main>
+    </AuthLayout>
   )
 }

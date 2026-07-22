@@ -71,13 +71,13 @@ function App() {
         path="/teacher/login"
         element={<GuestRoute><TeacherLogin /></GuestRoute>}
       />
+      <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+      <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
       {/* Public Routes */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
-        <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/courses/:id" element={<CourseDetail />} />

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/authStore'
+import { getUserAvatar } from '../utils/avatar'
 import { authService } from '../services/authService'
 import { forumService } from '../services/forumService'
 import api from '../services/api'
@@ -113,21 +114,17 @@ function ActivityGrid({ activities, loading }) {
   }, [])
 
   return (
-    <section className="border-b border-slate-200 pb-8">
+    <section className="border-b border-white/30 pb-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <h2 className="text-base font-semibold text-slate-950">
+        <h2 className="text-base font-semibold text-white drop-shadow-sm">
           {loading ? 'Đang tải hoạt động...' : `${activeCount} ngày hoạt động trong 12 tháng qua`}
         </h2>
-        <button className="inline-flex items-center gap-2 self-start text-sm font-medium text-slate-600 hover:text-slate-950">
-          Tùy chọn hiển thị
-          <ChevronDown size={16} aria-hidden="true" />
-        </button>
       </div>
 
       <div className="mt-7 overflow-x-auto pb-2">
         <div className="min-w-[884px]">
           <div
-            className="ml-10 grid text-xs text-slate-700"
+            className="ml-10 grid text-xs font-medium text-white/80 drop-shadow-sm"
             style={{
               gridTemplateColumns: 'repeat(53, 0.75rem)',
               columnGap: '0.25rem',
@@ -144,7 +141,7 @@ function ActivityGrid({ activities, loading }) {
             ))}
           </div>
           <div className="mt-2 flex gap-2">
-            <div className="grid h-[104px] grid-rows-7 gap-1 text-xs text-slate-700">
+            <div className="grid h-[104px] grid-rows-7 gap-1 text-xs font-medium text-white/80 drop-shadow-sm">
               <span />
               <span>Mon</span>
               <span />
@@ -171,7 +168,7 @@ function ActivityGrid({ activities, loading }) {
               ))}
             </div>
           </div>
-          <div className="mt-3 flex items-center justify-end gap-2 text-xs text-slate-500">
+          <div className="mt-3 flex items-center justify-end gap-2 text-xs font-medium text-white/75 drop-shadow-sm">
             <span>Ít hơn</span>
             {ACTIVITY_LEVELS.map((level) => (
               <span key={level} className={`h-3 w-3 rounded-[3px] ${level}`} />
@@ -186,7 +183,7 @@ function ActivityGrid({ activities, loading }) {
 
 function Avatar({ user, uploadingAvatar, onPickAvatar }) {
   const fileInputRef = useRef(null)
-  const avatar = user?.avatar || user?.google_avatar || null
+  const avatar = getUserAvatar(user)
   const initial = user?.full_name?.trim()?.charAt(0)?.toUpperCase() || 'U'
 
   return (
@@ -221,7 +218,7 @@ function Avatar({ user, uploadingAvatar, onPickAvatar }) {
         className="sr-only"
         onChange={onPickAvatar}
       />
-      <p className="mt-3 text-sm text-slate-500">
+      <p className="mt-3 text-sm font-medium text-white/75 drop-shadow-sm">
         {uploadingAvatar ? 'Đang tải ảnh lên...' : 'PNG, JPG hoặc WebP tối đa 5MB'}
       </p>
     </div>
@@ -491,14 +488,14 @@ export default function Profile() {
   const username = user?.username || user?.email?.split('@')[0] || 'user'
 
   return (
-    <main className="mx-auto max-w-7xl rounded-2xl border border-slate-200 bg-slate-50 px-4 pb-12 pt-6 shadow-sm sm:px-6 lg:rounded-3xl lg:px-8 lg:pt-8">
-      <div className="grid gap-10 lg:grid-cols-[420px_minmax(0,1fr)]">
+    <main className="relative left-1/2 min-h-[calc(100vh-5rem)] w-screen -translate-x-1/2 py-8">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[420px_minmax(0,1fr)] lg:px-8">
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <Avatar user={user} uploadingAvatar={uploadingAvatar} onPickAvatar={handlePickAvatar} />
 
           <div className="mt-5 text-center lg:text-left">
-            <h1 className="text-3xl font-bold text-slate-950">{displayName}</h1>
-            <p className="mt-1 text-xl text-slate-500">@{username}</p>
+            <h1 className="text-3xl font-bold text-white drop-shadow-sm">{displayName}</h1>
+            <p className="mt-1 text-xl text-white/75 drop-shadow-sm">@{username}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2 lg:justify-start">
               <span className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold ${ROLE_BADGES[user?.role] || 'border-slate-200 bg-slate-50 text-slate-600'}`}>
                 {ROLE_LABELS[user?.role] || user?.role}
@@ -512,17 +509,17 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="mt-7 space-y-3 text-sm text-slate-700">
+          <div className="mt-7 space-y-3 text-sm font-medium text-white/80 drop-shadow-sm">
             <p className="flex items-center justify-center gap-3 lg:justify-start">
-              <Users size={18} className="text-slate-400" aria-hidden="true" />
+              <Users size={18} className="text-white/65" aria-hidden="true" />
               <span><strong>0</strong> người theo dõi · <strong>0</strong> đang theo dõi</span>
             </p>
             <p className="flex items-center justify-center gap-3 lg:justify-start">
-              <GraduationCap size={18} className="text-slate-400" aria-hidden="true" />
+              <GraduationCap size={18} className="text-white/65" aria-hidden="true" />
               <span>Tham gia Intaaneto từ {formatJoinDate(user?.created_at)}</span>
             </p>
             <p className="flex items-center justify-center gap-3 lg:justify-start">
-              <BookOpen size={18} className="text-slate-400" aria-hidden="true" />
+              <BookOpen size={18} className="text-white/65" aria-hidden="true" />
               <span>{enrollmentCount} khóa học đã đăng ký</span>
             </p>
           </div>
@@ -618,14 +615,14 @@ export default function Profile() {
           <ActivityGrid activities={dailyActivities} loading={activitiesLoading} />
 
           <div className="mt-8">
-            <div className="flex gap-8 border-b border-slate-200">
+            <div className="flex gap-8 border-b border-white/30">
               <button
                 type="button"
                 onClick={() => setActiveTab('courses')}
                 className={`inline-flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-semibold ${
                   activeTab === 'courses'
-                    ? 'border-orange-600 text-slate-950'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
+                    ? 'border-orange-300 text-white drop-shadow-sm'
+                    : 'border-transparent text-white/65 drop-shadow-sm hover:text-white'
                 }`}
               >
                 <BookOpen size={18} aria-hidden="true" />
@@ -636,8 +633,8 @@ export default function Profile() {
                 onClick={() => setActiveTab('posts')}
                 className={`inline-flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-semibold ${
                   activeTab === 'posts'
-                    ? 'border-orange-600 text-slate-950'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
+                    ? 'border-orange-300 text-white drop-shadow-sm'
+                    : 'border-transparent text-white/65 drop-shadow-sm hover:text-white'
                 }`}
               >
                 <UserRound size={18} aria-hidden="true" />
@@ -648,7 +645,7 @@ export default function Profile() {
             {activeTab === 'courses' && (
               <div className="mt-7">
                 {enrollmentsLoading ? (
-                  <p className="text-sm text-slate-600" role="status">Đang tải khóa học...</p>
+                  <p className="text-sm font-medium text-white/80 drop-shadow-sm" role="status">Đang tải khóa học...</p>
                 ) : enrollments.length > 0 ? (
                   <div className="grid gap-6 md:grid-cols-2">
                     {enrollments.map((enrollment) => (
@@ -674,7 +671,7 @@ export default function Profile() {
             {activeTab === 'posts' && (
               <div className="mt-7">
                 {postsLoading ? (
-                  <p className="text-sm text-slate-600" role="status">Đang tải bài viết...</p>
+                  <p className="text-sm font-medium text-white/80 drop-shadow-sm" role="status">Đang tải bài viết...</p>
                 ) : posts.length > 0 ? (
                   <div className="grid gap-4">
                     {posts.map((post) => (

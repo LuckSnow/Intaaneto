@@ -8,7 +8,7 @@ import {
 import toast from 'react-hot-toast'
 
 import { Button } from '@/components/ui/button'
-import logoFull from '../assets/images/logo-full.png'
+import AuthLayout from '../components/auth/AuthLayout'
 import teacherLoginIllustration from '../assets/images/teacher-login-illustration.png'
 import { authService } from '../services/authService'
 import { useAuthStore } from '../store/authStore'
@@ -73,30 +73,15 @@ export default function TeacherLogin() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-orange-950 px-4 py-7 sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-orange-500/15" />
-      <div className="pointer-events-none absolute -bottom-40 right-16 h-96 w-96 rounded-full bg-orange-600/15" />
-
-      <section className="teacher-auth-shell relative w-full max-w-6xl overflow-hidden rounded-[2rem] border border-orange-200/20 bg-orange-800 shadow-2xl">
-        <Link
-          to="/"
-          className="absolute right-7 top-5 z-30 block h-10 w-40 overflow-hidden rounded-md drop-shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-100 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-800 sm:right-9 sm:top-7"
-          aria-label="Về trang chủ Intaaneto"
-        >
-          <img
-            src={logoFull}
-            alt="Intaaneto"
-            className="pointer-events-none absolute left-1/2 top-1/2 w-40 max-w-none -translate-x-1/2 -translate-y-1/2"
-          />
-        </Link>
-
-        <div className="teacher-auth-visual relative z-10 flex flex-col overflow-hidden bg-orange-50 p-7 sm:p-9 lg:p-11">
+    <AuthLayout>
+      <section className="auth-surface teacher-auth-shell relative w-full max-w-6xl bg-black/25 backdrop-blur-md">
+        <div className="teacher-auth-visual relative z-10 flex flex-col overflow-hidden bg-orange-50/95 p-7 sm:p-9 lg:p-11">
           <div className="pointer-events-none absolute left-10 top-28 h-20 w-20 rounded-full bg-orange-200/35" />
           <div className="pointer-events-none absolute right-[18%] top-16 h-12 w-12 rounded-full bg-orange-200/30" />
           <img
             src={teacherLoginIllustration}
             alt="Giáo viên hướng dẫn học viên học công nghệ cùng máy tính"
-            className="relative z-10 my-auto w-full max-w-[620px] object-contain sm:-ml-3 sm:w-[92%] lg:w-full"
+            className="relative z-10 my-auto max-h-[440px] w-full max-w-[620px] object-contain sm:-ml-3 sm:w-[92%] lg:w-full"
           />
           <div className="relative z-10 max-w-sm pb-3 sm:pb-0">
             <p className="text-sm font-semibold text-orange-700">Không gian dành cho giảng viên</p>
@@ -106,7 +91,7 @@ export default function TeacherLogin() {
           </div>
         </div>
 
-        <div className="teacher-auth-form relative flex items-center bg-orange-800 p-6 text-white sm:p-7 lg:px-12">
+        <div className="teacher-auth-form relative flex items-center bg-orange-800/90 p-6 text-white backdrop-blur-md sm:p-7 lg:px-12">
           <div className="mx-auto w-full max-w-sm py-4">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-orange-100 ring-1 ring-white/15">
               <ShieldCheck aria-hidden="true" size={23} />
@@ -131,18 +116,38 @@ export default function TeacherLogin() {
               </div>
             )}
 
-            <div>
-              <div className="flex items-center justify-between gap-4">
-                <label htmlFor="teacher-password" className="text-sm font-medium text-slate-800">
+            <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+              <div>
+                <label htmlFor="teacher-email" className="text-sm font-semibold text-white">
+                  Email công việc
+                </label>
+                <div className="relative mt-2">
+                  <Mail
+                    aria-hidden="true"
+                    size={18}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  />
+                  <input
+                    id="teacher-email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={formData.email}
+                    onChange={(event) => setFormData({
+                      ...formData,
+                      email: event.target.value,
+                    })}
+                    className="auth-input pl-10 pr-3"
+                    placeholder="giaovien@example.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="teacher-password" className="text-sm font-semibold text-white">
                   Mật khẩu
                 </label>
-                <Link
-                  to="/forgot-password?portal=teacher"
-                  className="text-sm font-semibold text-orange-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600"
-                >
-                  Quên mật khẩu?
-                </Link>
-              </div>
               <div className="relative mt-2">
                 <LockKeyhole
                   aria-hidden="true"
@@ -160,10 +165,33 @@ export default function TeacherLogin() {
                     ...formData,
                     password: event.target.value,
                   })}
-                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-3 text-slate-950 outline-none placeholder:text-slate-400 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
+                  className="auth-input pl-10 pr-3"
                   placeholder="Nhập mật khẩu"
                 />
               </div>
+                <div className="mt-2 text-right">
+                  <Link
+                    to="/forgot-password?portal=teacher"
+                    className="auth-link text-sm"
+                  >
+                    Quên mật khẩu?
+                  </Link>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="auth-primary-button"
+              >
+                {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập cổng giáo viên'}
+              </Button>
+            </form>
+
+            <div className="my-5 flex items-center gap-3" aria-hidden="true">
+              <span className="h-px flex-1 bg-white/25" />
+              <span className="text-xs font-medium uppercase text-orange-100/80">Hoặc</span>
+              <span className="h-px flex-1 bg-white/25" />
             </div>
 
             <Button
@@ -182,13 +210,13 @@ export default function TeacherLogin() {
 
             <p className="mt-7 border-t border-white/20 pt-5 text-center text-sm text-orange-100">
               Bạn là học viên?{' '}
-              <Link to="/login" className="font-semibold text-white underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-100">
+              <Link to="/login" className="auth-link text-white">
                 Đăng nhập tại đây
               </Link>
             </p>
           </div>
         </div>
       </section>
-    </main>
+    </AuthLayout>
   )
 }

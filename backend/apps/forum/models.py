@@ -32,6 +32,13 @@ class Post(models.Model):
     ]
 
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
+    course = models.ForeignKey(
+        'courses.Course',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='forum_posts',
+    )
 
     title = models.CharField(_('title'), max_length=255)
     content = models.TextField(_('content'))

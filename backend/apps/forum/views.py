@@ -57,7 +57,7 @@ class PostViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
-        queryset = Post.objects.select_related('author').prefetch_related(
+        queryset = Post.objects.select_related('author', 'course').prefetch_related(
             'tags', 'reactions'
         ).annotate(comments_count_field=Count('comments'))
         category = self.request.query_params.get('category')
@@ -66,6 +66,9 @@ class PostViewSet(viewsets.ModelViewSet):
         tag = self.request.query_params.get('tag')
         if tag:
             queryset = queryset.filter(tags__slug=tag)
+        course = self.request.query_params.get('course')
+        if course:
+            queryset = queryset.filter(course__slug=course)
         author = self.request.query_params.get('author')
         if author:
             queryset = queryset.filter(author_id=author)

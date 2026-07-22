@@ -19,6 +19,7 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.html import escape
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.urls import reverse
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from config.throttling import ActionScopedThrottleMixin
@@ -312,17 +313,12 @@ class AuthViewSet(ActionScopedThrottleMixin, viewsets.GenericViewSet):
 
         # Send verification email
         email_sent = self._send_verification_email(user, request=request)
-        if not email_sent:
-            return Response(
-                {
-                    'error': 'Không thể gửi email xác thực. Vui lòng thử lại sau hoặc liên hệ quản trị viên.',
-                    'email_sent': False,
-                },
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
         return Response({
-            'message': 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
+            'message': (
+                'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.'
+                if email_sent
+                else 'Tài khoản đã được tạo nhưng chưa thể gửi email xác thực.'
+            ),
             'email_sent': email_sent,
             'user': UserSerializer(user).data,
         }, status=status.HTTP_201_CREATED)

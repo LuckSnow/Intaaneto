@@ -11,6 +11,7 @@ export const forumService = {
     formData.append('title', data.title)
     formData.append('content', data.content)
     formData.append('category', data.category || 'question')
+    formData.append('course_id', data.course_id)
     if (data.tag_ids) {
       data.tag_ids.forEach(id => formData.append('tag_ids', id))
     }

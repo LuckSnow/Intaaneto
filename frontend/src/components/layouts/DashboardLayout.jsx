@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { Button } from '@/components/ui/button'
 import logoFull from '../../assets/images/logo-full.png'
+import { getUserAvatar } from '../../utils/avatar'
+import AppBreadcrumbs from '../navigation/AppBreadcrumbs'
 
 export default function DashboardLayout() {
   const { user, logout } = useAuthStore()
@@ -21,8 +23,7 @@ export default function DashboardLayout() {
     navigate('/', { replace: true })
   }
 
-  // Prefer the avatar explicitly uploaded by the user over the Google fallback.
-  const userAvatar = user?.avatar || user?.google_avatar || null
+  const userAvatar = getUserAvatar(user)
 
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard' },
@@ -123,6 +124,7 @@ export default function DashboardLayout() {
         </div>
       </nav>
       <main className="max-w-7xl mx-auto px-4 pb-8 pt-28 sm:px-6 sm:pt-20 lg:px-8">
+        <AppBreadcrumbs className="mb-4" />
         <Outlet />
       </main>
     </div>

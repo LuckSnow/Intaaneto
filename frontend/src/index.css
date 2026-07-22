@@ -130,6 +130,26 @@
   .input {
     @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
   }
+
+  .auth-surface {
+    @apply overflow-hidden rounded-[2rem] border border-white/20 shadow-2xl;
+  }
+
+  .auth-card {
+    @apply rounded-3xl border border-white/20 bg-white/95 shadow-xl backdrop-blur-md;
+  }
+
+  .auth-input {
+    @apply min-h-12 w-full rounded-lg border border-slate-300 bg-white py-2 text-slate-900 outline-none placeholder:text-slate-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200;
+  }
+
+  .auth-primary-button {
+    @apply min-h-12 w-full border-0 bg-gradient-to-r from-orange-600 to-orange-500 font-bold text-white shadow-sm transition duration-150 hover:-translate-y-0.5 hover:from-orange-700 hover:to-orange-600 hover:shadow-md focus-visible:ring-orange-300 disabled:translate-y-0;
+  }
+
+  .auth-link {
+    @apply font-semibold text-orange-100 underline-offset-4 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200;
+  }
 }
 
 /* Teacher portal auth uses an explicit early split to preserve the reference
@@ -163,5 +183,57 @@
 @media (min-width: 768px) {
   .teacher-auth-shell {
     grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+  }
+}
+
+.student-auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.student-auth-form {
+  min-width: 0;
+}
+
+.student-auth-visual {
+  min-height: 520px;
+  border-radius: 32% 32% 0 0;
+}
+
+@media (min-width: 768px) {
+  .student-auth-shell {
+    min-height: 720px;
+    grid-template-columns: minmax(0, 56fr) minmax(0, 44fr);
+  }
+
+  .student-auth-visual {
+    min-height: 100%;
+    border-radius: 0 42% 46% 0 / 0 52% 48% 0;
+  }
+}
+
+.register-auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.register-auth-form {
+  min-width: 0;
+}
+
+.register-auth-visual {
+  min-height: 500px;
+  border-radius: 32% 32% 0 0;
+}
+
+@media (min-width: 768px) {
+  .register-auth-shell {
+    min-height: 760px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .register-auth-visual {
+    min-height: 100%;
+    border-radius: 0 40% 44% 0 / 0 52% 48% 0;
   }
 }

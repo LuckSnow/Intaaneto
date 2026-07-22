@@ -15,10 +15,11 @@ export const authService = {
 
   // Login user
   login: async (credentials) => {
-    const response = await api.post('/auth/login/', credentials)
+    const { remember = true, ...loginCredentials } = credentials
+    const response = await api.post('/auth/login/', loginCredentials)
     const { user, tokens } = response.data
     
-    storeAuthSession({ user, tokens })
+    storeAuthSession({ user, tokens, remember })
     
     return response.data
   },
@@ -34,7 +35,7 @@ export const authService = {
   },
 
   // Google Sign-In via Firebase
-  googleLogin: async () => {
+  googleLogin: async (remember = true) => {
     const firebaseAuth = await getFirebaseAuthContext()
     if (!firebaseAuth) {
       const error = new Error('Firebase chưa được cấu hình cho Google Login')
@@ -53,7 +54,7 @@ export const authService = {
     const response = await api.post('/auth/google/', { id_token: idToken })
     const { user, tokens } = response.data
 
-    storeAuthSession({ user, tokens })
+    storeAuthSession({ user, tokens, remember })
 
     return response.data
   },

@@ -168,7 +168,6 @@ function CommentItem({ comment, postId, currentUser, isPostAuthor, onReply, onDe
             onMarkSolution={onMarkSolution}
             onReport={onReport}
             onOpenImage={onOpenImage}
-            onReply={onReply}
             depth={depth + 1}
           />
         ))}

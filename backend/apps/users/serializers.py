@@ -119,9 +119,19 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class LoginSerializer(serializers.Serializer):
     """Login Serializer"""
-    
-    email = serializers.EmailField()
+
+    email = serializers.CharField(max_length=254, trim_whitespace=True)
     password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        identifier = attrs['email']
+        if '@' not in identifier:
+            matched_email = User.objects.filter(
+                username=identifier,
+            ).values_list('email', flat=True).first()
+            if matched_email:
+                attrs['email'] = matched_email
+        return attrs
 
 
 class ResendVerificationSerializer(serializers.Serializer):

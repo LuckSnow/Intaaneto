@@ -31,10 +31,10 @@ export const useAuthStore = create((set) => ({
     }
   },
 
-  googleLogin: async () => {
+  googleLogin: async (remember = true) => {
     set({ isLoading: true, error: null })
     try {
-      const data = await authService.googleLogin()
+      const data = await authService.googleLogin(remember)
       set({
         user: data.user,
         isAuthenticated: true,

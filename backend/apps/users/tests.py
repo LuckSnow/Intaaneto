@@ -108,7 +108,7 @@ class TestUserAPI:
         monkeypatch.setattr(
             AuthViewSet,
             '_send_verification_email',
-            lambda self, user: False,
+            lambda self, user, request=None: False,
         )
 
         response = api_client.post('/api/auth/register/', {
@@ -351,6 +351,16 @@ class TestUserAPI:
         assert 'tokens' in response.data
         assert 'access' in response.data['tokens']
         assert 'refresh' in response.data['tokens']
+
+    def test_login_user_by_student_username(self, api_client, student_user):
+        response = api_client.post('/api/auth/login/', {
+            'email': student_user.username,
+            'password': 'testpass123',
+        })
+
+        assert response.status_code == 200
+        assert response.data['user']['id'] == student_user.id
+        assert response.data['user']['role'] == 'student'
 
     def test_teacher_login_returns_server_owned_role(self, api_client, teacher_user):
         response = api_client.post('/api/auth/login/', {
