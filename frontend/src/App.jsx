@@ -26,6 +26,7 @@ import ExercisePage from './pages/ExercisePage'
 import Forum from './pages/Forum'
 import ForumPost from './pages/ForumPost'
 import Profile from './pages/Profile'
+import PublicProfile from './pages/PublicProfile'
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -84,6 +85,7 @@ function App() {
         <Route path="/lessons/:id" element={<LessonPage />} />
         <Route path="/forum" element={<Forum />} />
         <Route path="/forum/:id" element={<ForumPost />} />
+        <Route path="/users/:userId" element={<PublicProfile />} />
       </Route>
 
       {/* Protected Routes */}

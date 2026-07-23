@@ -16,9 +16,11 @@ from .serializers import (
     CommentUpdateSerializer,
     FollowSerializer,
     FollowTargetSerializer,
+    ForumAuthorSerializer,
     PostDetailSerializer,
     PostListSerializer,
     PostWriteSerializer,
+    PublicForumProfileSerializer,
     ReactionInputSerializer,
     ReactionSerializer,
     ReportCreateSerializer,
@@ -39,6 +41,45 @@ class IsRoleAdmin(BasePermission):
             request.user.is_authenticated
             and request.user.is_active
             and request.user.role == 'admin'
+        )
+
+
+class PublicForumProfileViewSet(viewsets.ReadOnlyModelViewSet):
+    """Expose only the fields needed for a public community profile."""
+
+    permission_classes = [AllowAny]
+    serializer_class = PublicForumProfileSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(is_active=True).annotate(
+            posts_count=Count('posts', distinct=True),
+            followers_count=Count('followers', distinct=True),
+            following_count=Count('following', distinct=True),
+        )
+
+    def _safe_people_response(self, queryset):
+        people = queryset.filter(is_active=True).order_by('full_name', 'id')[:100]
+        return Response({
+            'count': queryset.filter(is_active=True).count(),
+            'results': ForumAuthorSerializer(
+                people,
+                many=True,
+                context={'request': self.request},
+            ).data,
+        })
+
+    @action(detail=True, methods=['get'])
+    def followers(self, request, pk=None):
+        profile = self.get_object()
+        return self._safe_people_response(
+            User.objects.filter(following__following=profile)
+        )
+
+    @action(detail=True, methods=['get'])
+    def following(self, request, pk=None):
+        profile = self.get_object()
+        return self._safe_people_response(
+            User.objects.filter(followers__follower=profile)
         )
 
 

@@ -1,3 +1,8 @@
+from datetime import timedelta
+
+from django.db.models import Count
+from django.db.models.functions import TruncDate
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.users.models import User
@@ -13,6 +18,76 @@ class ForumAuthorSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'full_name', 'role', 'avatar', 'google_avatar']
         read_only_fields = fields
+
+
+class PublicForumProfileSerializer(serializers.ModelSerializer):
+    """Public forum profile without email, phone number, or birth date."""
+
+    posts_count = serializers.IntegerField(read_only=True)
+    followers_count = serializers.IntegerField(read_only=True)
+    following_count = serializers.IntegerField(read_only=True)
+    is_following = serializers.SerializerMethodField()
+    forum_activity = serializers.SerializerMethodField()
+    enrolled_courses = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'full_name', 'role', 'avatar', 'google_avatar',
+            'bio', 'created_at', 'updated_at', 'posts_count',
+            'followers_count', 'following_count', 'is_following',
+            'forum_activity',
+            'enrolled_courses',
+        ]
+        read_only_fields = fields
+
+    def get_is_following(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        if request.user.pk == obj.pk:
+            return False
+        return Follow.objects.filter(
+            follower=request.user,
+            following=obj,
+        ).exists()
+
+    def get_forum_activity(self, obj):
+        start_date = timezone.localdate() - timedelta(days=370)
+        activity = obj.posts.filter(
+            created_at__date__gte=start_date,
+        ).annotate(
+            activity_date=TruncDate('created_at'),
+        ).values('activity_date').annotate(
+            count=Count('id'),
+        ).order_by('activity_date')
+        return [
+            {'date': item['activity_date'], 'count': item['count']}
+            for item in activity
+        ]
+
+    def get_enrolled_courses(self, obj):
+        request = self.context.get('request')
+        enrollments = obj.enrollments.select_related('course__teacher').filter(
+            course__is_published=True,
+        ).order_by('-enrolled_at')[:24]
+        courses = []
+        for enrollment in enrollments:
+            course = enrollment.course
+            thumbnail = None
+            if course.thumbnail:
+                thumbnail = course.thumbnail.url
+                if request:
+                    thumbnail = request.build_absolute_uri(thumbnail)
+            courses.append({
+                'id': course.id,
+                'slug': course.slug,
+                'title': course.title,
+                'thumbnail': thumbnail,
+                'difficulty': course.difficulty,
+                'teacher_name': course.teacher.full_name,
+            })
+        return courses
 
 
 class TagSerializer(serializers.ModelSerializer):

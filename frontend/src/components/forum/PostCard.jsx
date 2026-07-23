@@ -25,20 +25,24 @@ export default function PostCard({ post, onReact, onCourseClick }) {
       <div className="relative rounded-2xl border border-white/10 bg-slate-950/45 p-4 backdrop-blur-md transition-colors hover:border-white/20 hover:bg-slate-950/55 sm:p-5">
         {/* Top row: author + category + time */}
         <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
+          <Link
+            to={`/users/${post.author?.id}`}
+            className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+            aria-label={`Xem hồ sơ của ${post.author?.full_name || post.author?.username || 'người dùng'}`}
+          >
             {authorAvatar ? (
               <img src={authorAvatar} alt="" className="h-10 w-10 flex-shrink-0 rounded-full object-cover" referrerPolicy="no-referrer" />
             ) : (
               <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-200 font-bold text-sm flex-shrink-0">{post.author?.full_name?.charAt(0) || 'U'}</div>
             )}
             <div>
-              <p className="text-white font-medium text-sm">{post.author?.full_name}</p>
+              <p className="text-sm font-medium text-white transition-colors hover:text-orange-300">{post.author?.full_name}</p>
               <div className="flex items-center gap-2 text-white/50 text-xs">
                 <Clock className="w-3 h-3" />
                 <span>{timeAgo(post.created_at)}</span>
               </div>
             </div>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-2">
             {post.is_pinned && (

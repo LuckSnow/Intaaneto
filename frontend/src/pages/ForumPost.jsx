@@ -145,14 +145,14 @@ export default function ForumPost() {
             <div className="bg-white/[0.07] backdrop-blur-md border border-white/10 rounded-2xl p-6 mb-6">
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
+                <Link to={`/users/${post.author?.id}`} className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
                   {authorAvatar ? (
                     <img src={authorAvatar} alt="" className="h-12 w-12 rounded-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/20 font-bold text-orange-200">{post.author?.full_name?.charAt(0) || 'U'}</div>
                   )}
                   <div>
-                    <p className="text-white font-medium">{post.author?.full_name}</p>
+                    <p className="text-white font-medium hover:text-orange-300">{post.author?.full_name}</p>
                     <div className="flex items-center gap-2 text-white/40 text-xs">
                       <Clock className="w-3 h-3" />
                       <span>{timeAgo(post.created_at)}</span>
@@ -161,7 +161,7 @@ export default function ForumPost() {
                       <span>{post.views_count || 0} người đã xem</span>
                     </div>
                   </div>
-                </div>
+                </Link>
 
                 <div className="flex items-center gap-2">
                   {post.is_pinned && (

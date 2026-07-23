@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   UserRound,
   Users,
+  X,
   XCircle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -313,6 +314,10 @@ export default function Profile() {
   const [posts, setPosts] = useState([])
   const [postCount, setPostCount] = useState(0)
   const [postsLoading, setPostsLoading] = useState(false)
+  const [socialStats, setSocialStats] = useState({ followers: 0, following: 0 })
+  const [peopleType, setPeopleType] = useState(null)
+  const [people, setPeople] = useState([])
+  const [peopleLoading, setPeopleLoading] = useState(false)
   const [dailyActivities, setDailyActivities] = useState([])
   const [activitiesLoading, setActivitiesLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -399,6 +404,16 @@ export default function Profile() {
   }, [loadDailyActivities, loadEnrollments, loadPosts])
 
   useEffect(() => {
+    if (!user?.id) return
+    forumService.getPublicProfile(user.id)
+      .then((response) => setSocialStats({
+        followers: response.data.followers_count || 0,
+        following: response.data.following_count || 0,
+      }))
+      .catch(() => setSocialStats({ followers: 0, following: 0 }))
+  }, [user?.id])
+
+  useEffect(() => {
     if (user?.role !== 'student') return
     let active = true
     setApplicationLoading(true)
@@ -447,14 +462,39 @@ export default function Profile() {
   const handleSave = async () => {
     setLoading(true)
     try {
-      const data = await authService.updateProfile(formData)
+      const data = await authService.updateProfile({
+        ...formData,
+        full_name: formData.full_name.trim(),
+        phone_number: formData.phone_number.trim(),
+        date_of_birth: formData.date_of_birth || null,
+        bio: formData.bio.trim(),
+      })
       updateUser(data)
       toast.success('Cập nhật hồ sơ thành công')
       setIsEditing(false)
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Cập nhật thất bại')
+      const errors = error.response?.data
+      const firstError = errors && typeof errors === 'object'
+        ? Object.values(errors).flat().find(Boolean)
+        : null
+      toast.error(firstError || errors?.error || 'Cập nhật thất bại')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const openPeopleList = async (type) => {
+    if (!user?.id) return
+    setPeopleType(type)
+    setPeople([])
+    setPeopleLoading(true)
+    try {
+      const response = await forumService.getProfilePeople(user.id, type)
+      setPeople(response.data.results || [])
+    } catch {
+      toast.error('Không thể tải danh sách theo dõi')
+    } finally {
+      setPeopleLoading(false)
     }
   }
 
@@ -512,7 +552,11 @@ export default function Profile() {
           <div className="mt-7 space-y-3 text-sm font-medium text-white/80 drop-shadow-sm">
             <p className="flex items-center justify-center gap-3 lg:justify-start">
               <Users size={18} className="text-white/65" aria-hidden="true" />
-              <span><strong>0</strong> người theo dõi · <strong>0</strong> đang theo dõi</span>
+              <span>
+                <button type="button" onClick={() => openPeopleList('followers')} className="rounded hover:text-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"><strong>{socialStats.followers}</strong> người theo dõi</button>
+                {' · '}
+                <button type="button" onClick={() => openPeopleList('following')} className="rounded hover:text-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"><strong>{socialStats.following}</strong> đang theo dõi</button>
+              </span>
             </p>
             <p className="flex items-center justify-center gap-3 lg:justify-start">
               <GraduationCap size={18} className="text-white/65" aria-hidden="true" />
@@ -812,6 +856,42 @@ export default function Profile() {
           )}
         </section>
       </div>
+
+      {peopleType && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="profile-people-title">
+          <button type="button" className="absolute inset-0 bg-black/70" onClick={() => setPeopleType(null)} aria-label="Đóng danh sách" />
+          <div className="relative max-h-[80vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/15 bg-slate-950 p-5 text-white shadow-2xl">
+            <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+              <h2 id="profile-people-title" className="text-lg font-bold">{peopleType === 'followers' ? 'Người theo dõi' : 'Đang theo dõi'}</h2>
+              <button type="button" onClick={() => setPeopleType(null)} className="flex h-11 w-11 items-center justify-center rounded-lg text-white/65 hover:bg-white/10 hover:text-white" aria-label="Đóng">
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="mt-3 space-y-1">
+              {peopleLoading ? (
+                <p className="py-8 text-center text-white/60" role="status">Đang tải...</p>
+              ) : people.length === 0 ? (
+                <p className="py-8 text-center text-white/60">Chưa có người dùng nào.</p>
+              ) : people.map((person) => {
+                const personAvatar = getUserAvatar(person)
+                return (
+                  <Link key={person.id} to={`/users/${person.id}`} className="flex min-h-14 items-center gap-3 rounded-xl px-3 py-2 hover:bg-white/10" onClick={() => setPeopleType(null)}>
+                    {personAvatar ? (
+                      <img src={personAvatar} alt="" className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/20 font-bold text-orange-200">{person.full_name?.charAt(0) || 'U'}</div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{person.full_name || person.username}</p>
+                      <p className="truncate text-sm text-white/50">@{person.username}</p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

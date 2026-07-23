@@ -43,6 +43,12 @@ function resolveItems(pathname) {
       { label: 'Bài viết' },
     ]
   }
+  if (/^\/users\/[^/]+$/.test(pathname)) {
+    return [
+      { label: 'Diễn đàn', to: '/forum' },
+      { label: 'Hồ sơ thành viên' },
+    ]
+  }
   if (/^\/exercises\/[^/]+$/.test(pathname)) {
     return [
       { label: 'Dashboard', to: '/dashboard' },

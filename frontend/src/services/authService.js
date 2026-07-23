@@ -120,7 +120,7 @@ export const authService = {
 
   // Update profile
   updateProfile: async (userData) => {
-    const response = await api.put('/auth/users/update_profile/', userData)
+    const response = await api.patch('/auth/users/update_profile/', userData)
     return response.data
   },
 

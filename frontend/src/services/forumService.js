@@ -6,6 +6,8 @@ export const forumService = {
   // Posts
   getPosts: (params = {}) => api.get('/forum/posts/', { params }),
   getPost: (id) => api.get(`/forum/posts/${id}/`),
+  getPublicProfile: (userId) => api.get(`/forum/profiles/${userId}/`),
+  getProfilePeople: (userId, type) => api.get(`/forum/profiles/${userId}/${type}/`),
   createPost: (data) => {
     const formData = new FormData()
     formData.append('title', data.title)
