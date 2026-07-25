@@ -6,6 +6,7 @@ import logoFull from '../../assets/images/logo-full.png'
 import { useAuthStore } from '../../store/authStore'
 import { getUserAvatar } from '../../utils/avatar'
 import AppBreadcrumbs from '../navigation/AppBreadcrumbs'
+import DashboardLayout from './DashboardLayout'
 
 export default function MainLayout() {
   const { isAuthenticated, user, logout } = useAuthStore()
@@ -26,6 +27,10 @@ export default function MainLayout() {
   const userAvatar = getUserAvatar(user)
 
   const isActive = (href) => location.pathname === href || location.pathname.startsWith(href + '/')
+
+  if (isAuthenticated && (user?.role === 'teacher' || user?.role === 'admin')) {
+    return <DashboardLayout />
+  }
 
   return (
     <div className="min-h-screen relative">

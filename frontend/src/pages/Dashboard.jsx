@@ -1,6 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, ArrowRight, BookOpen, CheckCircle2, Download, Pencil, Target, Users } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  Download,
+  FileUp,
+  GraduationCap,
+  LayoutDashboard,
+  MessageSquare,
+  Pencil,
+  Users,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { analyticsService } from '../services/analyticsService'
@@ -215,6 +229,318 @@ function StudentDashboard({ user, report, catalogCourses }) {
   )
 }
 
+function ProgressBar({ value, label }) {
+  const percentage = Math.min(100, Math.max(0, Number(value || 0)))
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between gap-3 text-xs text-white/65">
+        <span>{label}</span>
+        <span className="font-semibold text-white">{formatPercentage(percentage)}</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div className="h-full rounded-full bg-orange-500" style={{ width: `${percentage}%` }} />
+      </div>
+    </div>
+  )
+}
+
+function MetricCard({ icon: Icon, label, value, progress, emphasized = false }) {
+  const percentage = progress == null ? null : Math.min(100, Math.max(0, Number(progress)))
+  return (
+    <article className={`flex min-h-24 items-center justify-between gap-4 rounded-2xl border p-4 backdrop-blur-md ${
+      emphasized
+        ? 'border-orange-300/35 bg-orange-950/40'
+        : 'border-white/20 bg-[rgba(72,45,65,0.68)]'
+    }`}>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 text-xs font-medium text-white/75">
+          <Icon className="h-4 w-4 shrink-0 text-orange-300" aria-hidden="true" />
+          <span className="truncate">{label}</span>
+        </div>
+        <p className="mt-2 text-2xl font-bold text-white">{value}</p>
+      </div>
+      <div
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
+        style={{
+          background: percentage == null
+            ? 'conic-gradient(rgba(255,255,255,0.2) 0 22%, rgba(255,255,255,0.08) 22% 100%)'
+            : `conic-gradient(rgb(249 115 22) 0 ${percentage}%, rgba(255,255,255,0.1) ${percentage}% 100%)`,
+        }}
+        aria-label={percentage == null ? 'Không có mẫu số phù hợp' : formatPercentage(percentage)}
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2d1727] text-[10px] font-bold text-white/80">
+          {percentage == null ? '—' : formatPercentage(percentage)}
+        </span>
+      </div>
+    </article>
+  )
+}
+
+function MiniCalendar() {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const cells = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, index) => index + 1)]
+  const monthLabel = new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric' }).format(today)
+
+  return (
+    <section className="rounded-2xl border border-white/20 bg-[rgba(58,35,52,0.68)] p-4 backdrop-blur-md" aria-labelledby="calendar-title">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="calendar-title" className="flex items-center gap-2 text-lg font-bold">
+          <CalendarDays className="h-5 w-5 text-orange-300" aria-hidden="true" />
+          Lịch
+        </h2>
+        <span className="text-xs font-medium capitalize text-white/60">{monthLabel}</span>
+      </div>
+      <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[11px]">
+        {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((day) => (
+          <span key={day} className="py-1 text-white/45">{day}</span>
+        ))}
+        {cells.map((day, index) => {
+          const isToday = day === today.getDate()
+          return (
+            <span
+              key={`${day || 'empty'}-${index}`}
+              className={`flex aspect-square items-center justify-center rounded-md ${
+                isToday ? 'bg-orange-600 font-bold text-white' : day ? 'text-white/70' : ''
+              }`}
+            >
+              {day}
+            </span>
+          )
+        })}
+      </div>
+      <p className="mt-3 border-t border-white/10 pt-3 text-xs leading-5 text-white/50">
+        Chưa có dữ liệu deadline để đánh dấu trên lịch.
+      </p>
+    </section>
+  )
+}
+
+function TeacherDashboard({
+  user,
+  report,
+  selectedCourseReport,
+  courseReports,
+  onSelectCourse,
+}) {
+  const courses = report.courses || []
+  const featuredCourses = courses.slice(0, 3)
+  const selectedCourseId = selectedCourseReport?.course?.course_id || courses[0]?.course_id
+  const learners = selectedCourseReport?.learners || []
+  const featuredLearners = [...learners]
+    .filter((learner) => Number(learner.progress_percentage) > 0)
+    .sort((first, second) => Number(second.progress_percentage) - Number(first.progress_percentage))
+    .slice(0, 5)
+  const completeCourseReports = courses
+    .map((course) => courseReports[course.course_id])
+    .filter((courseReport) => (
+      courseReport
+      && courseReport.pagination?.count === courseReport.learners.length
+    ))
+  const allRostersLoaded = courses.length > 0 && completeCourseReports.length === courses.length
+  const assessedLearnerIds = allRostersLoaded
+    ? new Set(
+      completeCourseReports.flatMap((courseReport) => (
+        courseReport.learners
+          .filter((learner) => learner.assessments_attempted > 0)
+          .map((learner) => learner.user_id)
+      )),
+    )
+    : null
+  const overallAssessmentRate = assessedLearnerIds && report.summary.learners
+    ? (assessedLearnerIds.size / report.summary.learners) * 100
+    : null
+  const quickLinks = [
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, active: true },
+    { to: '/teacher/upload', label: 'Tải học liệu', icon: FileUp },
+    { to: '/teacher/courses', label: 'Quản lý khóa', icon: BookOpen },
+    { to: '/courses', label: 'Khóa học', icon: GraduationCap },
+    { to: '/forum', label: 'Diễn đàn', icon: MessageSquare },
+  ]
+
+  const getAssessmentRate = (courseId) => {
+    const roster = courseReports[courseId]
+    if (!roster?.learners?.length || roster.pagination?.count !== roster.learners.length) return null
+    return (
+      roster.learners.filter((learner) => learner.assessments_attempted > 0).length
+      / roster.learners.length
+    ) * 100
+  }
+
+  return (
+    <div className="space-y-7 text-white">
+      <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
+        <div className="min-w-0 space-y-8">
+          <header className="flex min-h-40 flex-col justify-between gap-5 rounded-2xl border border-white/20 bg-[rgba(58,35,52,0.68)] p-6 backdrop-blur-md sm:flex-row sm:items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300">Teacher Dashboard</p>
+              <h1 className="mt-2 text-2xl font-bold sm:text-3xl">Chào mừng trở lại, {user?.full_name || user?.username}</h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-white/75 sm:text-base">
+                Theo dõi khóa học, học viên và kết quả đánh giá trong cùng một không gian.
+              </p>
+            </div>
+            <Button asChild className="min-h-11 shrink-0 bg-orange-600 px-5 text-white hover:bg-orange-700">
+              <Link to="/teacher/upload">Tải học liệu</Link>
+            </Button>
+          </header>
+
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Thống kê giảng dạy">
+            <MetricCard icon={BookOpen} label="Khóa học phụ trách" value={report.summary.courses} />
+            <MetricCard icon={Users} label="Tổng học viên" value={report.summary.learners} />
+            <MetricCard
+              icon={ClipboardCheck}
+              label="Học viên đã làm bài"
+              value={assessedLearnerIds ? assessedLearnerIds.size : '—'}
+              progress={overallAssessmentRate}
+              emphasized
+            />
+          </section>
+
+          <section aria-labelledby="quick-access-title">
+            <h2 id="quick-access-title" className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-white/75">Truy cập nhanh</h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {quickLinks.map(({ to, label, icon: Icon, active }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  aria-current={active ? 'page' : undefined}
+                  className={`group flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border p-3 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 ${
+                    active
+                      ? 'border-orange-300/45 bg-orange-500/15'
+                      : 'border-white/20 bg-[rgba(72,45,65,0.58)] hover:border-orange-300/40 hover:bg-white/15'
+                  }`}
+                >
+                  <Icon className="h-5 w-5 text-orange-300 group-hover:text-orange-200" aria-hidden="true" />
+                  <span className="text-xs font-semibold text-white/80 group-hover:text-white">{label}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section aria-labelledby="teacher-courses-title">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300">Ưu tiên</p>
+                <h2 id="teacher-courses-title" className="mt-1 text-xl font-bold">Khóa học đang phụ trách</h2>
+              </div>
+              <Link to="/teacher/courses" className="max-w-[160px] text-right text-sm font-semibold text-orange-300 hover:text-orange-200 sm:max-w-none">
+                Xem chi tiết toàn bộ
+              </Link>
+            </div>
+
+            {featuredCourses.length === 0 ? (
+              <p className="rounded-xl border border-white/15 bg-slate-950/40 p-5 text-sm text-white/70">
+                Chưa có khóa học thuộc phạm vi của bạn.
+              </p>
+            ) : (
+              <div className={`flex snap-x gap-4 overflow-x-auto pb-2 md:grid md:overflow-visible ${
+                featuredCourses.length === 1
+                  ? 'md:grid-cols-2'
+                  : featuredCourses.length === 2
+                    ? 'md:grid-cols-2'
+                    : 'md:grid-cols-2 xl:grid-cols-3'
+              }`}>
+                {featuredCourses.map((course) => {
+                  const courseAssessmentRate = getAssessmentRate(course.course_id)
+                  return (
+                    <article key={course.course_id} className="w-[270px] shrink-0 snap-start rounded-2xl border border-white/20 bg-[rgba(58,35,52,0.64)] p-4 backdrop-blur-md md:w-auto">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/15 text-orange-300">
+                          <BookOpen className="h-5 w-5" aria-hidden="true" />
+                        </div>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${course.is_published ? 'bg-emerald-400/15 text-emerald-200' : 'bg-amber-400/15 text-amber-200'}`}>
+                          {course.is_published ? 'Đã xuất bản' : 'Bản nháp'}
+                        </span>
+                      </div>
+                      <h3 className="mt-4 line-clamp-2 min-h-12 font-semibold">{course.course_title}</h3>
+                      <p className="mt-1 text-sm text-white/65">{course.learner_count} học viên</p>
+                      <div className="mt-4 space-y-3">
+                        {courseAssessmentRate == null ? (
+                          <div className="flex items-center justify-between gap-3 text-xs text-white/65">
+                            <span>Đã làm bài kiểm tra</span>
+                            <span className="font-semibold text-white">—</span>
+                          </div>
+                        ) : (
+                          <ProgressBar value={courseAssessmentRate} label="Đã làm bài kiểm tra" />
+                        )}
+                        {course.learner_count > 0 ? (
+                          <ProgressBar value={course.average_progress_percentage} label="Tiến độ trung bình" />
+                        ) : (
+                          <p className="text-xs text-white/55">Chưa có học viên tham gia.</p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => onSelectCourse(course.course_id)}
+                        className="mt-3 min-h-11 w-full justify-between px-2 text-orange-300 hover:bg-white/10 hover:text-orange-200"
+                      >
+                        Xem học viên <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                      <Link
+                        to={`/teacher/courses?course=${course.course_id}`}
+                        className="mt-1 inline-flex min-h-11 w-full items-center justify-center rounded-lg text-sm font-semibold text-white/65 hover:bg-white/10 hover:text-white"
+                      >
+                        Quản lý khóa học
+                      </Link>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+        </div>
+
+        <aside className="space-y-6">
+          <MiniCalendar />
+
+          <section aria-labelledby="featured-learners-title">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id="featured-learners-title" className="text-lg font-bold">Sinh viên tiêu biểu</h2>
+              {featuredLearners.length > 0 && (
+                <span className="text-xs font-medium text-white/55">Theo tiến độ</span>
+              )}
+            </div>
+            {featuredLearners.length === 0 ? (
+              <p className="rounded-xl border border-white/20 bg-white/5 p-3 text-sm text-white/70">
+                Hiện chưa có sinh viên tiêu biểu.
+              </p>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-white/20 bg-[rgba(58,35,52,0.62)] backdrop-blur-md">
+                {featuredLearners.map((learner, index) => (
+                  <Link
+                    key={learner.user_id}
+                    to={`/users/${learner.user_id}`}
+                    className="flex min-h-16 items-center gap-3 border-b border-white/10 px-3 py-2.5 last:border-0 hover:bg-white/10"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-500/20 text-sm font-bold text-orange-200">
+                      {learner.full_name?.charAt(0) || 'H'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{learner.full_name}</p>
+                      <p className="mt-0.5 truncate text-xs text-white/60">
+                        {selectedCourseReport?.course?.course_title}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-bold text-orange-300">{formatPercentage(learner.progress_percentage)}</p>
+                      {index === 0 && <p className="text-[10px] font-medium text-emerald-200">Tiến độ tốt</p>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        </aside>
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const { user } = useAuthStore()
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin'
@@ -226,6 +552,7 @@ export default function Dashboard() {
   const [courseLoading, setCourseLoading] = useState(false)
   const [exportingCourseId, setExportingCourseId] = useState(null)
   const [catalogCourses, setCatalogCourses] = useState([])
+  const [courseReports, setCourseReports] = useState({})
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -289,6 +616,26 @@ export default function Dashboard() {
     }
   }
 
+  useEffect(() => {
+    if (!isTeacher || report?.scope !== 'teaching' || report.courses.length === 0) return
+
+    let active = true
+    const featuredIds = report.courses.slice(0, 3).map((course) => course.course_id)
+    Promise.all(featuredIds.map((courseId) => analyticsService.getProgressReport({ course_id: courseId })))
+      .then((courseData) => {
+        if (!active) return
+        setCourseReports(Object.fromEntries(courseData.map((item) => [item.course.course_id, item])))
+        setSelectedCourseReport(courseData[0])
+      })
+      .catch(() => {
+        if (active) setCourseReports({})
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isTeacher, report])
+
   const exportCourseProgress = async (course) => {
     setExportingCourseId(course.course_id)
     setError('')
@@ -311,10 +658,11 @@ export default function Dashboard() {
 
   const learnerSummary = report?.scope === 'learner' ? report.summary : null
   const teacherSummary = report?.scope === 'teaching' ? report.summary : null
+  const showLegacyTeacherDashboard = false
 
   return (
     <div className="space-y-8">
-      {isTeacher && <header>
+      {isTeacher && showLegacyTeacherDashboard && <header>
         <h1 className="text-3xl font-bold text-white">Chào mừng, {user?.full_name}</h1>
         <p className="mt-2 text-white/75">
           {isTeacher
@@ -341,6 +689,16 @@ export default function Dashboard() {
       )}
 
       {!loading && teacherSummary && (
+        <TeacherDashboard
+          user={user}
+          report={report}
+          selectedCourseReport={selectedCourseReport}
+          courseReports={courseReports}
+          onSelectCourse={loadCourseLearners}
+        />
+      )}
+
+      {!loading && teacherSummary && showLegacyTeacherDashboard && (
         <>
           <section className="grid gap-4 sm:grid-cols-3" aria-label="Tổng quan giảng dạy">
             <StatCard icon={BookOpen} label="Khóa học phụ trách" value={teacherSummary.courses} />
@@ -520,7 +878,7 @@ export default function Dashboard() {
         </>
       )}
 
-      {isTeacher && <section className="rounded-xl border border-slate-200 bg-white p-5" aria-labelledby="quick-actions-title">
+      {isTeacher && showLegacyTeacherDashboard && <section className="rounded-xl border border-slate-200 bg-white p-5" aria-labelledby="quick-actions-title">
         <h2 id="quick-actions-title" className="text-xl font-semibold text-slate-950">
           {isTeacher ? 'Thao tác giảng viên' : 'Tiếp tục học tập'}
         </h2>

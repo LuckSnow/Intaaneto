@@ -22,6 +22,8 @@ import LessonPage from './pages/LessonPage'
 import TeacherUpload from './pages/TeacherUpload'
 import TeacherAssessments from './pages/TeacherAssessments'
 import TeacherCourses from './pages/TeacherCourses'
+import TeacherCourseDetail from './pages/TeacherCourseDetail'
+import TeacherCourseStudents from './pages/TeacherCourseStudents'
 import ExercisePage from './pages/ExercisePage'
 import Forum from './pages/Forum'
 import ForumPost from './pages/ForumPost'
@@ -106,8 +108,16 @@ function App() {
           element={<RoleRoute roles={['teacher']}><TeacherCourses /></RoleRoute>}
         />
         <Route
-          path="/teacher/assessments"
-          element={<RoleRoute roles={['teacher', 'admin']}><TeacherAssessments /></RoleRoute>}
+          path="/teacher/courses/:courseId"
+          element={<RoleRoute roles={['teacher']}><TeacherCourseDetail /></RoleRoute>}
+        />
+        <Route
+          path="/teacher/courses/:courseId/students"
+          element={<RoleRoute roles={['teacher']}><TeacherCourseStudents /></RoleRoute>}
+        />
+        <Route
+          path="/teacher/courses/:courseId/lessons/:lessonId/assessment"
+          element={<RoleRoute roles={['teacher']}><TeacherAssessments /></RoleRoute>}
         />
         <Route path="/exercises/:id" element={<ExercisePage />} />
         <Route path="/profile" element={<Profile />} />

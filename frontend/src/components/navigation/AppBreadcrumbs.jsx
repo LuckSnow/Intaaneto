@@ -17,10 +17,6 @@ const staticRoutes = {
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Quản lý khóa học' },
   ],
-  '/teacher/assessments': [
-    { label: 'Dashboard', to: '/dashboard' },
-    { label: 'Bài đánh giá' },
-  ],
 }
 
 function resolveItems(pathname) {
@@ -28,6 +24,13 @@ function resolveItems(pathname) {
   if (/^\/courses\/[^/]+$/.test(pathname)) {
     return [
       { label: 'Khóa học', to: '/courses' },
+      { label: 'Chi tiết khóa học' },
+    ]
+  }
+  if (/^\/teacher\/courses\/[^/]+$/.test(pathname)) {
+    return [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Quản lý khóa học', to: '/teacher/courses' },
       { label: 'Chi tiết khóa học' },
     ]
   }

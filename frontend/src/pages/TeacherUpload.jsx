@@ -675,7 +675,7 @@ export default function TeacherUpload() {
                 {authoring.assessment ? (
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <span className="text-sm text-white/70">{authoring.assessment.question_count} câu · {authoring.assessment.is_published ? 'Đã publish' : 'Bản nháp'}</span>
-                    <Button onClick={() => navigate(`/teacher/assessments?course=${selectedCourse}&lesson=${authoring.lesson_id}`)} className="bg-orange-600 text-white hover:bg-orange-700">Mở trang rà soát</Button>
+                    <Button onClick={() => navigate(`/teacher/courses/${selectedCourse}/lessons/${authoring.lesson_id}/assessment`)} className="bg-orange-600 text-white hover:bg-orange-700">Mở trang rà soát</Button>
                   </div>
                 ) : (
                   <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,220px)_1fr] sm:items-end">
