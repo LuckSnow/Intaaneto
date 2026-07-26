@@ -51,7 +51,7 @@ services:
       - model_cache:/root/.cache
       - tts_models:/app/tts-models
       - type: bind
-        source: ./frontend/public/images/AI_tutor.png
+        source: ./backend/assets/AI_tutor.png
         target: /app/media-assets/AI_tutor.png
         read_only: true
     ports:
@@ -100,7 +100,7 @@ services:
       - model_cache:/home/appuser/.cache
       - tts_models:/app/tts-models
       - type: bind
-        source: ./frontend/public/images/AI_tutor.png
+        source: ./backend/assets/AI_tutor.png
         target: /app/media-assets/AI_tutor.png
         read_only: true
     environment:

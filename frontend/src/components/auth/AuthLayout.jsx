@@ -1,7 +1,7 @@
 import { cloneElement, isValidElement } from 'react'
 import { Link } from 'react-router-dom'
 
-import logoFull from '../../assets/images/logo-full.png'
+import logoFull from '../../assets/images/logo-full.webp'
 
 export default function AuthLayout({ children }) {
   const content = isValidElement(children)
@@ -29,7 +29,7 @@ export default function AuthLayout({ children }) {
     <div className="auth-page relative min-h-screen overflow-x-hidden bg-slate-950">
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url(/images/background2.png)' }}
+        style={{ backgroundImage: 'url(/images/background2.webp)' }}
         aria-hidden="true"
       />
 

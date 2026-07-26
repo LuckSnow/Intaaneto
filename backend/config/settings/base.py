@@ -6,6 +6,7 @@ from email.utils import formataddr
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -123,6 +124,78 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Media files (User uploads)
 MEDIA_URL = config("MEDIA_URL", default="/media/")
 MEDIA_ROOT = BASE_DIR / config("MEDIA_ROOT", default="media")
+
+# Private object storage. Local development remains filesystem-backed until
+# explicitly enabled; production-like environments fail closed when any R2
+# credential is missing. R2 credentials are server-only and must never be
+# exposed through Vite environment variables.
+STORAGE_BACKEND = config("STORAGE_BACKEND", default="local").lower()
+R2_STORAGE_ENABLED = config(
+    "R2_STORAGE_ENABLED",
+    default=STORAGE_BACKEND == "r2",
+    cast=bool,
+)
+R2_ACCOUNT_ID = config("R2_ACCOUNT_ID", default="")
+R2_ACCESS_KEY_ID = config("R2_ACCESS_KEY_ID", default="")
+R2_SECRET_ACCESS_KEY = config("R2_SECRET_ACCESS_KEY", default="")
+R2_BUCKET_NAME = config("R2_BUCKET_NAME", default="")
+R2_ENDPOINT_URL = config(
+    "R2_ENDPOINT_URL",
+    default=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+)
+R2_REGION = config("R2_REGION", default="auto")
+R2_OBJECT_PREFIX = config("R2_OBJECT_PREFIX", default="dev/private-media").strip("/")
+R2_SIGNED_URL_EXPIRE_SECONDS = config(
+    "R2_SIGNED_URL_EXPIRE_SECONDS", default=300, cast=int
+)
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+if R2_STORAGE_ENABLED:
+    required_r2_settings = {
+        "R2_ACCOUNT_ID": R2_ACCOUNT_ID,
+        "R2_ACCESS_KEY_ID": R2_ACCESS_KEY_ID,
+        "R2_SECRET_ACCESS_KEY": R2_SECRET_ACCESS_KEY,
+        "R2_BUCKET_NAME": R2_BUCKET_NAME,
+    }
+    missing_r2_settings = [
+        name for name, value in required_r2_settings.items() if not value
+    ]
+    if missing_r2_settings:
+        raise ImproperlyConfigured(
+            "R2 storage is enabled but required settings are missing: "
+            + ", ".join(missing_r2_settings)
+        )
+    if not 60 <= R2_SIGNED_URL_EXPIRE_SECONDS <= 3600:
+        raise ImproperlyConfigured(
+            "R2_SIGNED_URL_EXPIRE_SECONDS must be between 60 and 3600."
+        )
+    STORAGES["default"] = {
+        "BACKEND": "config.storage.PrivateR2Storage",
+        "OPTIONS": {
+            "access_key": R2_ACCESS_KEY_ID,
+            "secret_key": R2_SECRET_ACCESS_KEY,
+            "bucket_name": R2_BUCKET_NAME,
+            "endpoint_url": R2_ENDPOINT_URL,
+            "region_name": R2_REGION,
+            "signature_version": "s3v4",
+            "default_acl": None,
+            "querystring_auth": True,
+            "querystring_expire": R2_SIGNED_URL_EXPIRE_SECONDS,
+            "file_overwrite": False,
+            "location": R2_OBJECT_PREFIX,
+            "object_parameters": {
+                "CacheControl": "private, max-age=300",
+            },
+        },
+    }
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

@@ -19,6 +19,7 @@ from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 
 from .models import LessonVideoGenerationJob
+from .storage_utils import StoredFileTooLarge, local_path_for_stored_file
 
 
 class VideoGenerationError(Exception):
@@ -325,32 +326,55 @@ def process_stored_video_job(*, job, provider=None):
     if not job.audio_file or not job.portrait_file:
         raise VideoGenerationError('invalid_input', 'Thiếu audio hoặc ảnh chân dung.')
     validate_approved_script(job.approved_script)
-    audio = validate_audio(job.audio_file.path)
-    portrait = validate_portrait(job.portrait_file.path)
-    provider = provider or SadTalkerLocalProvider()
-    job.status = 'running'
-    job.started_at = timezone.now()
-    job.failure_code = ''
-    job.safe_error = ''
-    job.save(update_fields=['status', 'started_at', 'failure_code', 'safe_error'])
-
-    generated = None
     try:
-        generated = provider.generate(audio_path=audio, portrait_path=portrait)
-        video = _validate_video(generated.path)
-        with video.open('rb') as stream:
-            job.output_file.save(
-                f'lesson-{job.lesson_id}-sadtalker-job-{job.id}.mp4',
-                File(stream),
-                save=False,
+        with local_path_for_stored_file(
+            job.audio_file,
+            max_bytes=settings.SADTALKER_MAX_AUDIO_BYTES,
+            suffix='.wav',
+        ) as audio_path, local_path_for_stored_file(
+            job.portrait_file,
+            max_bytes=settings.SADTALKER_MAX_PORTRAIT_BYTES,
+            suffix=Path(job.portrait_file.name).suffix,
+        ) as portrait_path:
+            audio = validate_audio(audio_path)
+            portrait = validate_portrait(portrait_path)
+            provider = provider or SadTalkerLocalProvider()
+            job.status = 'running'
+            job.started_at = timezone.now()
+            job.failure_code = ''
+            job.safe_error = ''
+            job.save(update_fields=[
+                'status', 'started_at', 'failure_code', 'safe_error',
+            ])
+
+            generated = None
+            try:
+                generated = provider.generate(
+                    audio_path=audio,
+                    portrait_path=portrait,
+                )
+                video = _validate_video(generated.path)
+                with video.open('rb') as stream:
+                    job.output_file.save(
+                        f'lesson-{job.lesson_id}-sadtalker-job-{job.id}.mp4',
+                        File(stream),
+                        save=False,
+                    )
+                job.status = 'completed'
+                job.completed_at = timezone.now()
+                job.save(update_fields=['output_file', 'status', 'completed_at'])
+                job.lesson.video_file.name = job.output_file.name
+                job.lesson.save(update_fields=['video_file'])
+                return job
+            finally:
+                if generated and generated.cleanup_dir:
+                    shutil.rmtree(generated.cleanup_dir, ignore_errors=True)
+    except (StoredFileTooLarge, VideoGenerationError) as exc:
+        if isinstance(exc, StoredFileTooLarge):
+            exc = VideoGenerationError(
+                'invalid_input',
+                'Tệp đầu vào vượt giới hạn xử lý.',
             )
-        job.status = 'completed'
-        job.completed_at = timezone.now()
-        job.save(update_fields=['output_file', 'status', 'completed_at'])
-        job.lesson.video_file.name = job.output_file.name
-        job.lesson.save(update_fields=['video_file'])
-        return job
-    except VideoGenerationError as exc:
         job.status = 'failed'
         job.failure_code = exc.code[:50]
         job.safe_error = str(exc)[:255]
@@ -358,7 +382,7 @@ def process_stored_video_job(*, job, provider=None):
         job.save(update_fields=[
             'status', 'failure_code', 'safe_error', 'completed_at',
         ])
-        raise
+        raise exc
     except Exception as exc:
         job.status = 'failed'
         job.failure_code = 'unexpected_failure'
@@ -372,8 +396,6 @@ def process_stored_video_job(*, job, provider=None):
             'Không thể tạo video bài học.',
         ) from exc
     finally:
-        if generated and generated.cleanup_dir:
-            shutil.rmtree(generated.cleanup_dir, ignore_errors=True)
         cleared_fields = []
         for field_name in ('audio_file', 'portrait_file'):
             field = getattr(job, field_name)

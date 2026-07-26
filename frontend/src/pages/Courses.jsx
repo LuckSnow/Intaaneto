@@ -54,7 +54,7 @@ export default function Courses() {
       {/* Background */}
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat -z-10"
-        style={{ backgroundImage: 'url(/images/background2.png)' }}
+        style={{ backgroundImage: 'url(/images/background2.webp)' }}
       />
 
       <div className="max-w-7xl mx-auto px-6 py-10 pt-28">

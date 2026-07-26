@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 
 import { Button } from '@/components/ui/button'
 import AuthLayout from '../components/auth/AuthLayout'
-import teacherLoginIllustration from '../assets/images/teacher-login-illustration.png'
+import teacherLoginIllustration from '../assets/images/teacher-login-illustration.webp'
 import { authService } from '../services/authService'
 import { useAuthStore } from '../store/authStore'
 

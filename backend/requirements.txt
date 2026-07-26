@@ -18,6 +18,8 @@ python-decouple==3.8
 # File Upload
 Pillow==10.4.0
 piper-tts==1.4.2
+django-storages[s3]==1.14.6
+boto3==1.40.76
 
 # AI Integration
 openai==1.10.0

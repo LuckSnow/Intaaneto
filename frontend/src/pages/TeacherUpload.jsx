@@ -373,7 +373,7 @@ export default function TeacherUpload() {
     <div className="min-h-screen">
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat -z-10"
-        style={{ backgroundImage: 'url(/images/background2.png)' }}
+        style={{ backgroundImage: 'url(/images/background2.webp)' }}
       />
 
       <div className="max-w-4xl mx-auto px-6 py-10 pt-28">
@@ -722,7 +722,7 @@ export default function TeacherUpload() {
                   </div>
                   <div className="shrink-0 rounded-xl border border-orange-300/30 bg-white p-2">
                     <img
-                      src="/images/AI_tutor.png"
+                      src="/images/AI_tutor.webp"
                       alt="Avatar AI Tutor sẽ xuất hiện trong video"
                       className="h-20 w-20 object-contain"
                     />
