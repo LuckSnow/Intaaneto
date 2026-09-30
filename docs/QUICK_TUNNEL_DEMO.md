@@ -112,7 +112,14 @@ Mỗi lần bật lại:
 4. Chạy lại Compose với `docker-compose.demo.yml`.
 5. Nếu dùng Google Login, thêm hostname mới vào Firebase Authorized domains.
 6. Gửi lại email xác thực/reset nếu người test đang giữ link của tunnel cũ.
-
+# Hoac la dung lenh sau:
+~/.config/.wrangler/cloudflared/2026.7.2/cloudflared \
+  tunnel --url http://localhost:5173 
+# Neu gap loi QUIC/UDP dung http/2
+~/.config/.wrangler/cloudflared/2026.7.2/cloudflared \
+  tunnel --protocol http2 \
+  --url http://localhost:5173
+  
 Không hard-code URL Quick Tunnel vào source hoặc `.env.example`; URL này chỉ là
 địa chỉ tạm thời của từng phiên demo.
 
