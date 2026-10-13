@@ -59,11 +59,6 @@ services:
     environment:
       - DEBUG=True
       - EMAIL_BACKEND=anymail.backends.mailjet.EmailBackend
-      - DB_NAME=intaaneto_db
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_HOST=db
-      - DB_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0
       - FIREBASE_PROJECT_ID=intaaneto-e2f0f
       - FRONTEND_URL=http://localhost:5173
@@ -105,11 +100,6 @@ services:
         read_only: true
     environment:
       - DEBUG=True
-      - DB_NAME=intaaneto_db
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_HOST=db
-      - DB_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0
       - HOME=/home/appuser
     depends_on:

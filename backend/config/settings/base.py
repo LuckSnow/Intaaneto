@@ -89,6 +89,11 @@ DATABASES = {
     }
 }
 
+DB_SSLMODE = config("DB_SSLMODE", default="")
+if DB_SSLMODE:
+    DATABASES["default"]["OPTIONS"] = {"sslmode": DB_SSLMODE}
+
+
 # Custom User Model
 AUTH_USER_MODEL = "users.User"
 
