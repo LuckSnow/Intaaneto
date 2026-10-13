@@ -12,7 +12,7 @@ import toast from 'react-hot-toast'
 
 import { Button } from '@/components/ui/button'
 import AuthLayout from '../components/auth/AuthLayout'
-import studentAiTutorIllustration from '../assets/images/student-ai-tutor-login.png'
+import studentAiTutorIllustration from '../assets/images/student-ai-tutor-login.webp'
 import api from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { getPostLoginPath } from '../utils/authNavigation'

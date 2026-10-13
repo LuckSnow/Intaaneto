@@ -18,7 +18,7 @@ Intaaneto sử dụng phong cách E-learning hiện đại, học thuật và th
 Background chuẩn của website là:
 
 ```css
-background-image: url('/images/background2.png');
+background-image: url('/images/background2.webp');
 background-size: cover;
 background-position: center;
 background-repeat: no-repeat;
@@ -29,7 +29,7 @@ Background cần phủ toàn bộ viewport bằng `min-height: 100vh`. Không t�
 Logo chuẩn là asset:
 
 ```text
-frontend/src/assets/images/logo-full.png
+frontend/src/assets/images/logo-full.webp
 ```
 
 Không viết lại logo bằng text hoặc thay đổi tỷ lệ. Trong các trang xác thực, logo nằm trong khung nội dung ở góc trên bên phải. Trong layout chính, logo nằm trên navbar.
@@ -237,6 +237,5 @@ Trạng thái không được truyền đạt chỉ bằng màu; khi cần phả
 - `frontend/src/components/layouts/DashboardLayout.jsx`: layout khu vực dashboard.
 - `frontend/src/components/navigation/AppBreadcrumbs.jsx`: breadcrumb dùng chung.
 - `frontend/src/utils/avatar.js`: lựa chọn avatar và cache busting.
-- `frontend/src/assets/images/logo-full.png`: logo chuẩn.
-- `frontend/public/images/background2.png`: background chuẩn của website.
-
+- `frontend/src/assets/images/logo-full.webp`: logo chuẩn cho trình duyệt.
+- `frontend/public/images/background2.webp`: background chuẩn của website.

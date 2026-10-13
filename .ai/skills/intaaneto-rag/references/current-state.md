@@ -40,8 +40,22 @@ relying on it and update it after material implementation changes.
   bounded exponential retry for transient indexing failures, and idempotent
   source activation. Broker failure and terminal processing failure persist safe
   failed states instead of leaving false pending work. The worker runs as UID/GID
-  10001 and shares media/model-cache volumes; this path does not invoke Groq,
-  D-ID or R2.
+  10001 and shares model-cache volumes; this path does not invoke Groq or D-ID.
+  Media remains local by default, while an explicitly enabled private R2 backend
+  can store the source PDF without changing the authorization-first worker flow.
+- Private Cloudflare R2 media storage is implemented as an opt-in Django storage
+  backend with local filesystem fallback. Enabling it requires a complete
+  bucket-scoped server credential set, uses environment-scoped prefixes,
+  application-generated UUID object names, private cache metadata and five-minute
+  signed URLs by default. Automated tests always force filesystem storage. Local
+  multimedia consumers materialize bounded remote inputs into deleted temporary
+  files instead of assuming that a `FileField` has a filesystem path.
+  The existing development R2 credentials passed a live write/read/signed-URL/
+  delete smoke on 2026-07-26; the diagnostic object was removed afterward.
+  Seventeen database-referenced local objects (about 50.4 MB) were then copied
+  and verified in R2 without deleting the rollback copies. Five remaining file-
+  field values are external Unsplash course-thumbnail URLs rather than missing
+  local objects. Unreferenced local-volume cleanup remains deliberately deferred.
 - Completed PDF lessons expose bounded learner-safe `learning_content` (manual
   content first, otherwise extracted PDF text), a truncation flag, `rag_ready`,
   and the existing PDF URL on `LessonPage`; raw embeddings and internal source
@@ -186,6 +200,11 @@ relying on it and update it after material implementation changes.
   compatible active-source selection, enrolled/owner/admin access, outsider and
   other-teacher denial before embedding, cross-course isolation, bounds, and
   provider failures.
+- The complete isolated backend suite passed 266 tests on 2026-07-26 after the
+  private R2 seam was added. Focused storage tests cover application-generated
+  keys, five-minute signed URLs without secret disclosure, remote input bounds,
+  temporary cleanup, and filesystem fallback; the existing PDF authorization
+  and multimedia suites remain green.
 - Seven original Slice 3 cases cover grounded API contracts, weak/not-indexed fallback
   without generation, prompt-injection placement, application-owned citations,
   retrieval/provider failure redaction, persisted metadata, and immutable chat

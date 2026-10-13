@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Upload } from 'lucide-react'
-import logoFull from '../../assets/images/logo-full.png'
+import logoFull from '../../assets/images/logo-full.webp'
 import { useAuthStore } from '../../store/authStore'
 import { getUserAvatar } from '../../utils/avatar'
 import AppBreadcrumbs from '../navigation/AppBreadcrumbs'
@@ -37,7 +37,7 @@ export default function MainLayout() {
       {/* Background Image */}
       <div 
         className="fixed inset-0 bg-cover bg-center bg-no-repeat -z-10"
-        style={{ backgroundImage: 'url(/images/background2.png)' }}
+        style={{ backgroundImage: 'url(/images/background2.webp)' }}
       ></div>
 
       {/* Header */}

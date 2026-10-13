@@ -2,7 +2,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { Button } from '@/components/ui/button'
-import logoFull from '../../assets/images/logo-full.png'
+import logoFull from '../../assets/images/logo-full.webp'
 import { getUserAvatar } from '../../utils/avatar'
 import AppBreadcrumbs from '../navigation/AppBreadcrumbs'
 
@@ -44,7 +44,7 @@ export default function DashboardLayout() {
       {/* Background Image */}
       <div 
         className="fixed inset-0 bg-cover bg-center bg-no-repeat -z-10"
-        style={{ backgroundImage: 'url(/images/background2.png)' }}
+        style={{ backgroundImage: 'url(/images/background2.webp)' }}
       ></div>
 
       {/* Header */}

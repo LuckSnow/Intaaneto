@@ -1,6 +1,6 @@
 # Current security risks
 
-Last repository audit: 2026-07-19. These are observed risks, not proof of
+Last repository audit: 2026-07-26. These are observed risks, not proof of
 exploitation. Re-check code and tests before changing status.
 
 ## P0 — Resolve before exposing the application
@@ -34,9 +34,10 @@ exploitation. Re-check code and tests before changing status.
   development servers; it is not a production deployment definition.
 - The reviewed frontend dependency audit reported zero known vulnerabilities on
   2026-07-17; this point-in-time result still needs periodic review.
-- Lesson indexing, filtered retrieval, grounded answers, and durable database
-  jobs backed by Celery/Redis are implemented for development. R2/object storage,
-  production broker HA/monitoring, orphan cleanup, and parser isolation are not.
+- Lesson indexing, filtered retrieval, grounded answers, durable database jobs,
+  and opt-in private R2 storage are implemented. Referenced local media has been
+  copied and verified without deleting rollback copies. Production broker
+  HA/monitoring, object orphan cleanup, and parser isolation are not.
 - Free-tier Gemini generation may permit provider product-improvement use of
   submitted prompts/responses; do not send sensitive, confidential, or personal
   lesson/student data until an appropriate provider/data-processing tier is used.
@@ -47,7 +48,16 @@ exploitation. Re-check code and tests before changing status.
   voice/caption-timing review and generated-media retention remain operational
   gaps.
 
-## Resolved with regression tests through 2026-07-19
+## Resolved with regression tests through 2026-07-26
+
+- Private R2 media storage is opt-in and fails closed on incomplete server-only
+  credentials. It uses environment prefixes, server-generated UUID object names,
+  private cache metadata and short-lived signed URLs; tests cannot inherit a
+  host R2 configuration. Bounded temporary-file materialization lets local media
+  processors consume remote inputs without assuming a storage filesystem path.
+  A live configured-bucket smoke on 2026-07-26 proved private write, read,
+  signed-URL generation, delete, and post-delete absence without logging a key,
+  secret, object name, or URL.
 
 - User API no longer exposes global CRUD; role and active status are read-only,
   registration always creates a learner, and direct self-upgrade has been

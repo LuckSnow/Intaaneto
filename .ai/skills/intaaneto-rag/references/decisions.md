@@ -62,12 +62,17 @@ affected files or migration.
 
 ## RAG-006 — Object storage is not the knowledge index
 
-- Status: Proposed
+- Status: Accepted and implemented for private media storage
+- Date: 2026-07-26
 - Decision: Use Cloudflare R2 or equivalent for original/generated files and
   PostgreSQL plus pgvector for chunks and embeddings. Treat Google Drive only as
   an optional early research-data source, not the runtime vector store.
 - Reason: Retrieval needs vector similarity, metadata filtering, versioning,
   transactional updates, and authorization relationships.
+- Constraint: R2 remains private and optional in local development. Django owns
+  authorization and issues short-lived signed URLs; credentials remain
+  server-side, object names are application-generated, and local renderers must
+  use bounded temporary files for remote inputs.
 
 ## RAG-007 — Defer a fixed vector dimension and ANN index
 

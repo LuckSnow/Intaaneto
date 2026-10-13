@@ -31,7 +31,7 @@ phát hành artifact ra ngoài phạm vi nghiên cứu, cần xem ba mục sau:
    Metadata license ở cấp repository không tự động chứng minh quyền cho dataset,
    giọng hoặc output của từng model.
 3. Xác nhận quyền sử dụng và phân phối
-   `frontend/public/images/AI_tutor.png`. Việc file có trong repository không tự
+   `backend/assets/AI_tutor.png`. Việc file có trong repository không tự
    chứng minh provenance hoặc license.
 
 Không commit model `.onnx`, file config tải về, generated WAV/MP4 hoặc dữ liệu
