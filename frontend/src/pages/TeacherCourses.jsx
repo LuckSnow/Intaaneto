@@ -188,7 +188,7 @@ export default function TeacherCourses() {
                   tabIndex={0}
                   onClick={() => openDetail(course.id)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
+                    if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
                       event.preventDefault()
                       openDetail(course.id)
                     }
@@ -196,6 +196,7 @@ export default function TeacherCourses() {
                   className="group flex min-h-64 cursor-pointer flex-col rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-md transition hover:border-orange-300/50 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
                   aria-label={`Xem chi tiết khóa học ${course.title}`}
                 >
+                  {course.thumbnail && <img src={course.thumbnail} alt="" loading="lazy" className="mb-4 aspect-video w-full rounded-lg bg-slate-100 object-cover" />}
                   <div className="flex items-start justify-between gap-3">
                     <span className="rounded-full bg-orange-500/15 px-2.5 py-1 text-xs font-semibold text-orange-200">
                       {course.difficulty === 'beginner' ? 'Cơ bản' : course.difficulty === 'intermediate' ? 'Trung bình' : 'Nâng cao'}

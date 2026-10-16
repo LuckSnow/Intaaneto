@@ -14,12 +14,14 @@ export const courseService = {
   },
 
   createCourse: async (payload) => {
-    const response = await api.post('/courses/', payload)
+    const response = await api.post('/courses/', payload, payload instanceof FormData
+      ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
     return response.data
   },
 
   updateCourse: async (courseId, payload) => {
-    const response = await api.patch(`/courses/${courseId}/`, payload)
+    const response = await api.patch(`/courses/${courseId}/`, payload, payload instanceof FormData
+      ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
     return response.data
   },
 

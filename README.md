@@ -156,6 +156,7 @@ tự động riêng.
 - [API core](docs/api-documentation.md)
 - [Database schema](docs/database-schema.md)
 - [Grounded-answer evaluation](docs/RAG_GROUNDED_ANSWER_EVALUATION.md)
+- [Nhập PDF hàng loạt và xuất báo cáo nghiên cứu Matplotlib](docs/RAG_PDF_QA_24_GUIDE.md)
 - [Grounded-answer baseline V1](docs/RAG_GROUNDED_ANSWER_BASELINE_V1.md)
 - [Protocol đánh giá assessment/progression](docs/ASSESSMENT_EVALUATION_PROTOCOL.md)
 - [Assessment software baseline V1](docs/ASSESSMENT_SOFTWARE_BASELINE_V1.md)

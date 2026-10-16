@@ -408,3 +408,38 @@ affected files or migration.
   remains capped at 20 MB, 100 pages and 250,000 extracted characters until PDF
   parser wall-clock isolation, malware scanning and measured larger fixtures
   justify a separate change.
+
+## RAG-027 — Private multi-PDF QA evaluation artifacts
+
+- Status: Preparation/report tooling implemented; live experiment pending
+- Date: 2026-10-13
+- Affected: `backend/scripts/{evaluate_pdf_qa,report_pdf_qa}.py`, private local
+  corpus, and `docs/RAG_PDF_QA_24_GUIDE.md`
+- Decision: Keep PDF originals, storage references, reference answers and raw
+  provider responses in an ignored local folder. Measure existing authorized
+  RAG services without changing retrieval settings or learner state. Report
+  warm service latency separately from end-user HTTP latency, and require
+  complete reviewer scores before calculating semantic accuracy.
+- Constraint: Reference answers need teacher validation. The user chose manual
+  execution, so no live accuracy/latency or cloud draft creation is claimed.
+  Optional draft preparation and generation require an explicitly chosen manual
+  run with disclosed database changes and external provider payload/cost.
+
+## RAG-028 — Batch import reuses durable ingestion; reporting stays offline
+
+- Status: Implemented in CLI/services; live experiment pending
+- Date: 2026-10-13
+- Affected: `courses.pdf_batch_import`, `import_pdf_batch`, host research CLI,
+  evaluation manifest binding, optional Matplotlib reporter and regression tests
+- Decision: Keep bulk upload in an owner-authorized management workflow. Default
+  to validation-only; explicit execution creates unpublished/non-preview lessons
+  and reuses existing Celery ingestion. Bind evaluation questions to ready lessons
+  by exact PDF checksum. Keep plotting dependencies on the research host rather
+  than adding them to the application containers.
+- Reason: Batch ingestion should retain existing retry/authorization semantics,
+  while research tooling needs reproducible artifacts without changing serving
+  behavior, retrieval parameters, learner scores or progression.
+- Constraint: The batch is bounded and reports partial failures, not an atomic
+  all-files transaction. Semantic scores remain reviewer-provided; 1–5 repeats
+  are descriptive dependent observations, not extra independent questions. No
+  live upload/generation or independently validated gold set is claimed.
