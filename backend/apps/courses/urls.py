@@ -4,6 +4,7 @@ from .views import (
     CourseViewSet, LessonViewSet, LessonCommentViewSet,
     EnrollmentViewSet, ReviewViewSet
 )
+from .views import tutor_avatar_preset
 
 router = DefaultRouter()
 router.register(r'lessons', LessonViewSet, basename='lessons')
@@ -14,5 +15,6 @@ router.register(r'reviews', ReviewViewSet, basename='reviews')
 router.register(r'', CourseViewSet, basename='courses')
 
 urlpatterns = [
+    path('tutor-avatar-presets/<str:preset_id>/', tutor_avatar_preset, name='tutor-avatar-preset'),
     path('', include(router.urls)),
 ]

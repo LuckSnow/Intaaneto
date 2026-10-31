@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from contextlib import nullcontext
 from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
@@ -153,7 +154,7 @@ def tutor_asset_checksum(path=None):
     asset = _bounded_file(
         path or settings.MULTIMEDIA_TUTOR_IMAGE_PATH,
         maximum_bytes=10 * 1024 * 1024,
-        suffixes={".png"},
+        suffixes={".png", ".jpg", ".jpeg", ".webp"},
         label="Ảnh AI Tutor",
     )
     return sha256(asset.read_bytes()).hexdigest()
@@ -362,16 +363,16 @@ def _load_tutor(path):
     asset = _bounded_file(
         path,
         maximum_bytes=10 * 1024 * 1024,
-        suffixes={".png"},
+        suffixes={".png", ".jpg", ".jpeg", ".webp"},
         label="Ảnh AI Tutor",
     )
     try:
         with Image.open(asset) as source:
-            source.load()
             if source.width * source.height > 16_000_000:
                 raise MultimediaGenerationError(
                     "invalid_runtime_asset", "Ảnh AI Tutor không hợp lệ."
                 )
+            source.load()
             tutor = source.convert("RGBA")
     except (UnidentifiedImageError, OSError) as exc:
         raise MultimediaGenerationError(
@@ -431,7 +432,7 @@ def _draw_slide(*, scene, active_sentence, tutor, output_path):
     )
     tutor_x = 1060 - tutor.width // 2
     tutor_y = 168 + (250 - tutor.height) // 2
-    canvas.paste(tutor.convert("RGB"), (tutor_x, tutor_y))
+    canvas.paste(tutor, (tutor_x, tutor_y), tutor)
     draw.text((978, 406), "AI Tutor", font=caption_font, fill="#9a3412")
 
     draw.rounded_rectangle((82, 526, 1198, 654), radius=20, fill="#172033")
@@ -601,118 +602,121 @@ def process_multimedia_job(
             "stale_summary",
             "Bản tóm tắt đã thay đổi; hãy tạo lại video từ bản đã duyệt.",
         )
-    tutor_path = tutor_path or settings.MULTIMEDIA_TUTOR_IMAGE_PATH
-    if tutor_asset_checksum(tutor_path) != job.tutor_asset_checksum:
-        raise MultimediaGenerationError(
-            "stale_tutor_asset", "Ảnh AI Tutor đã thay đổi; hãy tạo lại job video."
-        )
+    from .tutor_avatars import job_tutor_path
 
-    scenes = build_storyboard(lesson_title=job.lesson.title, script=script)
-    narration_provider = narration_provider or PiperVietnameseProvider()
-    composer = composer or FFmpegSlideComposer()
-    started = time.monotonic()
-
-    with tempfile.TemporaryDirectory(prefix="intaaneto-multimedia-") as directory:
-        work_dir = Path(directory)
-        audio_path = work_dir / "narration.wav"
-        output_path = work_dir / "lesson.mp4"
-
-        job.stage = "narrating"
-        job.save(update_fields=["stage"])
-        sentences = [sentence for scene in scenes for sentence in scene.sentences]
-        if hasattr(narration_provider, "generate_with_timing"):
-            _, sentence_durations = narration_provider.generate_with_timing(
-                sentences=sentences,
-                output_path=audio_path,
+    image_context = nullcontext(tutor_path) if tutor_path is not None else job_tutor_path(job)
+    with image_context as tutor_path:
+        if tutor_asset_checksum(tutor_path) != job.tutor_asset_checksum:
+            raise MultimediaGenerationError(
+                "stale_tutor_asset", "Ảnh AI Tutor đã thay đổi; hãy tạo lại job video."
             )
-        else:
-            narration_provider.generate(
-                text=narration_text(script),
-                output_path=audio_path,
-            )
-            _, generated_duration = validate_wav(audio_path)
-            sentence_durations = _sentence_durations(sentences, generated_duration)
-        audio, duration = validate_wav(audio_path)
 
-        job.stage = "rendering_slides"
-        job.save(update_fields=["stage"])
-        frames = render_slide_frames(
-            scenes=scenes,
-            sentence_durations=sentence_durations,
-            tutor_path=tutor_path,
-            work_dir=work_dir,
-        )
+        scenes = build_storyboard(lesson_title=job.lesson.title, script=script)
+        narration_provider = narration_provider or PiperVietnameseProvider()
+        composer = composer or FFmpegSlideComposer()
+        started = time.monotonic()
 
-        job.stage = "compositing"
-        job.save(update_fields=["stage"])
-        video = composer.compose(
-            frames=frames,
-            audio_path=audio,
-            output_path=output_path,
-            work_dir=work_dir,
-        )
-        video = validate_mp4(video)
-        audio_checksum = sha256(audio.read_bytes()).hexdigest()
-        render_duration_ms = max(0, round((time.monotonic() - started) * 1000))
+        with tempfile.TemporaryDirectory(prefix="intaaneto-multimedia-") as directory:
+            work_dir = Path(directory)
+            audio_path = work_dir / "narration.wav"
+            output_path = work_dir / "lesson.mp4"
 
-        with transaction.atomic():
-            (
-                narration,
-                _,
-            ) = LessonNarrationAudio.objects.select_for_update().get_or_create(
-                lesson=job.lesson,
-                defaults={
-                    "summary_checksum": checksum,
-                    "audio_checksum": audio_checksum,
-                    "provider": narration_provider.provider_name,
-                    "voice": settings.PIPER_VOICE,
-                    "generated_by": job.requested_by,
-                },
-            )
-            if narration.audio_file:
-                narration.audio_file.delete(save=False)
-            with audio.open("rb") as stream:
-                narration.audio_file.save(
-                    f"lesson-{job.lesson_id}-piper-{checksum[:12]}.wav",
-                    File(stream),
-                    save=False,
+            job.stage = "narrating"
+            job.save(update_fields=["stage"])
+            sentences = [sentence for scene in scenes for sentence in scene.sentences]
+            if hasattr(narration_provider, "generate_with_timing"):
+                _, sentence_durations = narration_provider.generate_with_timing(
+                    sentences=sentences,
+                    output_path=audio_path,
                 )
-            narration.summary_checksum = checksum
-            narration.audio_checksum = audio_checksum
-            narration.provider = narration_provider.provider_name
-            narration.voice = settings.PIPER_VOICE
-            narration.generated_by = job.requested_by
-            narration.save()
-
-            if job.output_file:
-                job.output_file.delete(save=False)
-            with video.open("rb") as stream:
-                job.output_file.save(
-                    f"lesson-{job.lesson_id}-slides-job-{job.id}.mp4",
-                    File(stream),
-                    save=False,
+            else:
+                narration_provider.generate(
+                    text=narration_text(script),
+                    output_path=audio_path,
                 )
-            job.status = "completed"
-            job.stage = "completed"
-            job.scene_count = len(scenes)
-            job.duration_seconds = Decimal(f"{duration:.2f}")
-            job.render_duration_ms = render_duration_ms
-            job.failure_code = ""
-            job.safe_error = ""
-            job.completed_at = timezone.now()
-            job.save(
-                update_fields=[
-                    "output_file",
-                    "status",
-                    "stage",
-                    "scene_count",
-                    "duration_seconds",
-                    "render_duration_ms",
-                    "failure_code",
-                    "safe_error",
-                    "completed_at",
-                ]
+                _, generated_duration = validate_wav(audio_path)
+                sentence_durations = _sentence_durations(sentences, generated_duration)
+            audio, duration = validate_wav(audio_path)
+
+            job.stage = "rendering_slides"
+            job.save(update_fields=["stage"])
+            frames = render_slide_frames(
+                scenes=scenes,
+                sentence_durations=sentence_durations,
+                tutor_path=tutor_path,
+                work_dir=work_dir,
             )
-            job.lesson.video_file.name = job.output_file.name
-            job.lesson.save(update_fields=["video_file"])
-    return job
+
+            job.stage = "compositing"
+            job.save(update_fields=["stage"])
+            video = composer.compose(
+                frames=frames,
+                audio_path=audio,
+                output_path=output_path,
+                work_dir=work_dir,
+            )
+            video = validate_mp4(video)
+            audio_checksum = sha256(audio.read_bytes()).hexdigest()
+            render_duration_ms = max(0, round((time.monotonic() - started) * 1000))
+
+            with transaction.atomic():
+                (
+                    narration,
+                    _,
+                ) = LessonNarrationAudio.objects.select_for_update().get_or_create(
+                    lesson=job.lesson,
+                    defaults={
+                        "summary_checksum": checksum,
+                        "audio_checksum": audio_checksum,
+                        "provider": narration_provider.provider_name,
+                        "voice": settings.PIPER_VOICE,
+                        "generated_by": job.requested_by,
+                    },
+                )
+                if narration.audio_file:
+                    narration.audio_file.delete(save=False)
+                with audio.open("rb") as stream:
+                    narration.audio_file.save(
+                        f"lesson-{job.lesson_id}-piper-{checksum[:12]}.wav",
+                        File(stream),
+                        save=False,
+                    )
+                narration.summary_checksum = checksum
+                narration.audio_checksum = audio_checksum
+                narration.provider = narration_provider.provider_name
+                narration.voice = settings.PIPER_VOICE
+                narration.generated_by = job.requested_by
+                narration.save()
+
+                if job.output_file:
+                    job.output_file.delete(save=False)
+                with video.open("rb") as stream:
+                    job.output_file.save(
+                        f"lesson-{job.lesson_id}-slides-job-{job.id}.mp4",
+                        File(stream),
+                        save=False,
+                    )
+                job.status = "completed"
+                job.stage = "completed"
+                job.scene_count = len(scenes)
+                job.duration_seconds = Decimal(f"{duration:.2f}")
+                job.render_duration_ms = render_duration_ms
+                job.failure_code = ""
+                job.safe_error = ""
+                job.completed_at = timezone.now()
+                job.save(
+                    update_fields=[
+                        "output_file",
+                        "status",
+                        "stage",
+                        "scene_count",
+                        "duration_seconds",
+                        "render_duration_ms",
+                        "failure_code",
+                        "safe_error",
+                        "completed_at",
+                    ]
+                )
+                job.lesson.video_file.name = job.output_file.name
+                job.lesson.save(update_fields=["video_file"])
+        return job

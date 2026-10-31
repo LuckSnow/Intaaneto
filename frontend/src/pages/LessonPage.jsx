@@ -5,16 +5,34 @@ import { useAuthStore } from '../store/authStore'
 import { courseService } from '../services/courseService'
 import { aiService } from '../services/aiService'
 import toast from 'react-hot-toast'
-import { AlertCircle, ArrowRight, BookOpen, Bot, Brain, CheckCircle2, ChevronDown, Circle, ClipboardCheck, Clock3, FileText, Lightbulb, MessageCircle, Send, X, XCircle } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowRight,
+  BookOpen,
+  Bot,
+  Brain,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  Clock3,
+  FileText,
+  MessageCircle,
+  Send,
+  Sparkles,
+  X,
+  XCircle,
+} from 'lucide-react'
 import PdfLessonViewer from '../components/lesson/PdfLessonViewer'
 
 const STATUS_MAP = {
-  pending: { label: 'Chờ xử lý', color: 'text-yellow-400', icon: Clock3 },
-  extracting: { label: 'Đang trích xuất văn bản...', color: 'text-blue-400', icon: FileText },
-  summarizing: { label: 'AI đang tóm tắt...', color: 'text-purple-400', icon: Bot },
-  generating_video: { label: 'Đang tạo video AI...', color: 'text-cyan-400', icon: Bot },
-  completed: { label: 'Sẵn sàng', color: 'text-green-400', icon: CheckCircle2 },
-  failed: { label: 'Thất bại', color: 'text-red-400', icon: XCircle },
+  pending: { label: 'Chờ xử lý', color: 'text-amber-400 border-amber-500/20 bg-amber-500/10', icon: Clock3 },
+  extracting: { label: 'Đang trích xuất', color: 'text-sky-400 border-sky-500/20 bg-sky-500/10', icon: FileText },
+  summarizing: { label: 'Đang tóm tắt', color: 'text-purple-400 border-purple-500/20 bg-purple-500/10', icon: Bot },
+  generating_video: { label: 'Đang tạo video', color: 'text-cyan-400 border-cyan-500/20 bg-cyan-500/10', icon: Bot },
+  completed: { label: 'Sẵn sàng', color: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10', icon: CheckCircle2 },
+  failed: { label: 'Thất bại', color: 'text-rose-400 border-rose-500/20 bg-rose-500/10', icon: XCircle },
 }
 
 export default function LessonPage() {
@@ -26,7 +44,7 @@ export default function LessonPage() {
   const [course, setCourse] = useState(null)
   const [courseNavigationOpen, setCourseNavigationOpen] = useState(true)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('video') // video | summary | comments | chat
+  const [activeTab, setActiveTab] = useState('video') // video | summary | comments | chat | assessment
 
   // Comments
   const [comments, setComments] = useState([])
@@ -148,7 +166,7 @@ export default function LessonPage() {
           if (data.status === 'completed' || data.status === 'failed') {
             setPolling(false)
             fetchLesson()
-            if (data.status === 'completed') toast.success('Video AI đã sẵn sàng!')
+            if (data.status === 'completed') toast.success('Nội dung bài học đã sẵn sàng!')
           }
           setLesson((prev) => prev && { ...prev, processing_status: data.status })
         } catch {
@@ -189,7 +207,6 @@ export default function LessonPage() {
     }
   }
 
-  // Fetch comments when tab is opened
   useEffect(() => {
     if (activeTab === 'comments') fetchComments()
   }, [activeTab, id])
@@ -352,19 +369,20 @@ export default function LessonPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500" />
+      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center" role="status">
+        <span className="h-9 w-9 animate-spin rounded-full border-2 border-slate-600 border-t-orange-500" />
+        <span className="sr-only">Đang tải bài học</span>
       </div>
     )
   }
 
   if (!lesson) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Không tìm thấy bài học</h2>
-          <Button onClick={() => navigate('/courses')} className="bg-gradient-to-r from-orange-500 to-red-500">
-            Quay lại
+      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4">
+        <div className="text-center text-slate-200">
+          <h2 className="text-xl font-bold mb-3">Không tìm thấy bài học</h2>
+          <Button onClick={() => navigate('/courses')} className="bg-orange-600 hover:bg-orange-700 text-white">
+            Quay lại khóa học
           </Button>
         </div>
       </div>
@@ -374,36 +392,125 @@ export default function LessonPage() {
   const st = STATUS_MAP[lesson.processing_status] || STATUS_MAP.pending
   const isReady = lesson.processing_status === 'completed'
   const videoUrl = lesson.video_file || lesson.ai_video_url || lesson.video_url
+  const isCompleted = Boolean(completion?.is_completed || lesson.is_completed)
+
+  // Navigation across course lessons
+  const lessons = course?.lessons || []
+  const currentIndex = lessons.findIndex((l) => String(l.id) === String(id))
+  const previousLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null
+  const nextLesson = currentIndex >= 0 && currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null
+  const targetNextLesson = completion?.next_lesson || nextLesson
 
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto max-w-[1600px] px-4 pb-12 pt-8 sm:px-6 lg:px-8">
-        <h1 className="mb-2 max-w-4xl text-3xl font-bold leading-tight text-white sm:text-4xl">
-          {lesson.title}
-        </h1>
-        {lesson.description && <p className="text-white/60 mb-6">{lesson.description}</p>}
+    <div className="min-h-screen text-slate-200">
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        {/* Header: Title, metadata, and primary action */}
+        <header className="mb-6 border-b border-slate-800/80 pb-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
+              {/* Metadata row: Course, duration, status */}
+              <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                {course?.title && (
+                  <>
+                    <span className="font-medium text-slate-300">{course.title}</span>
+                    <span className="text-slate-600">•</span>
+                  </>
+                )}
+                {lesson.duration_minutes ? (
+                  <>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock3 className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                      {lesson.duration_minutes} phút
+                    </span>
+                    <span className="text-slate-600">•</span>
+                  </>
+                ) : null}
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium ${st.color}`}>
+                  <st.icon className="h-3 w-3" aria-hidden="true" />
+                  {st.label}
+                </span>
+                {lesson.rag_ready && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-emerald-400">
+                    <Sparkles className="h-3 w-3" aria-hidden="true" />
+                    RAG Ready
+                  </span>
+                )}
+              </div>
 
-        {/* Processing Status Banner */}
+              <h1 className="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">
+                {lesson.title}
+              </h1>
+
+              {lesson.description && (
+                <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-400">
+                  {lesson.description}
+                </p>
+              )}
+            </div>
+
+            {/* Quick Completion Action (Desktop) */}
+            {isAuthenticated && (
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  onClick={
+                    assessment && !assessment.passed
+                      ? () => setActiveTab('assessment')
+                      : handleCompleteLesson
+                  }
+                  disabled={isCompleted}
+                  className={`h-9 px-3.5 text-xs font-medium sm:text-sm transition-colors ${
+                    isCompleted
+                      ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 cursor-default'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
+                >
+                  {isCompleted ? (
+                    <>
+                      <CheckCircle2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                      Đã hoàn thành
+                    </>
+                  ) : assessment && !assessment.passed ? (
+                    'Làm bài đánh giá'
+                  ) : (
+                    'Đánh dấu hoàn thành'
+                  )}
+                </Button>
+
+                {targetNextLesson && (
+                  <Button
+                    onClick={() => navigate(`/lessons/${targetNextLesson.id}`)}
+                    className="h-9 px-3 text-xs sm:text-sm font-medium bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    Bài tiếp <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden="true" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* Processing Status Banner (Only when working or failed) */}
         {!isReady && lesson.processing_status && lesson.processing_status !== 'failed' && (
-          <div className="mb-6 flex items-center gap-3 rounded-xl border border-white/20 bg-slate-950/45 p-4 backdrop-blur-md" role="status">
-            <div className="h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-orange-400 border-t-transparent" />
-            <div>
-              <p className={`flex items-center gap-2 font-semibold ${st.color}`}>
-                <st.icon className="h-5 w-5" aria-hidden="true" />{st.label}
-              </p>
-              <p className="text-white/50 text-sm">AI đang xử lý bài giảng. Trang sẽ tự cập nhật khi hoàn tất.</p>
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/90 p-4" role="status">
+            <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+            <div className="text-sm">
+              <p className="font-medium text-slate-200">{st.label}</p>
+              <p className="mt-0.5 text-xs text-slate-400">Hệ thống đang xử lý bài giảng. Trang sẽ tự cập nhật khi hoàn tất.</p>
             </div>
           </div>
         )}
 
         {lesson.processing_status === 'failed' && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 mb-6">
-            <p className="flex items-center gap-2 text-red-400 font-semibold"><XCircle className="h-5 w-5" aria-hidden="true" />Xử lý thất bại</p>
-            {lesson.processing_error && <p className="text-red-300/70 text-sm mt-1">{lesson.processing_error}</p>}
+          <div className="mb-6 rounded-xl border border-rose-900/40 bg-rose-950/25 p-4 text-sm" role="alert">
+            <p className="flex items-center gap-2 font-medium text-rose-400">
+              <XCircle className="h-4 w-4" aria-hidden="true" /> Xử lý thất bại
+            </p>
+            {lesson.processing_error && <p className="mt-1 text-xs text-rose-300/80">{lesson.processing_error}</p>}
           </div>
         )}
 
-        <div className="mb-6 xl:hidden">
+        {/* Mobile Course Navigator Toggle */}
+        <div className="mb-6 lg:hidden">
           <CourseNavigator
             course={course}
             currentLessonId={id}
@@ -413,9 +520,10 @@ export default function LessonPage() {
           />
         </div>
 
-        {/* Main Content */}
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[320px_minmax(0,1fr)_280px]">
-          <aside className="sticky top-20 hidden max-h-[calc(100vh-6rem)] self-start overflow-y-auto xl:block" aria-label="Điều hướng khóa học">
+        {/* 2-Column Content Layout (Course Navigator + Main Learning Area) */}
+        <div className="grid items-start gap-8 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+          {/* Left Sidebar: Course Navigator (Desktop) */}
+          <aside className="sticky top-20 hidden self-start lg:block" aria-label="Điều hướng khóa học">
             <CourseNavigator
               course={course}
               currentLessonId={id}
@@ -425,173 +533,142 @@ export default function LessonPage() {
             />
           </aside>
 
-          {/* Left: Video + Tabs */}
+          {/* Main Learning Surface */}
           <main className="min-w-0 space-y-6">
-            {/* Video Player */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl overflow-hidden">
-              {isReady && videoUrl ? (
-                <div className="aspect-video bg-black">
+            {/* Optional Video Player (Only rendered when videoUrl is actually present) */}
+            {isReady && videoUrl && (
+              <div className="overflow-hidden rounded-xl border border-slate-800 bg-black shadow-sm">
+                <div className="aspect-video">
                   <video
                     src={videoUrl}
                     controls
                     autoPlay={false}
-                    className="w-full h-full"
+                    className="h-full w-full"
                     poster=""
                   >
                     Trình duyệt không hỗ trợ video.
                   </video>
                 </div>
-              ) : (
-                <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-                  <div className="text-center">
-                    <st.icon className={`mx-auto mb-4 h-14 w-14 ${st.color}`} aria-hidden="true" />
-                    <p className={`text-lg font-semibold ${st.color}`}>{st.label}</p>
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Tabs */}
-            <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Nội dung bài học">
+            {/* Clean Underline Tabs */}
+            <div className="flex border-b border-slate-800 gap-1 overflow-x-auto pb-px" role="tablist" aria-label="Nội dung bài học">
               {[
                 { key: 'video', label: 'Nội dung', icon: BookOpen },
                 { key: 'summary', label: 'Tóm tắt AI', icon: Bot },
-                { key: 'comments', label: 'Bình luận', icon: MessageCircle },
                 { key: 'chat', label: 'Hỏi AI', icon: Brain },
-                ...(user?.role === 'student' ? [{ key: 'assessment', label: 'Bài đánh giá' }] : []),
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  role="tab"
-                  aria-selected={activeTab === tab.key}
-                  className={`min-h-11 shrink-0 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                    activeTab === tab.key
-                      ? 'bg-orange-600 text-white'
-                      : 'bg-white/10 border border-white/20 text-white/70 hover:bg-white/20'
-                  }`}
-                >
-                  {tab.icon && <tab.icon className="mr-2 inline h-4 w-4" aria-hidden="true" />}{tab.label}
-                </button>
-              ))}
+                ...(user?.role === 'student' ? [{ key: 'assessment', label: 'Đánh giá', icon: ClipboardCheck }] : []),
+                {
+                  key: 'comments',
+                  label: 'Bình luận',
+                  icon: MessageCircle,
+                  count: comments.length > 0 ? comments.length : lesson.comments_count,
+                },
+              ].map((tab) => {
+                const isActive = activeTab === tab.key
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    role="tab"
+                    aria-selected={isActive}
+                    className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${
+                      isActive
+                        ? 'border-orange-500 text-orange-400 font-semibold'
+                        : 'border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    <tab.icon className="h-4 w-4" aria-hidden="true" />
+                    <span>{tab.label}</span>
+                    {Boolean(tab.count) && tab.count > 0 && (
+                      <span className={`rounded-full px-1.5 py-0.2 text-xs ${isActive ? 'bg-orange-500/20 text-orange-300' : 'bg-slate-800 text-slate-400'}`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
 
-            {/* Tab Content */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+            {/* Tab Body */}
+            <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-5 sm:p-7">
+              {/* TAB 1: CONTENT */}
               {activeTab === 'video' && (
                 <div>
-                  <h2 className="text-xl font-bold text-white mb-4">Nội dung bài giảng</h2>
                   {lesson.uploaded_file ? (
                     <>
                       <PdfLessonViewer key={lesson.uploaded_file} lessonId={lesson.id} pdfUrl={lesson.uploaded_file} title={lesson.title} />
                       {(lesson.content || lesson.learning_content) && (
-                        <details className="mt-4 rounded-xl border border-white/15 bg-black/10 p-4">
-                          <summary className="cursor-pointer font-medium text-orange-200">Xem văn bản đã trích xuất</summary>
-                          <div className="mt-4 max-h-[70vh] overflow-auto whitespace-pre-wrap leading-relaxed text-white/80">
-                            {lesson.content || lesson.learning_content}
+                        <details className="mt-5 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
+                          <summary className="cursor-pointer text-sm font-medium text-orange-400 hover:text-orange-300">
+                            Xem văn bản đã trích xuất
+                          </summary>
+                          <div className="mt-4 max-h-[70vh] overflow-auto">
+                            <FormattedLessonText text={lesson.content || lesson.learning_content} />
                           </div>
                           {lesson.content_truncated && (
-                            <p className="mt-4 text-sm text-amber-200">Bản văn bản trên web đã được rút gọn; trình xem PDF phía trên vẫn chứa tài liệu gốc.</p>
+                            <p className="mt-3 text-xs text-amber-300/80">
+                              Bản văn bản trên web đã được rút gọn; trình xem PDF phía trên vẫn chứa tài liệu gốc.
+                            </p>
                           )}
                         </details>
                       )}
                     </>
                   ) : (lesson.content || lesson.learning_content) ? (
-                    <>
-                      <div className="max-h-[75vh] overflow-auto whitespace-pre-wrap leading-relaxed text-white/80">
-                        {lesson.content || lesson.learning_content}
+                    <div>
+                      <div className="max-h-[80vh] overflow-auto pr-1">
+                        <FormattedLessonText text={lesson.content || lesson.learning_content} />
                       </div>
                       {lesson.content_truncated && (
-                        <p className="mt-4 text-sm text-amber-200">
-                          Bản xem trên web đã được rút gọn. Mở PDF để đọc toàn bộ học liệu.
+                        <p className="mt-4 text-xs text-amber-300/80">
+                          Bản xem trên web đã được rút gọn. Mở tài liệu gốc để đọc toàn bộ học liệu.
                         </p>
                       )}
-                    </>
+                    </div>
                   ) : (
-                    <p className="text-white/50">Bài học chưa có nội dung có thể đọc.</p>
-                  )}
-                  {lesson.rag_ready && (
-                    <p className="mt-3 text-sm text-emerald-300">Kho kiến thức RAG đã sẵn sàng cho AI Tutor.</p>
+                    <p className="text-sm text-slate-400">Bài học chưa có nội dung văn bản.</p>
                   )}
                 </div>
               )}
 
+              {/* TAB 2: AI SUMMARY */}
               {activeTab === 'summary' && (
                 <div>
-                  <h2 className="flex items-center gap-2 text-xl font-bold text-white mb-4"><Bot className="h-5 w-5" aria-hidden="true" />Tóm tắt bởi AI</h2>
+                  <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-100">
+                    <Bot className="h-5 w-5 text-orange-400" aria-hidden="true" />
+                    Tóm tắt bài giảng bởi AI
+                  </h2>
                   {lesson.ai_summary ? (
-                    <div className="text-white/80 whitespace-pre-wrap leading-relaxed">{lesson.ai_summary}</div>
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
+                      {lesson.ai_summary}
+                    </div>
                   ) : (
-                    <p className="text-white/50">Giảng viên chưa duyệt bản tóm tắt cho bài học này.</p>
+                    <p className="text-sm text-slate-400">Giảng viên chưa duyệt bản tóm tắt cho bài học này.</p>
                   )}
                 </div>
               )}
 
-              {activeTab === 'comments' && (
-                <div>
-                  <h2 className="flex items-center gap-2 text-xl font-bold text-white mb-4"><MessageCircle className="h-5 w-5" aria-hidden="true" />Bình luận</h2>
-
-                  {/* Comment input */}
-                  {isAuthenticated && (
-                    <div className="mb-6">
-                      {replyTo && (
-                        <div className="flex items-center gap-2 mb-2 text-sm text-white/60">
-                          <span>Trả lời {replyTo.user_name}:</span>
-                          <button onClick={() => setReplyTo(null)} className="text-red-400 hover:text-red-300">
-                            <X className="mr-1 inline h-4 w-4" aria-hidden="true" />Hủy
-                          </button>
-                        </div>
-                      )}
-                      <div className="flex gap-3">
-                        <input
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendComment()}
-                          placeholder="Viết bình luận..."
-                          className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-orange-500/50 transition"
-                        />
-                        <Button
-                          onClick={handleSendComment}
-                          disabled={sendingComment || !commentText.trim()}
-                          className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-6 border-0"
-                        >
-                          {sendingComment ? '...' : 'Gửi'}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Comment list */}
-                  {comments.length === 0 ? (
-                    <p className="text-white/50 text-center py-6">Chưa có bình luận nào. Hãy là người đầu tiên!</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {comments.map((c) => (
-                        <CommentItem key={c.id} comment={c} onReply={setReplyTo} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
+              {/* TAB 3: AI TUTOR */}
               {activeTab === 'chat' && (
                 <div>
-                  <div className="mb-4 flex items-center gap-2 text-white">
-                    <Bot className="h-5 w-5 text-orange-300" aria-hidden="true" />
-                    <h2 className="text-xl font-bold">AI Tutor theo tài liệu</h2>
+                  <div className="mb-4 flex items-center gap-2 text-slate-100">
+                    <Brain className="h-5 w-5 text-orange-400" aria-hidden="true" />
+                    <h2 className="text-lg font-semibold">AI Tutor theo tài liệu bài học</h2>
                   </div>
 
                   {/* Chat messages */}
-                  <div className="h-80 overflow-y-auto mb-4 space-y-3 pr-2 custom-scrollbar">
+                  <div className="mb-4 h-96 overflow-y-auto space-y-3 pr-2">
                     {chatHistoryLoading && (
-                      <p className="py-10 text-center text-sm text-white/50" role="status">
-                        Đang khôi phục cuộc trò chuyện...
+                      <p className="py-12 text-center text-xs text-slate-400" role="status">
+                        Đang khôi phục hội thoại...
                       </p>
                     )}
                     {!chatHistoryLoading && chatMessages.length === 0 && (
-                      <div className="text-center py-10 text-white/40">
-                        <BookOpen className="mx-auto mb-3 h-8 w-8" aria-hidden="true" />
-                        <p>Đặt câu hỏi về nội dung đã được index của bài học.</p>
+                      <div className="py-14 text-center text-slate-400">
+                        <BookOpen className="mx-auto mb-2 h-7 w-7 text-slate-500" aria-hidden="true" />
+                        <p className="text-sm font-medium text-slate-300">Đặt câu hỏi về bài giảng</p>
+                        <p className="mt-1 text-xs text-slate-500">AI Tutor trả lời dựa trên tài liệu đã được index của bài học.</p>
                       </div>
                     )}
                     {chatMessages.map((msg, i) => (
@@ -600,24 +677,24 @@ export default function LessonPage() {
                         className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm ${
+                          className={`max-w-[85%] rounded-xl px-4 py-3 text-sm ${
                             msg.role === 'user'
-                              ? 'bg-orange-500/30 border border-orange-500/40 text-white'
-                              : 'bg-white/10 border border-white/20 text-white/90'
+                              ? 'border border-orange-500/30 bg-orange-600/15 text-orange-100'
+                              : 'border border-slate-800 bg-slate-950/70 text-slate-200'
                           }`}
                         >
                           <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
 
                           {msg.role === 'assistant' && msg.grounded === true && (
-                            <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-300">
-                              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                            <div className="mt-2.5 flex items-center gap-1 text-xs text-emerald-400">
+                              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                               <span>Dựa trên tài liệu bài học</span>
                             </div>
                           )}
 
                           {msg.role === 'assistant' && msg.grounded === false && (
-                            <div className="mt-3 flex items-center gap-1.5 text-xs text-amber-300">
-                              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                            <div className="mt-2.5 flex items-center gap-1 text-xs text-amber-300">
+                              <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
                               <span>
                                 {msg.retrievalStatus === 'not_indexed'
                                   ? 'Bài học chưa được index'
@@ -627,25 +704,25 @@ export default function LessonPage() {
                           )}
 
                           {msg.error && (
-                            <div className="mt-3 flex items-center gap-1.5 text-xs text-red-300">
-                              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                            <div className="mt-2.5 flex items-center gap-1 text-xs text-rose-400">
+                              <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
                               <span>Không thể hoàn thành yêu cầu</span>
                             </div>
                           )}
 
                           {msg.citations?.length > 0 && (
-                            <details className="mt-3 border-t border-white/10 pt-3">
-                              <summary className="cursor-pointer text-xs font-medium text-orange-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
-                                {msg.citations.length} nguồn tham khảo
+                            <details className="mt-3 border-t border-slate-800 pt-2.5">
+                              <summary className="cursor-pointer text-xs font-medium text-orange-400 hover:text-orange-300">
+                                {msg.citations.length} nguồn trích dẫn
                               </summary>
                               <ol className="mt-2 space-y-2">
                                 {msg.citations.map((citation) => (
                                   <li
                                     key={citation.id}
-                                    className="rounded-lg border border-white/10 bg-black/10 p-2.5"
+                                    className="rounded-lg border border-slate-800 bg-slate-900/60 p-2.5"
                                   >
-                                    <div className="flex items-center gap-1.5 text-xs font-medium text-white/80">
-                                      <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                                    <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
+                                      <BookOpen className="h-3.5 w-3.5 text-orange-400" aria-hidden="true" />
                                       <span>
                                         {citation.lesson_title} ·{' '}
                                         {citation.location?.page_start
@@ -655,7 +732,7 @@ export default function LessonPage() {
                                           : `Đoạn ${citation.ordinal + 1}`}
                                       </span>
                                     </div>
-                                    <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-white/60">
+                                    <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-400">
                                       {citation.excerpt}
                                     </p>
                                   </li>
@@ -668,11 +745,11 @@ export default function LessonPage() {
                     ))}
                     {chatLoading && (
                       <div className="flex justify-start">
-                        <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-2xl">
-                          <div className="flex gap-1">
-                            <span className="w-2 h-2 bg-white/50 rounded-full animate-bounce" />
-                            <span className="w-2 h-2 bg-white/50 rounded-full animate-bounce [animation-delay:0.1s]" />
-                            <span className="w-2 h-2 bg-white/50 rounded-full animate-bounce [animation-delay:0.2s]" />
+                        <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-3">
+                          <div className="flex gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" />
+                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.1s]" />
+                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.2s]" />
                           </div>
                         </div>
                       </div>
@@ -681,19 +758,19 @@ export default function LessonPage() {
                   </div>
 
                   {/* Chat input */}
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <input
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendChat()}
                       placeholder="Hỏi AI về bài giảng này..."
                       disabled={chatHistoryLoading}
-                      className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-orange-500/50 transition"
+                      className="flex-1 rounded-lg border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
                     />
                     <Button
                       onClick={handleSendChat}
                       disabled={chatLoading || chatHistoryLoading || !chatInput.trim()}
-                      className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl px-5 border-0"
+                      className="h-10 px-4 rounded-lg bg-orange-600 hover:bg-orange-700 text-white"
                       aria-label="Gửi câu hỏi"
                     >
                       {chatLoading ? '...' : <Send className="h-4 w-4" aria-hidden="true" />}
@@ -702,51 +779,52 @@ export default function LessonPage() {
                 </div>
               )}
 
+              {/* TAB 4: ASSESSMENT */}
               {activeTab === 'assessment' && (
                 <div>
-                  <div className="mb-4 flex items-center gap-2 text-white">
-                    <ClipboardCheck className="h-5 w-5 text-orange-300" aria-hidden="true" />
-                    <h2 className="text-xl font-bold">Kiểm tra mức độ tiếp thu</h2>
+                  <div className="mb-4 flex items-center gap-2 text-slate-100">
+                    <ClipboardCheck className="h-5 w-5 text-orange-400" aria-hidden="true" />
+                    <h2 className="text-lg font-semibold">Kiểm tra mức độ tiếp thu</h2>
                   </div>
 
                   {assessmentLoading && (
-                    <p className="text-white/60" role="status">Đang tải bài đánh giá...</p>
+                    <p className="text-sm text-slate-400" role="status">Đang tải bài đánh giá...</p>
                   )}
 
                   {!assessmentLoading && !assessment && !assessmentError && (
-                    <p className="text-white/60">
+                    <p className="text-sm text-slate-400">
                       Bài học này chưa có bài đánh giá. Bạn có thể đánh dấu hoàn thành khi đã học xong.
                     </p>
                   )}
 
                   {assessmentError && (
-                    <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-200" role="alert">
+                    <div className="mb-4 rounded-lg border border-rose-900/40 bg-rose-950/25 p-3 text-sm text-rose-300" role="alert">
                       {assessmentError}
                     </div>
                   )}
 
                   {assessment && (
                     <div className="space-y-5">
-                      <div className="rounded-xl border border-white/15 bg-black/10 p-4">
-                        <h3 className="font-semibold text-white">{assessment.title}</h3>
+                      <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4">
+                        <h3 className="font-semibold text-slate-100 text-sm sm:text-base">{assessment.title}</h3>
                         {assessment.instructions && (
-                          <p className="mt-1 text-sm text-white/60">{assessment.instructions}</p>
+                          <p className="mt-1 text-xs text-slate-400">{assessment.instructions}</p>
                         )}
-                        <p className="mt-2 text-sm text-orange-200">
+                        <p className="mt-2 text-xs font-medium text-orange-400">
                           Ngưỡng đạt: {assessment.pass_threshold}%
                         </p>
                       </div>
 
                       {assessment.questions.map((question, questionIndex) => (
-                        <fieldset key={question.id} className="rounded-xl border border-white/15 p-4">
-                          <legend className="px-1 font-medium text-white">
+                        <fieldset key={question.id} className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+                          <legend className="px-1 text-sm font-medium text-slate-200">
                             Câu {questionIndex + 1}: {question.prompt}
                           </legend>
                           <div className="mt-3 space-y-2">
                             {question.choices.map((choice, choiceIndex) => (
                               <label
                                 key={choiceIndex}
-                                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5"
+                                className="flex min-h-10 cursor-pointer items-center gap-3 rounded-md border border-slate-800/80 px-3 py-2 text-xs sm:text-sm text-slate-300 hover:bg-slate-800/50"
                               >
                                 <input
                                   type="radio"
@@ -758,7 +836,7 @@ export default function LessonPage() {
                                     [question.id]: choiceIndex,
                                   }))}
                                   disabled={submittingAssessment}
-                                  className="h-4 w-4 accent-orange-600"
+                                  className="h-4 w-4 accent-orange-500"
                                 />
                                 <span>{choice}</span>
                               </label>
@@ -769,10 +847,10 @@ export default function LessonPage() {
 
                       {assessmentResult && (
                         <div
-                          className={`rounded-xl border p-4 ${
+                          className={`rounded-lg border p-4 text-sm ${
                             assessmentResult.passed
-                              ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
-                              : 'border-amber-400/40 bg-amber-500/10 text-amber-100'
+                              ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-200'
+                              : 'border-amber-500/30 bg-amber-950/20 text-amber-200'
                           }`}
                           role="status"
                         >
@@ -780,9 +858,9 @@ export default function LessonPage() {
                             {assessmentResult.passed ? 'Đã đạt' : 'Cần củng cố'} · {assessmentResult.score}%
                           </p>
                           {!assessmentResult.passed && assessmentResult.weak_objectives?.length > 0 && (
-                            <div className="mt-2 text-sm">
-                              <p>Hãy ôn lại:</p>
-                              <ul className="mt-1 list-disc space-y-1 pl-5">
+                            <div className="mt-2 text-xs sm:text-sm">
+                              <p className="text-slate-300">Mục tiêu cần ôn lại:</p>
+                              <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-400">
                                 {assessmentResult.weak_objectives.map((objective) => (
                                   <li key={objective}>{objective}</li>
                                 ))}
@@ -790,7 +868,7 @@ export default function LessonPage() {
                               <Button
                                 onClick={handleLoadReinforcement}
                                 disabled={reinforcementLoading}
-                                className="mt-4 bg-amber-700 text-white hover:bg-amber-800"
+                                className="mt-3 bg-amber-700 text-white hover:bg-amber-800 text-xs"
                               >
                                 {reinforcementLoading
                                   ? 'Đang tìm học liệu...'
@@ -802,36 +880,36 @@ export default function LessonPage() {
                       )}
 
                       {reinforcementError && (
-                        <div className="rounded-xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-200" role="alert">
+                        <div className="rounded-lg border border-rose-900/40 bg-rose-950/25 p-3 text-xs text-rose-300" role="alert">
                           {reinforcementError}
                         </div>
                       )}
 
                       {reinforcement && (
                         <div className="space-y-3" aria-label="Học liệu củng cố">
-                          <div className="rounded-xl border border-white/15 bg-black/10 p-4">
-                            <h3 className="font-semibold text-white">Học liệu củng cố theo mục tiêu</h3>
-                            <p className="mt-1 text-sm text-white/60">
-                              Các đoạn dưới đây được truy xuất trong đúng bài học. Việc ôn tập không tự thay đổi điểm đánh giá.
+                          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5">
+                            <h3 className="text-sm font-semibold text-slate-100">Học liệu củng cố theo mục tiêu</h3>
+                            <p className="mt-1 text-xs text-slate-400">
+                              Các đoạn trích xuất dưới đây được đối chiếu từ tài liệu bài học.
                             </p>
                           </div>
 
                           {reinforcement.items.map((item) => (
                             <section
                               key={item.learning_objective}
-                              className="rounded-xl border border-white/15 p-4"
+                              className="rounded-lg border border-slate-800 bg-slate-950/40 p-3.5"
                             >
-                              <h4 className="font-medium text-white">{item.learning_objective}</h4>
-                              <p className="mt-1 text-sm text-white/60">{item.message}</p>
+                              <h4 className="text-xs sm:text-sm font-medium text-slate-200">{item.learning_objective}</h4>
+                              <p className="mt-1 text-xs text-slate-400">{item.message}</p>
 
                               {item.citations.length > 0 ? (
-                                <ol className="mt-3 space-y-2">
+                                <ol className="mt-2.5 space-y-2">
                                   {item.citations.map((citation) => (
                                     <li
                                       key={citation.id}
-                                      className="rounded-lg border border-white/10 bg-black/10 p-3"
+                                      className="rounded border border-slate-800 bg-slate-900/60 p-2.5 text-xs text-slate-300"
                                     >
-                                      <p className="text-xs font-medium text-orange-200">
+                                      <p className="font-medium text-orange-300">
                                         {citation.lesson_title} ·{' '}
                                         {citation.location?.page_start
                                           ? citation.location.page_start === citation.location.page_end
@@ -839,14 +917,14 @@ export default function LessonPage() {
                                             : `Trang ${citation.location.page_start}–${citation.location.page_end}`
                                           : `Đoạn ${citation.ordinal + 1}`}
                                       </p>
-                                      <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/70">
+                                      <p className="mt-1 leading-relaxed text-slate-400">
                                         {citation.excerpt}
                                       </p>
                                     </li>
                                   ))}
                                 </ol>
                               ) : (
-                                <p className="mt-3 text-sm text-amber-200">
+                                <p className="mt-2 text-xs text-amber-300/80">
                                   {item.status === 'not_indexed'
                                     ? 'Bài học chưa được lập chỉ mục RAG.'
                                     : 'Chưa có đoạn tài liệu đủ liên quan để gợi ý.'}
@@ -855,7 +933,7 @@ export default function LessonPage() {
 
                               <Button
                                 onClick={() => handleAskAboutObjective(item.tutor_prompt)}
-                                className="mt-3 border border-white/20 bg-transparent text-white hover:bg-white/10"
+                                className="mt-2.5 border border-slate-700 bg-slate-800/80 text-xs text-slate-200 hover:bg-slate-800"
                               >
                                 Hỏi AI Tutor về mục tiêu này
                               </Button>
@@ -880,19 +958,18 @@ export default function LessonPage() {
                       )}
 
                       {(assessment.passed || assessmentResult?.passed) && (
-                        <section className="rounded-xl border border-white/15 bg-black/10 p-4">
+                        <section className="rounded-lg border border-slate-800 bg-slate-950/60 p-4">
                           <div className="flex items-start gap-3">
-                            <Bot className="mt-0.5 h-5 w-5 text-orange-300" aria-hidden="true" />
+                            <Bot className="mt-0.5 h-4 w-4 text-orange-400" aria-hidden="true" />
                             <div>
-                              <h3 className="font-semibold text-white">Tự kiểm tra bằng hội thoại AI</h3>
-                              <p className="mt-1 text-sm text-white/60">
-                                Đây chỉ là khuyến nghị luyện tập sau khi bạn đã đạt bài trắc nghiệm.
-                                Kết quả không thay đổi điểm, mastery hoặc quyền chuyển bài.
+                              <h3 className="text-sm font-semibold text-slate-100">Tự luyện tập với hội thoại AI</h3>
+                              <p className="mt-0.5 text-xs text-slate-400">
+                                Khuyến nghị kiểm tra sau bài trắc nghiệm (không ảnh hưởng điểm).
                               </p>
                             </div>
                           </div>
 
-                          <label htmlFor="dialogue-question" className="mt-4 block text-sm font-medium text-white">
+                          <label htmlFor="dialogue-question" className="mt-3 block text-xs font-medium text-slate-300">
                             Câu hỏi
                           </label>
                           <select
@@ -903,15 +980,15 @@ export default function LessonPage() {
                               setDialogueResult(null)
                             }}
                             disabled={dialogueLoading}
-                            className="mt-2 min-h-11 w-full rounded-lg border border-white/20 bg-slate-900 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            className="mt-1 min-h-10 w-full rounded-md border border-slate-800 bg-slate-900 px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-orange-500"
                           >
                             {assessment.questions.map((question) => (
                               <option key={question.id} value={question.id}>{question.prompt}</option>
                             ))}
                           </select>
 
-                          <label htmlFor="dialogue-answer" className="mt-4 block text-sm font-medium text-white">
-                            Trả lời bằng lời của bạn
+                          <label htmlFor="dialogue-answer" className="mt-3 block text-xs font-medium text-slate-300">
+                            Trả lời bằng từ ngữ của bạn
                           </label>
                           <textarea
                             id="dialogue-answer"
@@ -919,51 +996,35 @@ export default function LessonPage() {
                             onChange={(event) => setDialogueAnswer(event.target.value)}
                             disabled={dialogueLoading}
                             maxLength={2000}
-                            rows={4}
-                            className="mt-2 w-full rounded-lg border border-white/20 bg-black/20 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                            placeholder="Giải thích ngắn gọn điều bạn hiểu..."
+                            rows={3}
+                            className="mt-1 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            placeholder="Giải thích ngắn gọn ý hiểu của bạn..."
                           />
                           <Button
                             onClick={handleDialogueKnowledgeCheck}
                             disabled={dialogueLoading || !dialogueQuestionId || !dialogueAnswer.trim()}
-                            className="mt-3 bg-orange-600 text-white hover:bg-orange-700"
+                            className="mt-2.5 bg-orange-600 text-xs text-white hover:bg-orange-700"
                           >
-                            {dialogueLoading ? 'Đang đối chiếu học liệu...' : 'Nhận khuyến nghị'}
+                            {dialogueLoading ? 'Đang đối chiếu...' : 'Nhận nhận xét'}
                           </Button>
 
                           {dialogueError && (
-                            <p className="mt-3 text-sm text-red-200" role="alert">{dialogueError}</p>
+                            <p className="mt-2 text-xs text-rose-300" role="alert">{dialogueError}</p>
                           )}
 
                           {dialogueResult && (
-                            <div className="mt-4 rounded-lg border border-white/15 p-3" role="status">
-                              <p className="text-sm font-semibold text-orange-200">
-                                Khuyến nghị: {
+                            <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-xs" role="status">
+                              <p className="font-medium text-orange-300">
+                                Kết quả: {
                                   dialogueResult.outcome === 'demonstrated'
-                                    ? 'Đã thể hiện hiểu biết'
+                                    ? 'Đã hiểu rõ'
                                     : dialogueResult.outcome === 'partial'
                                       ? 'Hiểu một phần'
-                                      : dialogueResult.outcome === 'not_demonstrated'
-                                        ? 'Chưa thể hiện rõ'
-                                        : 'Chưa đủ bằng chứng'
+                                      : 'Chưa thể hiện rõ'
                                 }
                               </p>
-                              <p className="mt-2 whitespace-pre-wrap text-sm text-white/80">{dialogueResult.feedback}</p>
-                              <p className="mt-2 text-sm text-white/60">Bước tiếp theo: {dialogueResult.next_step}</p>
-                              {dialogueResult.citations?.length > 0 && (
-                                <ol className="mt-3 space-y-2">
-                                  {dialogueResult.citations.map((citation) => (
-                                    <li key={citation.id} className="rounded border border-white/10 p-2 text-sm text-white/70">
-                                      <span className="font-medium text-orange-200">
-                                        {citation.location?.page_start
-                                          ? `Trang ${citation.location.page_start}`
-                                          : citation.lesson_title}
-                                      </span>
-                                      <p className="mt-1 whitespace-pre-wrap">{citation.excerpt}</p>
-                                    </li>
-                                  ))}
-                                </ol>
-                              )}
+                              <p className="mt-1 text-slate-300">{dialogueResult.feedback}</p>
+                              <p className="mt-1 text-slate-400">Gợi ý: {dialogueResult.next_step}</p>
                             </div>
                           )}
                         </section>
@@ -972,190 +1033,274 @@ export default function LessonPage() {
                   )}
                 </div>
               )}
-            </div>
-          </main>
 
-          {/* Right Sidebar */}
-          <aside className="sticky top-20 self-start space-y-6">
-            {/* Lesson Info Card */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-white mb-4">Thông tin bài học</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between text-white/70">
-                  <span>Trạng thái</span>
-                  <span className={st.color}>
-                    <st.icon className="mr-1 inline h-4 w-4" aria-hidden="true" />{st.label}
-                  </span>
-                </div>
-                {lesson.duration_minutes && (
-                  <div className="flex justify-between text-white/70">
-                    <span>Thời lượng</span>
-                    <span>{lesson.duration_minutes} phút</span>
-                  </div>
-                )}
-                {lesson.comments_count !== undefined && (
-                  <div className="flex justify-between text-white/70">
-                    <span>Bình luận</span>
-                    <span>{lesson.comments_count}</span>
-                  </div>
-                )}
-              </div>
+              {/* TAB 5: COMMENTS */}
+              {activeTab === 'comments' && (
+                <div>
+                  <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-100">
+                    <MessageCircle className="h-5 w-5 text-orange-400" aria-hidden="true" />
+                    Thảo luận ({comments.length})
+                  </h2>
 
-              {isAuthenticated && (
-                <div className="mt-6 space-y-3">
-                  <Button
-                    onClick={
-                      assessment && !assessment.passed
-                        ? () => setActiveTab('assessment')
-                        : handleCompleteLesson
-                    }
-                    disabled={completion?.is_completed}
-                    className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-green-700/60 text-white font-semibold border-0 transition-colors"
-                  >
-                    {completion?.is_completed
-                      ? <><CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />Đã hoàn thành</>
-                      : assessment && !assessment.passed
-                        ? 'Làm bài đánh giá'
-                        : 'Đánh dấu hoàn thành'}
-                  </Button>
-
-                  {completion?.next_lesson && (
-                    <Button
-                      onClick={() => navigate(`/lessons/${completion.next_lesson.id}`)}
-                      className="w-full py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold border-0 transition-colors"
-                    >
-                      Sang bài tiếp theo
-                      <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                    </Button>
+                  {/* Comment input */}
+                  {isAuthenticated && (
+                    <div className="mb-6">
+                      {replyTo && (
+                        <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
+                          <span>Trả lời {replyTo.user_name}:</span>
+                          <button onClick={() => setReplyTo(null)} className="text-rose-400 hover:text-rose-300">
+                            <X className="mr-0.5 inline h-3.5 w-3.5" aria-hidden="true" /> Hủy
+                          </button>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <input
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendComment()}
+                          placeholder="Viết bình luận..."
+                          className="flex-1 rounded-lg border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                        />
+                        <Button
+                          onClick={handleSendComment}
+                          disabled={sendingComment || !commentText.trim()}
+                          className="rounded-lg bg-orange-600 px-5 text-sm text-white hover:bg-orange-700"
+                        >
+                          {sendingComment ? '...' : 'Gửi'}
+                        </Button>
+                      </div>
+                    </div>
                   )}
 
-                  {completion?.is_completed && !completion.next_lesson && (
-                    <p className="text-center text-sm text-white/60">
-                      Bạn đã hoàn thành bài khả dụng cuối cùng trong khóa học.
-                    </p>
+                  {/* Comments list */}
+                  {comments.length === 0 ? (
+                    <p className="py-8 text-center text-xs text-slate-500">Chưa có bình luận nào.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {comments.map((c) => (
+                        <CommentItem key={c.id} comment={c} onReply={setReplyTo} />
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
-            </div>
 
-            {/* Quick tips */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-              <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-3"><Lightbulb className="h-5 w-5" aria-hidden="true" />Mẹo học tập</h3>
-              <ul className="space-y-2 text-white/60 text-sm">
-                <li>Xem video AI tóm tắt trước khi đọc chi tiết.</li>
-                <li>Đặt câu hỏi cho AI nếu chưa hiểu.</li>
-                <li>Ghi chú lại những điểm quan trọng.</li>
-                <li>Trao đổi với bạn học qua bình luận.</li>
-              </ul>
+              {/* Bottom Step-by-Step Navigation Bar */}
+              <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-6">
+                {previousLesson ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(`/lessons/${previousLesson.id}`)}
+                    className="border-slate-800 bg-slate-950 text-xs sm:text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+                  >
+                    <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
+                    <span>Bài trước</span>
+                  </Button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  {isAuthenticated && !isCompleted && (
+                    <Button
+                      onClick={
+                        assessment && !assessment.passed
+                          ? () => setActiveTab('assessment')
+                          : handleCompleteLesson
+                      }
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-medium"
+                    >
+                      <CheckCircle2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                      {assessment && !assessment.passed ? 'Làm bài đánh giá' : 'Đánh dấu hoàn thành'}
+                    </Button>
+                  )}
+
+                  {targetNextLesson && (
+                    <Button
+                      onClick={() => navigate(`/lessons/${targetNextLesson.id}`)}
+                      className="bg-orange-600 hover:bg-orange-700 text-white text-xs sm:text-sm font-medium"
+                    >
+                      <span>Bài tiếp theo</span>
+                      <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
-          </aside>
+          </main>
         </div>
       </div>
     </div>
   )
 }
 
+/* ---------- Course Navigator Sidebar Component ---------- */
 function CourseNavigator({ course, currentLessonId, isOpen, onToggle, onSelectLesson }) {
   const lessons = course?.lessons || []
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/20 bg-slate-950/55 text-white backdrop-blur-md">
-      <div className="border-b border-white/15 p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-orange-300">Nội dung khóa học</p>
-        <h2 className="mt-2 line-clamp-2 font-bold">{course?.title || 'Khóa học hiện tại'}</h2>
-        <p className="mt-2 text-xs text-slate-300">{lessons.length} bài học</p>
+    <section className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/90 text-slate-200">
+      <div className="border-b border-slate-800 p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-400">Khóa học</p>
+        <h2 className="mt-1 font-semibold text-slate-100 text-base line-clamp-2">{course?.title || 'Đang tải...'}</h2>
+        <p className="mt-1 text-xs text-slate-400">{lessons.length} bài học</p>
       </div>
 
       <button
         type="button"
         onClick={onToggle}
-        className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-white/15 px-4 py-3 text-left text-sm font-semibold hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400"
+        className="flex min-h-10 w-full items-center justify-between border-b border-slate-800 px-4 py-2.5 text-left text-xs font-medium text-slate-300 hover:bg-slate-800/50 lg:hidden"
         aria-expanded={isOpen}
-        aria-controls="lesson-course-navigation"
       >
-        Danh sách bài học
-        <ChevronDown className={`h-5 w-5 shrink-0 text-orange-300 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+        <span>Danh sách bài học</span>
+        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {isOpen && (
-        <ol id="lesson-course-navigation" className="max-h-[calc(100vh-16rem)] overflow-y-auto py-2">
+      <div className={`${isOpen ? 'block' : 'hidden'} lg:block`}>
+        <ol className="max-h-[calc(100vh-14rem)] overflow-y-auto divide-y divide-slate-800/60 py-1">
           {lessons.map((courseLesson, index) => {
             const isCurrent = String(courseLesson.id) === String(currentLessonId)
+            const padIndex = String(index + 1).padStart(2, '0')
             return (
               <li key={courseLesson.id}>
                 <button
                   type="button"
                   onClick={() => onSelectLesson(courseLesson.id)}
                   aria-current={isCurrent ? 'step' : undefined}
-                  className={`flex min-h-14 w-full items-start gap-3 border-l-2 px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400 ${
+                  className={`flex min-h-12 w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
                     isCurrent
-                      ? 'border-orange-400 bg-orange-500/15 text-white'
-                      : 'border-transparent text-slate-300 hover:bg-white/5 hover:text-white'
+                      ? 'bg-orange-500/10 border-l-2 border-orange-500 text-slate-100'
+                      : 'border-l-2 border-transparent text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
                   }`}
                 >
-                  {isCurrent
-                    ? <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" aria-hidden="true" />
-                    : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />}
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xs text-slate-400">Bài {index + 1}</span>
-                    <span className="mt-0.5 block text-sm font-medium leading-5">{courseLesson.title}</span>
-                    {courseLesson.duration_minutes > 0 && (
-                      <span className="mt-1 block text-xs text-slate-400">{courseLesson.duration_minutes} phút</span>
-                    )}
+                  <span className={`text-xs font-mono mt-0.5 ${isCurrent ? 'text-orange-400 font-semibold' : 'text-slate-500'}`}>
+                    {padIndex}
                   </span>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm leading-snug line-clamp-2 ${isCurrent ? 'font-medium text-slate-100' : 'text-slate-300'}`}>
+                      {courseLesson.title}
+                    </p>
+                    {courseLesson.duration_minutes > 0 && (
+                      <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-500">
+                        <Clock3 className="h-3 w-3" aria-hidden="true" /> {courseLesson.duration_minutes} phút
+                      </span>
+                    )}
+                  </div>
                 </button>
               </li>
             )
           })}
-
-          {!course && <li className="px-4 py-5 text-sm text-slate-400">Không thể tải danh sách bài học.</li>}
-          {course && lessons.length === 0 && <li className="px-4 py-5 text-sm text-slate-400">Khóa học chưa có bài học khác.</li>}
+          {!course && <li className="p-4 text-xs text-slate-500">Đang tải danh sách bài...</li>}
+          {course && lessons.length === 0 && <li className="p-4 text-xs text-slate-500">Chưa có bài học.</li>}
         </ol>
-      )}
+      </div>
     </section>
   )
+}
+
+/* ---------- Formatted Lesson Text Component ---------- */
+function FormattedLessonText({ text }) {
+  if (!text) return null
+  // Strip corpus metadata comments (e.g., <!-- intaaneto-learning-corpus:... -->)
+  const cleaned = text.replace(/^<!--[\s\S]*?-->\s*/, '').trim()
+
+  const lines = cleaned.split('\n')
+  const elements = []
+  let listItems = []
+
+  const flushList = (key) => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={`ul-${key}`} className="my-3 space-y-1.5 pl-5 list-disc text-slate-300">
+          {listItems.map((item, idx) => (
+            <li key={idx} className="leading-relaxed text-sm">{item}</li>
+          ))}
+        </ul>
+      )
+      listItems = []
+    }
+  }
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      listItems.push(trimmed.slice(2).trim())
+    } else {
+      flushList(index)
+      if (!trimmed) {
+        // empty space
+      } else if (trimmed.startsWith('# ')) {
+        elements.push(
+          <h2 key={index} className="mt-6 mb-3 text-xl font-bold tracking-tight text-slate-100 first:mt-0">
+            {trimmed.slice(2)}
+          </h2>
+        )
+      } else if (trimmed.startsWith('## ')) {
+        elements.push(
+          <h3 key={index} className="mt-5 mb-2 text-base font-semibold tracking-tight text-slate-100">
+            {trimmed.slice(3)}
+          </h3>
+        )
+      } else if (trimmed.startsWith('### ')) {
+        elements.push(
+          <h4 key={index} className="mt-4 mb-2 text-sm font-semibold text-slate-200">
+            {trimmed.slice(4)}
+          </h4>
+        )
+      } else {
+        elements.push(
+          <p key={index} className="my-2.5 text-sm leading-relaxed text-slate-300">
+            {trimmed}
+          </p>
+        )
+      }
+    }
+  })
+  flushList('final')
+
+  return <div className="space-y-1">{elements}</div>
 }
 
 /* ---------- Comment Item Component ---------- */
 function CommentItem({ comment, onReply }) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+    <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
       <div className="flex items-start gap-3">
         {/* Avatar */}
-        <div className="w-8 h-8 rounded-full bg-orange-500/30 flex items-center justify-center text-sm text-orange-300 font-bold shrink-0">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500/20 text-xs font-bold text-orange-300">
           {comment.user_name?.[0]?.toUpperCase() || '?'}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-white font-semibold">{comment.user_name}</span>
-            <span className="text-white/40 text-xs">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-medium text-slate-200">{comment.user_name}</span>
+            <span className="text-slate-500">
               {comment.created_at ? new Date(comment.created_at).toLocaleDateString('vi-VN') : ''}
             </span>
           </div>
-          <p className="text-white/80 text-sm mt-1 whitespace-pre-wrap">{comment.content}</p>
+          <p className="mt-1 text-sm text-slate-300 whitespace-pre-wrap">{comment.content}</p>
           <button
             onClick={() => onReply({ id: comment.id, user_name: comment.user_name })}
-            className="text-orange-400 hover:text-orange-300 text-xs mt-2 transition"
+            className="mt-2 text-xs text-orange-400 hover:text-orange-300"
           >
-            ↩ Trả lời
+            Trả lời
           </button>
 
           {/* Replies */}
           {comment.replies && comment.replies.length > 0 && (
-            <div className="mt-3 pl-4 border-l border-white/10 space-y-3">
+            <div className="mt-3 space-y-3 border-l border-slate-800 pl-4">
               {comment.replies.map((r) => (
-                <div key={r.id} className="flex items-start gap-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-500/30 flex items-center justify-center text-xs text-blue-300 font-bold shrink-0">
+                <div key={r.id} className="flex items-start gap-2.5">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[11px] font-bold text-slate-300">
                     {r.user_name?.[0]?.toUpperCase() || '?'}
                   </div>
                   <div>
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="text-white font-semibold">{r.user_name}</span>
-                      <span className="text-white/40">
+                      <span className="font-medium text-slate-200">{r.user_name}</span>
+                      <span className="text-slate-500">
                         {r.created_at ? new Date(r.created_at).toLocaleDateString('vi-VN') : ''}
                       </span>
                     </div>
-                    <p className="text-white/70 text-sm mt-0.5">{r.content}</p>
+                    <p className="mt-0.5 text-xs text-slate-300">{r.content}</p>
                   </div>
                 </div>
               ))}

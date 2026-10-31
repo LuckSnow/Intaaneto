@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="Intaaneto RAG">
+<rect width="1200" height="675" fill="#eff6ff"/>
+<rect x="64" y="66" width="44" height="6" rx="3" fill="#1d4ed8"/>
+<text x="64" y="123" font-family="sans-serif" font-size="24" letter-spacing="5" fill="#1d4ed8">INTAANETO</text>
+<text x="58" y="326" font-family="sans-serif" font-size="82" font-weight="700" letter-spacing="-3" fill="#0f172a">RAG</text>
+<text x="64" y="385" font-family="sans-serif" font-size="26" fill="#475569">Learning with evidence</text>
+<g fill="none" stroke="#1d4ed8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><rect x="670" y="125" width="125" height="170" rx="12"/><path d="M700 165h65m-65 35h65m-65 35h40M795 210h80m-20-20 20 20-20 20"/><rect x="890" y="180" width="155" height="190" rx="16"/><path d="M920 225h95m-95 40h95m-95 40h55"/><path d="M730 345v65h220m-20-20 20 20-20 20"/></g>
+<path d="M64 540h1072" stroke="#1d4ed8" stroke-opacity=".2" stroke-width="2"/>
+<text x="64" y="595" font-family="sans-serif" font-size="20" letter-spacing="3" fill="#1d4ed8">DEMO LEARNING SERIES</text>
+</svg>

@@ -45,6 +45,10 @@ export default function CourseFormModal({ open, course, onClose, onSaved, onDele
   const [form, setForm] = useState(blankCourse)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [thumbnailFile, setThumbnailFile] = useState(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState('')
+  const [removeThumbnail, setRemoveThumbnail] = useState(false)
+  const fileRef = useRef(null)
   const dialogRef = useRef(null)
   const closeRef = useRef(null)
 
@@ -52,6 +56,23 @@ export default function CourseFormModal({ open, course, onClose, onSaved, onDele
     if (!open) return undefined
     setForm(toForm(course))
     setError('')
+    setThumbnailFile(null)
+    setRemoveThumbnail(false)
+    if (fileRef.current) fileRef.current.value = ''
+  }, [course, open])
+
+  useEffect(() => {
+    if (!thumbnailFile) {
+      setThumbnailPreview('')
+      return undefined
+    }
+    const url = URL.createObjectURL(thumbnailFile)
+    setThumbnailPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [thumbnailFile])
+
+  useEffect(() => {
+    if (!open) return undefined
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     closeRef.current?.focus()
@@ -76,7 +97,7 @@ export default function CourseFormModal({ open, course, onClose, onSaved, onDele
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [course, onClose, open, saving])
+  }, [onClose, open, saving])
 
   if (!open) return null
 
@@ -88,7 +109,7 @@ export default function CourseFormModal({ open, course, onClose, onSaved, onDele
     }
     setSaving(true)
     setError('')
-    const payload = {
+    const values = {
       title: form.title.trim(),
       description: form.description.trim(),
       difficulty: form.difficulty,
@@ -97,7 +118,11 @@ export default function CourseFormModal({ open, course, onClose, onSaved, onDele
       prerequisites: form.prerequisites.trim(),
       order: Number(form.order),
       is_published: form.is_published,
+      remove_thumbnail: removeThumbnail,
     }
+    const payload = new FormData()
+    Object.entries(values).forEach(([key, value]) => payload.append(key, String(value)))
+    if (thumbnailFile) payload.append('thumbnail_upload', thumbnailFile)
     try {
       const saved = course
         ? await courseService.updateCourse(course.id, payload)
@@ -149,6 +174,33 @@ export default function CourseFormModal({ open, course, onClose, onSaved, onDele
             {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</div>}
             <label className="text-sm font-medium">Tiêu đề<input className={inputClass} maxLength={255} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required autoFocus /></label>
             <label className="text-sm font-medium">Mô tả<textarea className={inputClass} rows={4} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} required /></label>
+            <section className="rounded-xl border border-slate-200 bg-white p-4" aria-label="Ảnh bìa khóa học">
+              <label htmlFor="course-thumbnail" className="text-sm font-medium">Ảnh bìa khóa học</label>
+              <p id="course-thumbnail-help" className="mt-1 text-sm text-slate-600">JPG, PNG hoặc WebP tĩnh, tối đa 2 MB và 4096 pixel mỗi chiều. Nên dùng tỷ lệ 16:9.</p>
+              {(thumbnailPreview || (!removeThumbnail && course?.thumbnail)) && (
+                <img src={thumbnailPreview || course.thumbnail} alt="Xem trước ảnh bìa khóa học" className="mt-3 aspect-video w-full max-w-sm rounded-lg border border-slate-200 object-cover" />
+              )}
+              <input ref={fileRef} id="course-thumbnail" type="file" accept="image/jpeg,image/png,image/webp" disabled={saving} aria-describedby="course-thumbnail-help" className={`${inputClass} min-h-11`} onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (!file) return
+                if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+                  setError('Chọn ảnh JPG, PNG hoặc WebP không quá 2 MB.')
+                  event.target.value = ''
+                  return
+                }
+                setError('')
+                setThumbnailFile(file)
+                setRemoveThumbnail(false)
+              }} />
+              {(thumbnailFile || (course?.thumbnail && !removeThumbnail)) && (
+                <button type="button" disabled={saving} className="mt-2 min-h-11 rounded px-2 text-sm font-medium text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600" onClick={() => {
+                  setThumbnailFile(null)
+                  setRemoveThumbnail(true)
+                  if (fileRef.current) fileRef.current.value = ''
+                }}>Gỡ ảnh bìa</button>
+              )}
+              {removeThumbnail && <p className="mt-2 text-sm text-slate-600">Ảnh bìa sẽ được gỡ khi lưu thay đổi.</p>}
+            </section>
             <div className="grid gap-5 sm:grid-cols-3">
               <label className="text-sm font-medium">Trình độ<select className={inputClass} value={form.difficulty} onChange={(event) => setForm({ ...form, difficulty: event.target.value })}><option value="beginner">Cơ bản</option><option value="intermediate">Trung bình</option><option value="advanced">Nâng cao</option></select></label>
               <label className="text-sm font-medium">Thời lượng (giờ)<input className={inputClass} type="number" min="0" value={form.duration_hours} onChange={(event) => setForm({ ...form, duration_hours: Number(event.target.value) })} /></label>

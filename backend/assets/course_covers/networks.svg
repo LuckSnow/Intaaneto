@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="Intaaneto NETWORKS">
+<rect width="1200" height="675" fill="#ecfdf5"/>
+<rect x="64" y="66" width="44" height="6" rx="3" fill="#0f766e"/>
+<text x="64" y="123" font-family="sans-serif" font-size="24" letter-spacing="5" fill="#0f766e">INTAANETO</text>
+<text x="58" y="326" font-family="sans-serif" font-size="82" font-weight="700" letter-spacing="-3" fill="#0f172a">NETWORKS</text>
+<text x="64" y="385" font-family="sans-serif" font-size="26" fill="#475569">Computer networks</text>
+<g fill="none" stroke="#0f766e" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><path d="M860 260V175M860 260L730 365M860 260L995 365"/><rect x="810" y="100" width="100" height="74" rx="12"/><rect x="676" y="365" width="108" height="74" rx="12"/><rect x="940" y="365" width="108" height="74" rx="12"/><circle cx="860" cy="260" r="45"/><path d="M837 260h46m-23-23v46M700 462h60m205 0h60M835 196h50"/></g>
+<path d="M64 540h1072" stroke="#0f766e" stroke-opacity=".2" stroke-width="2"/>
+<text x="64" y="595" font-family="sans-serif" font-size="20" letter-spacing="3" fill="#0f766e">DEMO LEARNING SERIES</text>
+</svg>

@@ -3,7 +3,7 @@ from hashlib import sha256
 from django.conf import settings
 from django.http import FileResponse
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -33,7 +33,9 @@ from .serializers import (
     LessonUploadSerializer, LessonDetailSerializer, LessonCommentSerializer,
     AssessmentGenerationRequestSerializer, EnrollmentSerializer,
     ReviewSerializer, SummaryApprovalSerializer, VideoScriptApprovalSerializer,
+    TutorAvatarSelectionSerializer, TutorAvatarUploadSerializer,
 )
+from .tutor_avatars import avatar_library, preset_path, select_avatar, upload_avatar
 from .content_authoring import (
     approve_summary_draft,
     approve_video_script_draft,
@@ -48,6 +50,19 @@ from .services import (
     complete_lesson,
 )
 from .video_generation import VideoGenerationError
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def tutor_avatar_preset(request, preset_id):
+    """Only the six bundled public illustrations, never an uploaded file."""
+    path = preset_path(preset_id)
+    if not path.is_file():
+        return Response({'detail': 'Ảnh mẫu chưa sẵn sàng.'}, status=404)
+    response = FileResponse(path.open('rb'))
+    response['Cache-Control'] = 'public, max-age=3600'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 class IsTeacher(BasePermission):
@@ -188,6 +203,7 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     throttle_scope_by_action = {
+        'tutor_avatar': 'lesson_upload',
         'upload': 'lesson_upload',
         'reprocess': 'lesson_reprocess',
         'generate_summary': 'lesson_authoring',
@@ -206,6 +222,7 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
             'approve_summary', 'generate_video_script', 'approve_video_script',
             'generate_assessment', 'generate_narration',
             'generate_multimedia',
+            'tutor_avatar',
         ):
             permission_classes = [IsTeacher]
         else:
@@ -282,6 +299,7 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
         )
         return {
             'lesson_id': lesson.id,
+            'tutor_avatars': avatar_library(request=self.request, lesson=lesson),
             'lesson_title': lesson.title,
             'pdf_url': media_url(lesson.uploaded_file),
             'extracted_chars': len(lesson.extracted_text or ''),
@@ -331,6 +349,11 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
                 'stage': multimedia_job.stage,
                 'provider': multimedia_job.provider,
                 'voice': multimedia_job.voice,
+                'tutor_avatar': {
+                    'preset_id': multimedia_job.tutor_preset,
+                    'upload_id': multimedia_job.tutor_avatar_id,
+                    'label': multimedia_job.tutor_avatar.label if multimedia_job.tutor_avatar_id else dict(multimedia_job._meta.get_field('tutor_preset').choices).get(multimedia_job.tutor_preset),
+                },
                 'scene_count': multimedia_job.scene_count,
                 'duration_seconds': multimedia_job.duration_seconds,
                 'render_duration_ms': multimedia_job.render_duration_ms,
@@ -599,6 +622,19 @@ class LessonViewSet(ActionScopedThrottleMixin, viewsets.ModelViewSet):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         return Response(self._authoring_payload(lesson), status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put', 'post'], url_path='tutor-avatar')
+    def tutor_avatar(self, request, pk=None):
+        lesson = self._managed_lesson()
+        if request.method == 'POST':
+            serializer = TutorAvatarUploadSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            upload_avatar(actor=request.user, lesson=lesson, **serializer.validated_data)
+        else:
+            serializer = TutorAvatarSelectionSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            select_avatar(actor=request.user, lesson=lesson, **serializer.validated_data)
+        return Response(self._authoring_payload(lesson), status=201 if request.method == 'POST' else 200)
 
     @action(detail=True, methods=['post'], url_path='generate-multimedia')
     def generate_multimedia(self, request, pk=None):

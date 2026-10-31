@@ -1,0 +1,2 @@
+# Optional offline reporting tools; provenance.json records resolved versions.
+matplotlib>=3.9,<4

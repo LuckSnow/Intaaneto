@@ -5,6 +5,48 @@ Last repository inspection: 2026-07-19.
 This is a living factual snapshot, not a roadmap. Verify it against code before
 relying on it and update it after material implementation changes.
 
+## PDF QA evaluation preparation — 2026-10-13
+
+- Follow-up tooling now includes `import_pdf_batch` and an authorization-first
+  batch service: dry-run by default, 1–50 bounded PDFs, verified active actor,
+  owned course, checksum-based duplicate handling, private lesson defaults,
+  existing durable ingestion jobs, optional readiness polling and private
+  per-file manifests. The host `pdf_research.py` CLI selects only PDFs for
+  Docker transfer and can sequence import → readiness → evaluation → reporting.
+- The evaluation runner binds ready lessons by PDF checksum from that manifest,
+  rejects empty chunk indexes before initializing generation, supports 1–5
+  isolated repetitions per question and records source/config snapshots.
+- Reporting now uses optional Matplotlib on the host, not the web/worker runtime.
+  It exports CSV/LaTeX summaries, PNG/SVG/PDF figures, a multipage research PDF,
+  HTML/Markdown and provenance. Missing scores/latencies stay distinct from zero;
+  repeated answers are not treated as independent questions for inferential CIs.
+  Live cloud import and generation remain unexecuted; the user's earlier manual
+  execution preference remains in effect.
+- Verification after the follow-up: Docker isolated SQLite suite passed 282
+  tests, with the optional Matplotlib export test skipped there. All six report
+  tests, including actual Matplotlib PNG/SVG/PDF/LaTeX export, passed in the
+  separate host research environment. Rendered Vietnamese chart labels were
+  visually inspected on explicitly marked synthetic software-test data.
+
+- Read-only inspection of the configured cloud database found one indexed PDF
+  lesson (ID 2); its title mentions TCP but its actual PDF is about DHCP.
+- The configured R2 lecture-upload directory contained five PDF objects. Four
+  lecture PDFs (DHCP, RAG, PHP environment setup, PHP programming) were downloaded
+  to a Git-ignored local evaluation folder. The internship-report guide was
+  excluded. A 24-case draft reference set has five answerable questions and one
+  unsupported question per lecture, PDF checksums, page references and rubrics.
+  Teacher validation of reference answers remains pending.
+- `backend/scripts/evaluate_pdf_qa.py` prepares optional private draft lessons
+  and calls existing authorized extraction/indexing/answer services. Its manual
+  CLI requires provider-cost confirmation. `report_pdf_qa.py` renders measured
+  timings and Matplotlib research exports; semantic accuracy remains pending until
+  all response-level human scores are supplied. Software checks used only synthetic data
+  under `/tmp`, not research evidence.
+- The user explicitly chose preparation and manual execution. No new cloud
+  lessons were created and no live generation evaluation ran in this session.
+  The full runner, latency/accuracy values, and independent human review remain
+  unverified. See `docs/RAG_PDF_QA_24_GUIDE.md` for execution and limitations.
+
 ## Implemented
 
 - Django 5 and Django REST Framework backend with PostgreSQL configuration.

@@ -71,6 +71,7 @@ export default function TeacherCourseDetail() {
         <Link to="/teacher/courses" className="inline-flex min-h-11 items-center rounded-lg text-sm font-semibold text-white/65 hover:text-orange-300"><ArrowLeft className="mr-2 h-4 w-4" />Quản lý khóa học</Link>
 
         <header className="mt-3 rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-md sm:p-7">
+          {course.thumbnail && <img src={course.thumbnail} alt="" className="mb-5 aspect-video w-full max-w-lg rounded-xl bg-slate-100 object-cover" />}
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">

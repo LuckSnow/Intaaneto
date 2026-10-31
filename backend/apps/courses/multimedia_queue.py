@@ -13,6 +13,7 @@ from .multimedia_generation import (
     split_narration_sentences,
     tutor_asset_checksum,
 )
+from .tutor_avatars import preset_path
 
 
 class MultimediaQueueError(Exception):
@@ -35,6 +36,8 @@ def _create_job(*, actor, lesson, script, asset_checksum, task_id):
             approved_script=script,
             script_checksum=sha256(script.encode("utf-8")).hexdigest(),
             tutor_asset_checksum=asset_checksum,
+            tutor_preset=lesson.tutor_preset,
+            tutor_avatar=lesson.tutor_avatar,
             voice=settings.PIPER_VOICE,
         )
 
@@ -94,7 +97,12 @@ def queue_lesson_multimedia(*, actor, lesson):
     except MultimediaGenerationError as exc:
         raise MultimediaQueueError(str(exc)) from exc
     try:
-        asset_checksum = tutor_asset_checksum()
+        if lesson.tutor_avatar_id:
+            if lesson.tutor_avatar.owner_id not in {actor.pk, lesson.course.teacher_id}:
+                raise MultimediaQueueError('Avatar không thuộc giáo viên của bài học.')
+            asset_checksum = lesson.tutor_avatar.checksum
+        else:
+            asset_checksum = tutor_asset_checksum(preset_path(lesson.tutor_preset))
     except MultimediaGenerationError as exc:
         raise MultimediaQueueError(str(exc)) from exc
 

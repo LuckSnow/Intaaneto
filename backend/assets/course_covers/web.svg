@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="Intaaneto WEB">
+<rect width="1200" height="675" fill="#fff7ed"/>
+<rect x="64" y="66" width="44" height="6" rx="3" fill="#c2410c"/>
+<text x="64" y="123" font-family="sans-serif" font-size="24" letter-spacing="5" fill="#c2410c">INTAANETO</text>
+<text x="58" y="326" font-family="sans-serif" font-size="82" font-weight="700" letter-spacing="-3" fill="#0f172a">WEB</text>
+<text x="64" y="385" font-family="sans-serif" font-size="26" fill="#475569">Build for the browser</text>
+<g fill="none" stroke="#c2410c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><rect x="670" y="125" width="390" height="310" rx="18"/><path d="M670 185h390M735 155h1m24 0h1m24 0h1M792 260l-45 45 45 45m145-90 45 45-45 45m-55-105-32 130"/></g>
+<path d="M64 540h1072" stroke="#c2410c" stroke-opacity=".2" stroke-width="2"/>
+<text x="64" y="595" font-family="sans-serif" font-size="20" letter-spacing="3" fill="#c2410c">DEMO LEARNING SERIES</text>
+</svg>

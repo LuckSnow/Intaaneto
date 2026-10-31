@@ -2,8 +2,24 @@ from rest_framework import serializers
 from django.conf import settings
 from django.db.models import Q
 from django.utils.text import slugify
+from uuid import uuid4
 
 from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
+
+
+class TutorAvatarSelectionSerializer(serializers.Serializer):
+    preset_id = serializers.ChoiceField(choices=['ai_tutor', 'avt1', 'avt2', 'avt3', 'avt4', 'avt5'], required=False)
+    upload_id = serializers.IntegerField(min_value=1, required=False)
+
+    def validate(self, attrs):
+        if ('preset_id' in attrs) == ('upload_id' in attrs):
+            raise serializers.ValidationError('Chọn đúng một avatar mẫu hoặc ảnh đã tải lên.')
+        return attrs
+
+
+class TutorAvatarUploadSerializer(serializers.Serializer):
+    image = serializers.FileField()
+    label = serializers.CharField(max_length=80, default='Avatar tải lên')
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -142,11 +158,14 @@ class CourseSerializer(serializers.ModelSerializer):
     teacher_name = serializers.CharField(source='teacher.full_name', read_only=True)
     lessons_count = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
+    thumbnail_upload = serializers.ImageField(source='thumbnail', write_only=True, required=False)
+    remove_thumbnail = serializers.BooleanField(write_only=True, required=False, default=False)
     
     class Meta:
         model = Course
         fields = [
-            'id', 'title', 'slug', 'description', 'thumbnail', 'difficulty',
+            'id', 'title', 'slug', 'description', 'thumbnail', 'thumbnail_upload',
+            'remove_thumbnail', 'difficulty',
             'duration_hours', 'objectives', 'prerequisites', 'teacher',
             'teacher_name', 'is_published', 'is_featured', 'order',
             'total_students', 'average_rating', 'lessons_count', 'created_at',
@@ -156,6 +175,18 @@ class CourseSerializer(serializers.ModelSerializer):
             'slug', 'teacher', 'is_featured', 'total_students',
             'average_rating', 'created_at', 'updated_at',
         ]
+
+    def validate_thumbnail_upload(self, value):
+        image = value.image
+        extensions = {'JPEG': 'jpg', 'PNG': 'png', 'WEBP': 'webp'}
+        if image.format not in extensions or getattr(image, 'n_frames', 1) != 1:
+            raise serializers.ValidationError('Chỉ hỗ trợ ảnh tĩnh JPG, PNG hoặc WebP.')
+        if value.size > 2 * 1024 * 1024:
+            raise serializers.ValidationError('Ảnh bìa không được vượt quá 2 MB.')
+        if max(image.size) > 4096:
+            raise serializers.ValidationError('Mỗi chiều ảnh không được vượt quá 4096 pixel.')
+        value.name = f'{uuid4().hex}.{extensions[image.format]}'
+        return value
 
     def validate_title(self, value):
         if self.instance is None:
@@ -171,6 +202,11 @@ class CourseSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        remove_thumbnail = attrs.pop('remove_thumbnail', False)
+        if remove_thumbnail and attrs.get('thumbnail'):
+            raise serializers.ValidationError({'thumbnail_upload': 'Chọn tải ảnh mới hoặc gỡ ảnh hiện tại.'})
+        if remove_thumbnail:
+            attrs['thumbnail'] = None
         will_publish = attrs.get(
             'is_published',
             getattr(self.instance, 'is_published', False),
