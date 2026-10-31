@@ -4,6 +4,7 @@ import { CheckCircle2, ChartNoAxesCombined, FileText, Paperclip, Upload, XCircle
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '../store/authStore'
 import { courseService } from '../services/courseService'
+import TutorAvatarPicker from '../components/TutorAvatarPicker'
 import {
   getVideoScriptMetrics,
   VIDEO_SCRIPT_MAX_CHARS,
@@ -338,6 +339,24 @@ export default function TeacherUpload() {
       () => courseService.generateLessonMultimedia(authoring.lesson_id),
       'Video slide đã được đưa vào hàng đợi local',
     )
+  }
+
+  const saveTutorAvatar = async (action) => {
+    const lessonId = authoring.lesson_id
+    setAuthoringBusy('avatar')
+    try {
+      const data = await action(lessonId)
+      setAuthoring((current) => current?.lesson_id === lessonId ? data : current)
+      toast.success('Đã lưu avatar cho bài học')
+      return true
+    } catch (error) {
+      const body = error.response?.data
+      const message = body && Object.values(body).flat().find((value) => typeof value === 'string')
+      toast.error(message || 'Không thể lưu avatar. Vui lòng thử lại.')
+      return false
+    } finally {
+      setAuthoringBusy('')
+    }
   }
 
   const handleGenerateVideoScript = async () => {
@@ -720,14 +739,16 @@ export default function TeacherUpload() {
                       Piper đọc tiếng Việt, hệ thống dựng slide và đóng phụ đề bằng FFmpeg. Tất cả chạy local, không dùng API hoặc GPU.
                     </p>
                   </div>
-                  <div className="shrink-0 rounded-xl border border-orange-300/30 bg-white p-2">
-                    <img
-                      src="/images/AI_tutor.webp"
-                      alt="Avatar AI Tutor sẽ xuất hiện trong video"
-                      className="h-20 w-20 object-contain"
-                    />
-                  </div>
                 </div>
+
+                <TutorAvatarPicker
+                  key={authoring.lesson_id}
+                  library={authoring.tutor_avatars}
+                  busy={authoringBusy === 'avatar'}
+                  disabled={Boolean(authoringBusy) || ['queued', 'running'].includes(authoring.multimedia?.status)}
+                  onSelect={(selection) => saveTutorAvatar((lessonId) => courseService.selectTutorAvatar(lessonId, selection))}
+                  onUpload={(image, label) => saveTutorAvatar((lessonId) => courseService.uploadTutorAvatar(lessonId, image, label))}
+                />
 
                 <Button
                   onClick={handleGenerateVideo}
@@ -736,6 +757,7 @@ export default function TeacherUpload() {
                     || !authoring.video_script?.is_current
                     || videoScriptHasUnsavedChanges
                     || !videoScriptMetrics.isReady
+                    || !authoring.tutor_avatars
                     || Boolean(authoringBusy)
                     || ['queued', 'running'].includes(authoring.multimedia?.status)
                   }
@@ -756,6 +778,7 @@ export default function TeacherUpload() {
                     <p className="font-medium">
                       {MULTIMEDIA_STAGE_LABELS[authoring.multimedia.stage] || authoring.multimedia.stage}
                     </p>
+                    {authoring.multimedia.tutor_avatar?.label && <p className="mt-1 text-white/70">Avatar của video: {authoring.multimedia.tutor_avatar.label}</p>}
                     {['queued', 'running'].includes(authoring.multimedia.status) && (
                       <p className="mt-1 text-white/60">Bạn có thể rời trang; trạng thái thật được lưu trong hệ thống.</p>
                     )}

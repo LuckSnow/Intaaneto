@@ -125,6 +125,21 @@ export const courseService = {
     return response.data
   },
 
+  selectTutorAvatar: async (lessonId, selection) => {
+    const response = await api.put(`/courses/lessons/${lessonId}/tutor-avatar/`, selection)
+    return response.data
+  },
+
+  uploadTutorAvatar: async (lessonId, image, label) => {
+    const form = new FormData()
+    form.append('image', image)
+    form.append('label', label || 'Avatar tải lên')
+    const response = await api.post(`/courses/lessons/${lessonId}/tutor-avatar/`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+
   // Reprocess failed lesson
   reprocessLesson: async (id) => {
     const response = await api.post(`/courses/lessons/${id}/reprocess/`)

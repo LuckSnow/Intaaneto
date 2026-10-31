@@ -67,6 +67,29 @@ class Course(models.Model):
         super().save(*args, **kwargs)
 
 
+TUTOR_PRESET_CHOICES = [
+    ('ai_tutor', 'AI Tutor'),
+    ('avt1', 'Avatar 1'),
+    ('avt2', 'Avatar 2'),
+    ('avt3', 'Avatar 3'),
+    ('avt4', 'Avatar 4'),
+    ('avt5', 'Avatar 5'),
+]
+
+
+class TutorAvatar(models.Model):
+    """Immutable, validated image in a teacher's private avatar library."""
+
+    owner = models.ForeignKey(User, on_delete=models.PROTECT, related_name='tutor_avatars')
+    label = models.CharField(max_length=80, default='Avatar tải lên')
+    image = models.FileField(upload_to='courses/tutor_avatars/')
+    checksum = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+
 class Lesson(models.Model):
     """Lesson Model"""
     
@@ -87,6 +110,8 @@ class Lesson(models.Model):
     ]
     
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lessons')
+    tutor_preset = models.CharField(max_length=20, choices=TUTOR_PRESET_CHOICES, default='ai_tutor')
+    tutor_avatar = models.ForeignKey(TutorAvatar, on_delete=models.PROTECT, null=True, blank=True, related_name='lessons')
     
     title = models.CharField(_('title'), max_length=255)
     slug = models.SlugField(_('slug'), max_length=255)
@@ -497,6 +522,8 @@ class LessonMultimediaJob(models.Model):
     approved_script = models.TextField(max_length=4800)
     script_checksum = models.CharField(max_length=64)
     tutor_asset_checksum = models.CharField(max_length=64)
+    tutor_preset = models.CharField(max_length=20, choices=TUTOR_PRESET_CHOICES, default='ai_tutor')
+    tutor_avatar = models.ForeignKey(TutorAvatar, on_delete=models.PROTECT, null=True, blank=True, related_name='multimedia_jobs')
     voice = models.CharField(max_length=100)
     task_id = models.UUIDField(unique=True)
     output_file = models.FileField(

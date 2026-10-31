@@ -7,6 +7,21 @@ from uuid import uuid4
 from .models import Course, Lesson, Enrollment, LessonProgress, Review, LessonComment
 
 
+class TutorAvatarSelectionSerializer(serializers.Serializer):
+    preset_id = serializers.ChoiceField(choices=['ai_tutor', 'avt1', 'avt2', 'avt3', 'avt4', 'avt5'], required=False)
+    upload_id = serializers.IntegerField(min_value=1, required=False)
+
+    def validate(self, attrs):
+        if ('preset_id' in attrs) == ('upload_id' in attrs):
+            raise serializers.ValidationError('Chọn đúng một avatar mẫu hoặc ảnh đã tải lên.')
+        return attrs
+
+
+class TutorAvatarUploadSerializer(serializers.Serializer):
+    image = serializers.FileField()
+    label = serializers.CharField(max_length=80, default='Avatar tải lên')
+
+
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
